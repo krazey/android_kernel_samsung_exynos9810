@@ -59,7 +59,11 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #define TIF_PATCH_PENDING	4	/* pending live patching update */
 #define TIF_ISOLATE_BP		5	/* Run process with isolated BP */
 #define TIF_ISOLATE_BP_GUEST	6	/* Run KVM guests with isolated BP */
-
+#define TIF_GUARDED_STORAGE	7	/* load guarded storage control block */
+#define TIF_SYSCALL_TRACE	8	/* syscall trace active */
+#define TIF_SYSCALL_AUDIT	9	/* syscall auditing active */
+#define TIF_SECCOMP		10	/* secure computing */
+#define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
 #define TIF_31BIT		16	/* 32bit process */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	18	/* restore signal mask in do_signal() */
@@ -83,6 +87,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
 #define _TIF_31BIT		_BITUL(TIF_31BIT)
 #define _TIF_SINGLE_STEP	_BITUL(TIF_SINGLE_STEP)
+#define _TIF_GUARDED_STORAGE	_BITUL(TIF_GUARDED_STORAGE)
 
 #define _TIF_SYSCALL_TRACE	_BITUL(TIF_SYSCALL_TRACE)
 #define _TIF_SYSCALL_AUDIT	_BITUL(TIF_SYSCALL_AUDIT)
