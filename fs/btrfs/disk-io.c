@@ -539,6 +539,130 @@ static int check_tree_block_fsid(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
+#define CORRUPT(reason, eb, root, slot)				\
+	btrfs_crit(root->fs_info, "corrupt %s, %s: block=%llu,"	\
+		   " root=%llu, slot=%d",			\
+		   btrfs_header_level(eb) == 0 ? "leaf" : "node",\
+		   reason, btrfs_header_bytenr(eb), root->objectid, slot)
+
+static noinline int check_leaf(struct btrfs_root *root,
+			       struct extent_buffer *leaf)
+{
+	struct btrfs_key key;
+	struct btrfs_key leaf_key;
+	u32 nritems = btrfs_header_nritems(leaf);
+	int slot;
+
+	if (nritems == 0) {
+		struct btrfs_root *check_root;
+
+		key.objectid = btrfs_header_owner(leaf);
+		key.type = BTRFS_ROOT_ITEM_KEY;
+		key.offset = (u64)-1;
+
+		check_root = btrfs_get_fs_root(root->fs_info, &key, false);
+		/*
+		 * The only reason we also check NULL here is that during
+		 * open_ctree() some roots has not yet been set up.
+		 */
+		if (!IS_ERR_OR_NULL(check_root)) {
+			/* if leaf is the root, then it's fine */
+			if (leaf->start !=
+			    btrfs_root_bytenr(&check_root->root_item)) {
+				CORRUPT("non-root leaf's nritems is 0",
+					leaf, root, 0);
+				return -EIO;
+			}
+		}
+		return 0;
+	}
+
+	/* Check the 0 item */
+	if (btrfs_item_offset_nr(leaf, 0) + btrfs_item_size_nr(leaf, 0) !=
+	    BTRFS_LEAF_DATA_SIZE(root->fs_info)) {
+		CORRUPT("invalid item offset size pair", leaf, root, 0);
+		return -EIO;
+	}
+
+	/*
+	 * Check to make sure each items keys are in the correct order and their
+	 * offsets make sense.  We only have to loop through nritems-1 because
+	 * we check the current slot against the next slot, which verifies the
+	 * next slot's offset+size makes sense and that the current's slot
+	 * offset is correct.
+	 */
+	for (slot = 0; slot < nritems - 1; slot++) {
+		btrfs_item_key_to_cpu(leaf, &leaf_key, slot);
+		btrfs_item_key_to_cpu(leaf, &key, slot + 1);
+
+		/* Make sure the keys are in the right order */
+		if (btrfs_comp_cpu_keys(&leaf_key, &key) >= 0) {
+			CORRUPT("bad key order", leaf, root, slot);
+			return -EIO;
+		}
+
+		/*
+		 * Make sure the offset and ends are right, remember that the
+		 * item data starts at the end of the leaf and grows towards the
+		 * front.
+		 */
+		if (btrfs_item_offset_nr(leaf, slot) !=
+			btrfs_item_end_nr(leaf, slot + 1)) {
+			CORRUPT("slot offset bad", leaf, root, slot);
+			return -EIO;
+		}
+
+		/*
+		 * Check to make sure that we don't point outside of the leaf,
+		 * just in case all the items are consistent to each other, but
+		 * all point outside of the leaf.
+		 */
+		if (btrfs_item_end_nr(leaf, slot) >
+		    BTRFS_LEAF_DATA_SIZE(root->fs_info)) {
+			CORRUPT("slot end outside of leaf", leaf, root, slot);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
+static int check_node(struct btrfs_root *root, struct extent_buffer *node)
+{
+	unsigned long nr = btrfs_header_nritems(node);
+	struct btrfs_key key, next_key;
+	int slot;
+	u64 bytenr;
+	int ret = 0;
+
+	if (nr == 0 || nr > BTRFS_NODEPTRS_PER_BLOCK(root->fs_info)) {
+		btrfs_crit(root->fs_info,
+			   "corrupt node: block %llu root %llu nritems %lu",
+			   node->start, root->objectid, nr);
+		return -EIO;
+	}
+
+	for (slot = 0; slot < nr - 1; slot++) {
+		bytenr = btrfs_node_blockptr(node, slot);
+		btrfs_node_key_to_cpu(node, &key, slot);
+		btrfs_node_key_to_cpu(node, &next_key, slot + 1);
+
+		if (!bytenr) {
+			CORRUPT("invalid item slot", node, root, slot);
+			ret = -EIO;
+			goto out;
+		}
+
+		if (btrfs_comp_cpu_keys(&key, &next_key) >= 0) {
+			CORRUPT("bad key order", node, root, slot);
+			ret = -EIO;
+			goto out;
+		}
+	}
+out:
+	return ret;
+}
+
 static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 				      u64 phy_offset, struct page *page,
 				      u64 start, u64 end, int mirror)
@@ -1066,8 +1190,7 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 bytenr)
 {
 	if (btrfs_is_testing(root->fs_info))
-		return alloc_test_extent_buffer(root->fs_info, bytenr,
-				root->nodesize);
+		return alloc_test_extent_buffer(root->fs_info, bytenr);
 	return alloc_extent_buffer(root->fs_info, bytenr);
 }
 
@@ -1148,16 +1271,12 @@ btrfs_free_subvolume_writers(struct btrfs_subvolume_writers *writers)
 	kfree(writers);
 }
 
-static void __setup_root(u32 nodesize, u32 sectorsize, u32 stripesize,
-			 struct btrfs_root *root, struct btrfs_fs_info *fs_info,
+static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 			 u64 objectid)
 {
 	bool dummy = test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 	root->node = NULL;
 	root->commit_root = NULL;
-	root->sectorsize = sectorsize;
-	root->nodesize = nodesize;
-	root->stripesize = stripesize;
 	root->state = 0;
 	root->orphan_cleanup_state = 0;
 
@@ -1235,8 +1354,7 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 /* Should only be used by the testing infrastructure */
-struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info,
-					  u32 sectorsize, u32 nodesize)
+struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
 
@@ -1246,9 +1364,9 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info,
 	root = btrfs_alloc_root(fs_info, GFP_KERNEL);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
+
 	/* We don't use the stripesize in selftest, set it as sectorsize */
-	__setup_root(nodesize, sectorsize, sectorsize, root, fs_info,
-			BTRFS_ROOT_TREE_OBJECTID);
+	__setup_root(root, fs_info, BTRFS_ROOT_TREE_OBJECTID);
 	root->alloc_bytenr = 0;
 
 	return root;
@@ -1270,8 +1388,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	__setup_root(tree_root->nodesize, tree_root->sectorsize,
-		tree_root->stripesize, root, fs_info, objectid);
+	__setup_root(root, fs_info, objectid);
 	root->root_key.objectid = objectid;
 	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root->root_key.offset = 0;
@@ -1336,16 +1453,13 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
-	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct extent_buffer *leaf;
 
 	root = btrfs_alloc_root(fs_info, GFP_NOFS);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	__setup_root(tree_root->nodesize, tree_root->sectorsize,
-		     tree_root->stripesize, root, fs_info,
-		     BTRFS_TREE_LOG_OBJECTID);
+	__setup_root(root, fs_info, BTRFS_TREE_LOG_OBJECTID);
 
 	root->root_key.objectid = BTRFS_TREE_LOG_OBJECTID;
 	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
@@ -1410,7 +1524,8 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_inode_generation(inode_item, 1);
 	btrfs_set_stack_inode_size(inode_item, 3);
 	btrfs_set_stack_inode_nlink(inode_item, 1);
-	btrfs_set_stack_inode_nbytes(inode_item, root->nodesize);
+	btrfs_set_stack_inode_nbytes(inode_item,
+				     root->fs_info->nodesize);
 	btrfs_set_stack_inode_mode(inode_item, S_IFDIR | 0755);
 
 	btrfs_set_root_node(&log_root->root_item, log_root->node);
@@ -1442,8 +1557,7 @@ static struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 		goto alloc_fail;
 	}
 
-	__setup_root(tree_root->nodesize, tree_root->sectorsize,
-		tree_root->stripesize, root, fs_info, key->objectid);
+	__setup_root(root, fs_info, key->objectid);
 
 	ret = btrfs_find_root(tree_root, key, path,
 			      &root->root_item, &root->root_key);
@@ -2334,9 +2448,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	if (!log_tree_root)
 		return -ENOMEM;
 
-	__setup_root(tree_root->nodesize, tree_root->sectorsize,
-			tree_root->stripesize, log_tree_root, fs_info,
-			BTRFS_TREE_LOG_OBJECTID);
+	__setup_root(log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
 
 	log_tree_root->node = read_tree_block(tree_root, bytenr,
 			fs_info->generation + 1);
@@ -2626,14 +2738,18 @@ int open_ctree(struct super_block *sb,
 
 	INIT_LIST_HEAD(&fs_info->pinned_chunks);
 
+	/* Usable values until the real ones are cached from the superblock */
+	fs_info->nodesize = 4096;
+	fs_info->sectorsize = 4096;
+	fs_info->stripesize = 4096;
+
 	ret = btrfs_alloc_stripe_hash_table(fs_info);
 	if (ret) {
 		err = ret;
 		goto fail_alloc;
 	}
 
-	__setup_root(4096, 4096, 4096, tree_root,
-		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
+	__setup_root(tree_root, fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
 	invalidate_bdev(fs_devices->latest_bdev);
 
@@ -2740,6 +2856,11 @@ int open_ctree(struct super_block *sb,
 	fs_info->dirty_metadata_batch = nodesize * (1 + ilog2(nr_cpu_ids));
 	fs_info->delalloc_batch = sectorsize * 512 * (1 + ilog2(nr_cpu_ids));
 
+	/* Cache block sizes */
+	fs_info->nodesize = nodesize;
+	fs_info->sectorsize = sectorsize;
+	fs_info->stripesize = stripesize;
+
 	/*
 	 * mixed block groups end up with duplicate but slightly offset
 	 * extent buffers for the same range.  It leads to corruptions
@@ -2780,10 +2901,6 @@ int open_ctree(struct super_block *sb,
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
 				    SZ_4M / PAGE_SIZE);
 
-	tree_root->nodesize = nodesize;
-	tree_root->sectorsize = sectorsize;
-	tree_root->stripesize = stripesize;
-
 	sb->s_blocksize = sectorsize;
 	sb->s_blocksize_bits = blksize_bits(sectorsize);
 
@@ -2797,8 +2914,7 @@ int open_ctree(struct super_block *sb,
 
 	generation = btrfs_super_chunk_root_generation(disk_super);
 
-	__setup_root(nodesize, sectorsize, stripesize, chunk_root,
-		     fs_info, BTRFS_CHUNK_TREE_OBJECTID);
+	__setup_root(chunk_root, fs_info, BTRFS_CHUNK_TREE_OBJECTID);
 
 	chunk_root->node = read_tree_block(chunk_root,
 					   btrfs_super_chunk_root(disk_super),
@@ -4357,7 +4473,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 		clear_extent_bits(dirty_pages, start, end, mark);
 		while (start <= end) {
 			eb = find_extent_buffer(root->fs_info, start);
-			start += root->nodesize;
+			start += root->fs_info->nodesize;
 			if (!eb)
 				continue;
 			wait_on_extent_buffer_writeback(eb);
