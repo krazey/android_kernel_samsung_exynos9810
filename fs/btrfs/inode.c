@@ -4231,7 +4231,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(path);
 
-	ret = btrfs_del_root_ref(trans, root->fs_info->tree_root,
+	ret = btrfs_del_root_ref(trans, root->fs_info,
 				 objectid, root->root_key.objectid,
 				 dir_ino, &index, name, name_len);
 	if (ret < 0) {
@@ -6376,7 +6376,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 	}
 
 	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
-		ret = btrfs_add_root_ref(trans, root->fs_info->tree_root,
+		ret = btrfs_add_root_ref(trans, root->fs_info,
 					 key.objectid, root->root_key.objectid,
 					 parent_ino, index, name, name_len);
 	} else if (add_backref) {
@@ -6412,7 +6412,7 @@ fail_dir_item:
 	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		u64 local_index;
 		int err;
-		err = btrfs_del_root_ref(trans, root->fs_info->tree_root,
+		err = btrfs_del_root_ref(trans, root->fs_info,
 				 key.objectid, root->root_key.objectid,
 				 parent_ino, &local_index, name, name_len);
 

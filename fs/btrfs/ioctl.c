@@ -626,7 +626,7 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 	}
 
-	ret = btrfs_add_root_ref(trans, root->fs_info->tree_root,
+	ret = btrfs_add_root_ref(trans, root->fs_info,
 				 objectid, root->root_key.objectid,
 				 btrfs_ino(dir), index, name, namelen);
 	if (ret) {
@@ -634,9 +634,8 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 	}
 
-	ret = btrfs_uuid_tree_add(trans, root->fs_info->uuid_root,
-				  root_item->uuid, BTRFS_UUID_KEY_SUBVOL,
-				  objectid);
+	ret = btrfs_uuid_tree_add(trans, root->fs_info, root_item->uuid,
+				  BTRFS_UUID_KEY_SUBVOL, objectid);
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
 
@@ -2569,8 +2568,8 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		}
 	}
 
-	ret = btrfs_uuid_tree_rem(trans, root->fs_info->uuid_root,
-				  dest->root_item.uuid, BTRFS_UUID_KEY_SUBVOL,
+	ret = btrfs_uuid_tree_rem(trans, root->fs_info, dest->root_item.uuid,
+				  BTRFS_UUID_KEY_SUBVOL,
 				  dest->root_key.objectid);
 	if (ret && ret != -ENOENT) {
 		btrfs_abort_transaction(trans, ret);
@@ -2578,7 +2577,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		goto out_end_trans;
 	}
 	if (!btrfs_is_empty_uuid(dest->root_item.received_uuid)) {
-		ret = btrfs_uuid_tree_rem(trans, root->fs_info->uuid_root,
+		ret = btrfs_uuid_tree_rem(trans, root->fs_info,
 					  dest->root_item.received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  dest->root_key.objectid);
@@ -5215,7 +5214,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 				       BTRFS_UUID_SIZE);
 	if (received_uuid_changed &&
 	    !btrfs_is_empty_uuid(root_item->received_uuid))
-		btrfs_uuid_tree_rem(trans, root->fs_info->uuid_root,
+		btrfs_uuid_tree_rem(trans, root->fs_info,
 				    root_item->received_uuid,
 				    BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 				    root->root_key.objectid);
@@ -5234,8 +5233,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 		goto out;
 	}
 	if (received_uuid_changed && !btrfs_is_empty_uuid(sa->uuid)) {
-		ret = btrfs_uuid_tree_add(trans, root->fs_info->uuid_root,
-					  sa->uuid,
+		ret = btrfs_uuid_tree_add(trans, root->fs_info, sa->uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  root->root_key.objectid);
 		if (ret < 0 && ret != -EEXIST) {
