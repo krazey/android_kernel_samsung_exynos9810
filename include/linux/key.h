@@ -132,6 +132,12 @@ typedef int (*key_restrict_link_func_t)(struct key *dest_keyring,
 					const union key_payload *payload,
 					struct key *restriction_key);
 
+struct key_restriction {
+	key_restrict_link_func_t check;
+	struct key *key;
+	struct key_type *keytype;
+};
+
 enum key_state {
 	KEY_IS_UNINSTANTIATED,
 	KEY_IS_POSITIVE,		/* Positively instantiated */
