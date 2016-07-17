@@ -1817,11 +1817,11 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 
 	/* Check if network coding is enabled */
 	if (!atomic_read(&bat_priv->network_coding))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	/* Make sure we can access (and remove) header */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	coded_packet = (struct batadv_coded_packet *)skb->data;
 	ethhdr = eth_hdr(skb);
@@ -1829,7 +1829,7 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 	/* Verify frame is destined for us */
 	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest) &&
 	    !batadv_is_my_mac(bat_priv, coded_packet->second_dest))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	/* Update stat counter */
 	if (batadv_is_my_mac(bat_priv, coded_packet->second_dest))
@@ -1839,7 +1839,7 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 						   coded_packet);
 	if (!nc_packet) {
 		batadv_inc_counter(bat_priv, BATADV_CNT_NC_DECODE_FAILED);
-		return NET_RX_DROP;
+		goto free_skb;
 	}
 
 	/* Make skb's linear, because decoding accesses the entire buffer */
@@ -1865,6 +1865,9 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 
 free_nc_packet:
 	batadv_nc_packet_free(nc_packet, true);
+free_skb:
+	kfree_skb(skb);
+
 	return NET_RX_DROP;
 }
 
