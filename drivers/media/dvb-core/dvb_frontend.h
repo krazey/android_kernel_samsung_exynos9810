@@ -654,6 +654,7 @@ struct dtv_frontend_properties {
  */
 
 struct dvb_frontend {
+	struct kref refcount;
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
 	void *demodulator_priv;
