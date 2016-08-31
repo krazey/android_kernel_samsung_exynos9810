@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/verification.h>
 #include <keys/asymmetric-type.h>
 #include <keys/system_keyring.h>
@@ -69,6 +70,24 @@ int restrict_link_by_builtin_and_secondary_trusted(
 	return restrict_link_by_signature(dest_keyring, type, payload,
 					  secondary_trusted_keys);
 }
+
+/**
+ * Allocate a struct key_restriction for the "builtin and secondary trust"
+ * keyring. Only for use in system_trusted_keyring_init().
+ */
+static __init struct key_restriction *get_builtin_and_secondary_restriction(void)
+{
+	struct key_restriction *restriction;
+
+	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+
+	if (!restriction)
+		panic("Can't allocate secondary trusted keyring restriction\n");
+
+	restriction->check = restrict_link_by_builtin_and_secondary_trusted;
+
+	return restriction;
+}
 #endif
 
 /*
@@ -96,7 +115,7 @@ static __init int system_trusted_keyring_init(void)
 			       KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH |
 			       KEY_USR_WRITE),
 			      KEY_ALLOC_NOT_IN_QUOTA,
-			      restrict_link_by_builtin_and_secondary_trusted,
+			      get_builtin_and_secondary_restriction(),
 			      NULL);
 	if (IS_ERR(secondary_trusted_keys))
 		panic("Can't allocate secondary trusted keyring\n");
