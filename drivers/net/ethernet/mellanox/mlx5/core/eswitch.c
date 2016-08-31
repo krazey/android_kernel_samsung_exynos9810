@@ -56,7 +56,7 @@ struct esw_uc_addr {
 /* E-Switch MC FDB table hash node */
 struct esw_mc_addr { /* SRIOV only */
 	struct l2addr_node     node;
-	struct mlx5_flow_rule *uplink_rule; /* Forward to uplink rule */
+	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
 	u32                    refcnt;
 };
 
@@ -65,7 +65,7 @@ struct vport_addr {
 	struct l2addr_node     node;
 	u8                     action;
 	u32                    vport;
-	struct mlx5_flow_rule *flow_rule; /* SRIOV only */
+	struct mlx5_flow_handle *flow_rule; /* SRIOV only */
 	/* A flag indicating that mac was added due to mc promiscuous vport */
 	bool mc_promisc;
 };
@@ -235,13 +235,13 @@ static void del_l2_table_entry(struct mlx5_core_dev *dev, u32 index)
 }
 
 /* E-Switch FDB */
-static struct mlx5_flow_rule *
+static struct mlx5_flow_handle *
 __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 			 u8 mac_c[ETH_ALEN], u8 mac_v[ETH_ALEN])
 {
 	int match_header = (is_zero_ether_addr(mac_c) ? 0 :
 			    MLX5_MATCH_OUTER_HEADERS);
-	struct mlx5_flow_rule *flow_rule = NULL;
+	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_destination dest;
 	struct mlx5_flow_spec *spec;
 	void *mv_misc = NULL;
@@ -284,9 +284,9 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 		  dmac_v, dmac_c, vport);
 	spec->match_criteria_enable = match_header;
 	flow_rule =
-		mlx5_add_flow_rule(esw->fdb_table.fdb, spec,
-				   MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-				   0, &dest);
+		mlx5_add_flow_rules(esw->fdb_table.fdb, spec,
+				    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+				    0, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev,
 			 "FDB: Failed to add flow rule: dmac_v(%pM) dmac_c(%pM) -> vport(%d), err(%ld)\n",
@@ -298,7 +298,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 	return flow_rule;
 }
 
-static struct mlx5_flow_rule *
+static struct mlx5_flow_handle *
 esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 {
 	u8 mac_c[ETH_ALEN];
@@ -307,7 +307,7 @@ esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 	return __esw_fdb_set_vport_rule(esw, vport, false, mac_c, mac);
 }
 
-static struct mlx5_flow_rule *
+static struct mlx5_flow_handle *
 esw_fdb_set_vport_allmulti_rule(struct mlx5_eswitch *esw, u32 vport)
 {
 	u8 mac_c[ETH_ALEN];
@@ -320,7 +320,7 @@ esw_fdb_set_vport_allmulti_rule(struct mlx5_eswitch *esw, u32 vport)
 	return __esw_fdb_set_vport_rule(esw, vport, false, mac_c, mac_v);
 }
 
-static struct mlx5_flow_rule *
+static struct mlx5_flow_handle *
 esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u32 vport)
 {
 	u8 mac_c[ETH_ALEN];
@@ -513,7 +513,7 @@ static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	del_l2_table_entry(esw->dev, esw_uc->table_index);
 
 	if (vaddr->flow_rule)
-		mlx5_del_flow_rule(vaddr->flow_rule);
+		mlx5_del_flow_rules(vaddr->flow_rule);
 	vaddr->flow_rule = NULL;
 
 	l2addr_hash_del(esw_uc);
@@ -560,7 +560,7 @@ static void update_allmulti_vports(struct mlx5_eswitch *esw,
 		case MLX5_ACTION_DEL:
 			if (!iter_vaddr)
 				continue;
-			mlx5_del_flow_rule(iter_vaddr->flow_rule);
+			mlx5_del_flow_rules(iter_vaddr->flow_rule);
 			l2addr_hash_del(iter_vaddr);
 			break;
 		}
@@ -630,7 +630,7 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 		  esw_mc->uplink_rule);
 
 	if (vaddr->flow_rule)
-		mlx5_del_flow_rule(vaddr->flow_rule);
+		mlx5_del_flow_rules(vaddr->flow_rule);
 	vaddr->flow_rule = NULL;
 
 	/* If the multicast mac is added as a result of mc promiscuous vport,
@@ -643,7 +643,7 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	update_allmulti_vports(esw, vaddr, esw_mc);
 
 	if (esw_mc->uplink_rule)
-		mlx5_del_flow_rule(esw_mc->uplink_rule);
+		mlx5_del_flow_rules(esw_mc->uplink_rule);
 
 	l2addr_hash_del(esw_mc);
 	return 0;
@@ -826,14 +826,14 @@ static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num,
 								UPLINK_VPORT);
 		allmulti_addr->refcnt++;
 	} else if (vport->allmulti_rule) {
-		mlx5_del_flow_rule(vport->allmulti_rule);
+		mlx5_del_flow_rules(vport->allmulti_rule);
 		vport->allmulti_rule = NULL;
 
 		if (--allmulti_addr->refcnt > 0)
 			goto promisc;
 
 		if (allmulti_addr->uplink_rule)
-			mlx5_del_flow_rule(allmulti_addr->uplink_rule);
+			mlx5_del_flow_rules(allmulti_addr->uplink_rule);
 		allmulti_addr->uplink_rule = NULL;
 	}
 
@@ -845,7 +845,7 @@ promisc:
 		vport->promisc_rule = esw_fdb_set_vport_promisc_rule(esw,
 								     vport_num);
 	} else if (vport->promisc_rule) {
-		mlx5_del_flow_rule(vport->promisc_rule);
+		mlx5_del_flow_rules(vport->promisc_rule);
 		vport->promisc_rule = NULL;
 	}
 }
@@ -1016,10 +1016,10 @@ static void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
 					   struct mlx5_vport *vport)
 {
 	if (!IS_ERR_OR_NULL(vport->egress.allowed_vlan))
-		mlx5_del_flow_rule(vport->egress.allowed_vlan);
+		mlx5_del_flow_rules(vport->egress.allowed_vlan);
 
 	if (!IS_ERR_OR_NULL(vport->egress.drop_rule))
-		mlx5_del_flow_rule(vport->egress.drop_rule);
+		mlx5_del_flow_rules(vport->egress.drop_rule);
 
 	vport->egress.allowed_vlan = NULL;
 	vport->egress.drop_rule = NULL;
@@ -1177,10 +1177,10 @@ static void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
 					    struct mlx5_vport *vport)
 {
 	if (!IS_ERR_OR_NULL(vport->ingress.drop_rule))
-		mlx5_del_flow_rule(vport->ingress.drop_rule);
+		mlx5_del_flow_rules(vport->ingress.drop_rule);
 
 	if (!IS_ERR_OR_NULL(vport->ingress.allow_rule))
-		mlx5_del_flow_rule(vport->ingress.allow_rule);
+		mlx5_del_flow_rules(vport->ingress.allow_rule);
 
 	vport->ingress.drop_rule = NULL;
 	vport->ingress.allow_rule = NULL;
@@ -1255,9 +1255,9 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	vport->ingress.allow_rule =
-		mlx5_add_flow_rule(vport->ingress.acl, spec,
-				   MLX5_FLOW_CONTEXT_ACTION_ALLOW,
-				   0, NULL);
+		mlx5_add_flow_rules(vport->ingress.acl, spec,
+				    MLX5_FLOW_CONTEXT_ACTION_ALLOW,
+				    0, NULL, 0);
 	if (IS_ERR(vport->ingress.allow_rule)) {
 		err = PTR_ERR(vport->ingress.allow_rule);
 		esw_warn(esw->dev,
@@ -1269,9 +1269,9 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 
 	memset(spec, 0, sizeof(*spec));
 	vport->ingress.drop_rule =
-		mlx5_add_flow_rule(vport->ingress.acl, spec,
-				   MLX5_FLOW_CONTEXT_ACTION_DROP,
-				   0, NULL);
+		mlx5_add_flow_rules(vport->ingress.acl, spec,
+				    MLX5_FLOW_CONTEXT_ACTION_DROP,
+				    0, NULL, 0);
 	if (IS_ERR(vport->ingress.drop_rule)) {
 		err = PTR_ERR(vport->ingress.drop_rule);
 		esw_warn(esw->dev,
@@ -1329,9 +1329,9 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	vport->egress.allowed_vlan =
-		mlx5_add_flow_rule(vport->egress.acl, spec,
-				   MLX5_FLOW_CONTEXT_ACTION_ALLOW,
-				   0, NULL);
+		mlx5_add_flow_rules(vport->egress.acl, spec,
+				    MLX5_FLOW_CONTEXT_ACTION_ALLOW,
+				    0, NULL, 0);
 	if (IS_ERR(vport->egress.allowed_vlan)) {
 		err = PTR_ERR(vport->egress.allowed_vlan);
 		esw_warn(esw->dev,
@@ -1344,9 +1344,9 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	/* Drop others rule (star rule) */
 	memset(spec, 0, sizeof(*spec));
 	vport->egress.drop_rule =
-		mlx5_add_flow_rule(vport->egress.acl, spec,
-				   MLX5_FLOW_CONTEXT_ACTION_DROP,
-				   0, NULL);
+		mlx5_add_flow_rules(vport->egress.acl, spec,
+				    MLX5_FLOW_CONTEXT_ACTION_DROP,
+				    0, NULL, 0);
 	if (IS_ERR(vport->egress.drop_rule)) {
 		err = PTR_ERR(vport->egress.drop_rule);
 		esw_warn(esw->dev,
@@ -1675,7 +1675,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 		esw_disable_vport(esw, i);
 
 	if (mc_promisc && mc_promisc->uplink_rule)
-		mlx5_del_flow_rule(mc_promisc->uplink_rule);
+		mlx5_del_flow_rules(mc_promisc->uplink_rule);
 
 	esw_destroy_tsar(esw);
 
