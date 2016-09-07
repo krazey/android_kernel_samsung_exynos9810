@@ -2907,6 +2907,12 @@ static int smiapp_probe(struct i2c_client *client,
 		goto out_power_off;
 	}
 
+	rval = smiapp_read_frame_fmt(sensor);
+	if (rval) {
+		rval = -ENODEV;
+		goto out_power_off;
+	}
+
 	/*
 	 * Handle Sensor Module orientation on the board.
 	 *
@@ -3029,8 +3035,6 @@ static int smiapp_probe(struct i2c_client *client,
 
 	sensor->pixel_array->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
-	/* final steps */
-	smiapp_read_frame_fmt(sensor);
 	rval = smiapp_init_controls(sensor);
 	if (rval < 0)
 		goto out_cleanup;
