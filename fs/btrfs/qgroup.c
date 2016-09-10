@@ -2593,9 +2593,9 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 			err = qgroup_rescan_leaf(fs_info, path, trans);
 		}
 		if (err > 0)
-			btrfs_commit_transaction(trans, fs_info->fs_root);
+			btrfs_commit_transaction(trans);
 		else
-			btrfs_end_transaction(trans, fs_info->fs_root);
+			btrfs_end_transaction(trans);
 	}
 
 out:
@@ -2641,7 +2641,7 @@ out:
 	if (!trans)
 		return;
 
-	btrfs_end_transaction(trans, fs_info->quota_root);
+	btrfs_end_transaction(trans);
 
 	if (btrfs_fs_closing(fs_info)) {
 		btrfs_info(fs_info, "qgroup scan paused");
@@ -2756,7 +2756,7 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 		return PTR_ERR(trans);
 	}
-	ret = btrfs_commit_transaction(trans, fs_info->fs_root);
+	ret = btrfs_commit_transaction(trans);
 	if (ret) {
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 		return ret;

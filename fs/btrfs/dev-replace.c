@@ -335,7 +335,7 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info, char *tgtdev_name,
 	 */
 	trans = btrfs_attach_transaction(root);
 	if (!IS_ERR(trans)) {
-		ret = btrfs_commit_transaction(trans, root);
+		ret = btrfs_commit_transaction(trans);
 		if (ret)
 			return ret;
 	} else if (PTR_ERR(trans) != -ENOENT) {
@@ -402,7 +402,7 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info, char *tgtdev_name,
 		goto leave;
 	}
 
-	ret = btrfs_commit_transaction(trans, root);
+	ret = btrfs_commit_transaction(trans);
 	WARN_ON(ret);
 
 	/* the disk copy procedure reuses the scrub code */
@@ -517,7 +517,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 			return PTR_ERR(trans);
 		}
-		ret = btrfs_commit_transaction(trans, root);
+		ret = btrfs_commit_transaction(trans);
 		WARN_ON(ret);
 		mutex_lock(&uuid_mutex);
 		/* keep away write_all_supers() during the finishing procedure */
@@ -621,7 +621,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	/* write back the superblocks */
 	trans = btrfs_start_transaction(root, 0);
 	if (!IS_ERR(trans))
-		btrfs_commit_transaction(trans, root);
+		btrfs_commit_transaction(trans);
 
 	mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
@@ -736,7 +736,7 @@ static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 		return PTR_ERR(trans);
 	}
-	ret = btrfs_commit_transaction(trans, root);
+	ret = btrfs_commit_transaction(trans);
 	WARN_ON(ret);
 	if (tgt_device)
 		btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);

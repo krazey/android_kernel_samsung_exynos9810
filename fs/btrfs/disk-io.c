@@ -1915,7 +1915,7 @@ sleep:
 	} else {
 		int ret;
 
-		ret = btrfs_commit_transaction(trans, root);
+		ret = btrfs_commit_transaction(trans);
 		if (ret)
 			btrfs_err(fs_info,
 				  "cleaner open transaction commit returned %d",
@@ -1967,9 +1967,9 @@ static int transaction_kthread(void *arg)
 			goto sleep;
 		}
 		if (transid == trans->transid) {
-			btrfs_commit_transaction(trans, root);
+			btrfs_commit_transaction(trans);
 		} else {
-			btrfs_end_transaction(trans, root);
+			btrfs_end_transaction(trans);
 		}
 sleep:
 		wake_up_process(fs_info->cleaner_kthread);
@@ -3905,7 +3905,7 @@ int btrfs_commit_super(struct btrfs_fs_info *fs_info)
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-	return btrfs_commit_transaction(trans, root);
+	return btrfs_commit_transaction(trans);
 }
 
 void close_ctree(struct btrfs_fs_info *fs_info)
