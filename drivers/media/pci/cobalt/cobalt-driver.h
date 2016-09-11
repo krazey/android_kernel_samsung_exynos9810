@@ -289,8 +289,6 @@ struct cobalt {
 	u32 irq_none;
 	u32 irq_full_fifo;
 
-	bool msi_enabled;
-
 	/* omnitek dma */
 	int dma_channels;
 	int first_fifo_channel;
