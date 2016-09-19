@@ -269,9 +269,8 @@ static struct inode *iget_xattr(struct ubifs_info *c, ino_t inum)
 	return ERR_PTR(-EINVAL);
 }
 
-static int __ubifs_setxattr(struct inode *host, const char *name,
-			    const void *value, size_t size, int flags,
-			    bool check_lock)
+int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
+		    size_t size, int flags, bool check_lock)
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
@@ -331,8 +330,8 @@ out_free:
 	return err;
 }
 
-static ssize_t __ubifs_getxattr(struct inode *host, const char *name,
-				void *buf, size_t size)
+ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
+			size_t size)
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
@@ -488,7 +487,7 @@ out_cancel:
 	return err;
 }
 
-static int __ubifs_removexattr(struct inode *host, const char *name)
+static int ubifs_xattr_remove(struct inode *host, const char *name)
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
@@ -550,8 +549,8 @@ static int init_xattrs(struct inode *inode, const struct xattr *xattr_array,
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
-		err = __ubifs_setxattr(inode, name, xattr->value,
-				       xattr->value_len, 0, false);
+		err = ubifs_xattr_set(inode, name, xattr->value,
+				      xattr->value_len, 0, false);
 		kfree(name);
 		if (err < 0)
 			break;
@@ -575,7 +574,7 @@ int ubifs_init_security(struct inode *dentry, struct inode *inode,
 	return err;
 }
 
-static int ubifs_xattr_get(const struct xattr_handler *handler,
+static int xattr_get(const struct xattr_handler *handler,
 			   struct dentry *dentry, struct inode *inode,
 			   const char *name, void *buffer, size_t size)
 {
@@ -583,10 +582,10 @@ static int ubifs_xattr_get(const struct xattr_handler *handler,
 		inode->i_ino, dentry, size);
 
 	name = xattr_full_name(handler, name);
-	return __ubifs_getxattr(inode, name, buffer, size);
+	return ubifs_xattr_get(inode, name, buffer, size);
 }
 
-static int ubifs_xattr_set(const struct xattr_handler *handler,
+static int xattr_set(const struct xattr_handler *handler,
 			   struct dentry *dentry, struct inode *inode,
 			   const char *name, const void *value,
 			   size_t size, int flags)
@@ -597,28 +596,27 @@ static int ubifs_xattr_set(const struct xattr_handler *handler,
 	name = xattr_full_name(handler, name);
 
 	if (value)
-		return __ubifs_setxattr(inode, name, value, size, flags,
-					true);
+		return ubifs_xattr_set(inode, name, value, size, flags, true);
 	else
-		return __ubifs_removexattr(inode, name);
+		return ubifs_xattr_remove(inode, name);
 }
 
 static const struct xattr_handler ubifs_user_xattr_handler = {
 	.prefix = XATTR_USER_PREFIX,
-	.get = ubifs_xattr_get,
-	.set = ubifs_xattr_set,
+	.get = xattr_get,
+	.set = xattr_set,
 };
 
 static const struct xattr_handler ubifs_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
-	.get = ubifs_xattr_get,
-	.set = ubifs_xattr_set,
+	.get = xattr_get,
+	.set = xattr_set,
 };
 
 static const struct xattr_handler ubifs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
-	.get = ubifs_xattr_get,
-	.set = ubifs_xattr_set,
+	.get = xattr_get,
+	.set = xattr_set,
 };
 
 const struct xattr_handler *ubifs_xattr_handlers[] = {
