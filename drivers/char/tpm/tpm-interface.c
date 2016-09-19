@@ -494,9 +494,8 @@ static int tpm_startup(struct tpm_chip *chip, __be16 startup_type)
 
 int tpm_get_timeouts(struct tpm_chip *chip)
 {
-	struct tpm_cmd_t tpm_cmd;
+	cap_t cap;
 	unsigned long timeout_old[4], timeout_chip[4], timeout_eff[4];
-	struct duration_t *duration_cap;
 	ssize_t rc;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
@@ -514,47 +513,29 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 		return 0;
 	}
 
-	tpm_cmd.header.in = tpm_getcap_header;
-	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
-	tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
-	tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_TIMEOUT;
-	rc = tpm_transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE, 0,
-			      NULL);
-
+	rc = tpm_getcap(chip, TPM_CAP_PROP_TIS_TIMEOUT, &cap,
+			"attempting to determine the timeouts");
 	if (rc == TPM_ERR_INVALID_POSTINIT) {
 		/* The TPM is not started, we are the first to talk to it.
 		   Execute a startup command. */
-		dev_info(&chip->dev, "Issuing TPM_STARTUP");
+		dev_info(&chip->dev, "Issuing TPM_STARTUP\n");
 		if (tpm_startup(chip, TPM_ST_CLEAR))
 			return rc;
 
-		tpm_cmd.header.in = tpm_getcap_header;
-		tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
-		tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
-		tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_TIMEOUT;
-		rc = tpm_transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
-				      0, NULL);
+		rc = tpm_getcap(chip, TPM_CAP_PROP_TIS_TIMEOUT, &cap,
+				"attempting to determine the timeouts");
 	}
-	if (rc) {
-		dev_err(&chip->dev,
-			"A TPM error (%zd) occurred attempting to determine the timeouts\n",
-			rc);
-		goto duration;
-	}
-
-	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
-	    be32_to_cpu(tpm_cmd.header.out.length)
-	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 4 * sizeof(u32))
-		return -EINVAL;
+	if (rc)
+		return rc;
 
 	timeout_old[0] = jiffies_to_usecs(chip->timeout_a);
 	timeout_old[1] = jiffies_to_usecs(chip->timeout_b);
 	timeout_old[2] = jiffies_to_usecs(chip->timeout_c);
 	timeout_old[3] = jiffies_to_usecs(chip->timeout_d);
-	timeout_chip[0] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.a);
-	timeout_chip[1] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.b);
-	timeout_chip[2] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.c);
-	timeout_chip[3] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.d);
+	timeout_chip[0] = be32_to_cpu(cap.timeout.a);
+	timeout_chip[1] = be32_to_cpu(cap.timeout.b);
+	timeout_chip[2] = be32_to_cpu(cap.timeout.c);
+	timeout_chip[3] = be32_to_cpu(cap.timeout.d);
 	memcpy(timeout_eff, timeout_chip, sizeof(timeout_eff));
 
 	/*
@@ -600,29 +581,17 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	chip->timeout_c = usecs_to_jiffies(timeout_eff[2]);
 	chip->timeout_d = usecs_to_jiffies(timeout_eff[3]);
 
-duration:
-	tpm_cmd.header.in = tpm_getcap_header;
-	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
-	tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
-	tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_DURATION;
-
-	rc = tpm_transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE, 0,
-			      "attempting to determine the durations");
+	rc = tpm_getcap(chip, TPM_CAP_PROP_TIS_DURATION, &cap,
+			"attempting to determine the durations");
 	if (rc)
 		return rc;
 
-	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
-	    be32_to_cpu(tpm_cmd.header.out.length)
-	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 3 * sizeof(u32))
-		return -EINVAL;
-
-	duration_cap = &tpm_cmd.params.getcap_out.cap.duration;
 	chip->duration[TPM_SHORT] =
-	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_short));
+		usecs_to_jiffies(be32_to_cpu(cap.duration.tpm_short));
 	chip->duration[TPM_MEDIUM] =
-	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_medium));
+		usecs_to_jiffies(be32_to_cpu(cap.duration.tpm_medium));
 	chip->duration[TPM_LONG] =
-	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_long));
+		usecs_to_jiffies(be32_to_cpu(cap.duration.tpm_long));
 
 	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
 	 * value wrong and apparently reports msecs rather than usecs. So we
