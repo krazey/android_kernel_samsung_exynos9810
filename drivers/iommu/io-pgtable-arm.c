@@ -984,8 +984,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 		 * Distinct mappings of different granule sizes.
 		 */
 		iova = 0;
-		j = find_first_bit(&cfg->pgsize_bitmap, BITS_PER_LONG);
-		while (j != BITS_PER_LONG) {
+		for_each_set_bit(j, &cfg->pgsize_bitmap, BITS_PER_LONG) {
 			size = 1UL << j;
 
 			if (ops->map(ops, iova, iova, size, IOMMU_READ |
@@ -1003,8 +1002,6 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 				return __FAIL(ops, i);
 
 			iova += SZ_1G;
-			j++;
-			j = find_next_bit(&cfg->pgsize_bitmap, BITS_PER_LONG, j);
 		}
 
 		/* Partial unmap */
