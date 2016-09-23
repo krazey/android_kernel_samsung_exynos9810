@@ -3063,6 +3063,7 @@ struct nfs4_closedata {
 	struct {
 		struct nfs4_layoutreturn_args arg;
 		struct nfs4_layoutreturn_res res;
+		struct nfs4_xdr_opaque_data ld_private;
 		u32 roc_barrier;
 		bool roc;
 	} lr;
@@ -3291,6 +3292,7 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	if (IS_ERR(calldata->arg.seqid))
 		goto out_free_calldata;
 	calldata->arg.fmode = 0;
+	calldata->lr.arg.ld_private = &calldata->lr.ld_private;
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
@@ -5641,6 +5643,7 @@ struct nfs4_delegreturndata {
 	struct {
 		struct nfs4_layoutreturn_args arg;
 		struct nfs4_layoutreturn_res res;
+		struct nfs4_xdr_opaque_data ld_private;
 		u32 roc_barrier;
 		bool roc;
 	} lr;
@@ -5777,6 +5780,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	data->res.fattr = &data->fattr;
 	data->res.server = server;
 	data->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
+	data->lr.arg.ld_private = &data->lr.ld_private;
 	nfs_fattr_init(data->res.fattr);
 	data->timestamp = jiffies;
 	data->rpc_status = 0;
@@ -8681,6 +8685,8 @@ static void nfs4_layoutreturn_release(void *calldata)
 	nfs4_sequence_free_slot(&lrp->res.seq_res);
 	pnfs_put_layout_hdr(lrp->args.layout);
 	nfs_iput_and_deactive(lrp->inode);
+	if (lrp->ld_private.ops && lrp->ld_private.ops->free)
+		lrp->ld_private.ops->free(&lrp->ld_private);
 	kfree(calldata);
 	dprintk("<-- %s\n", __func__);
 }
