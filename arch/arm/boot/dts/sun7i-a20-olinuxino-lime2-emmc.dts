@@ -56,9 +56,9 @@
 };
 
 &pio {
-	mmc2_pins_nrst: mmc2-rst-pin {
-		allwinner,pins = "PC16";
-		allwinner,function = "gpio_out";
+	mmc2_pins_nrst: mmc2@0 {
+		pins = "PC16";
+		function = "gpio_out";
 	};
 };
 
