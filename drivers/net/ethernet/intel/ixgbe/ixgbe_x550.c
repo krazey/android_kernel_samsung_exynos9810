@@ -1573,8 +1573,7 @@ static s32 ixgbe_check_link_t_X550em(struct ixgbe_hw *hw,
 	 /* MAC link is up, so check external PHY link.
 	  * Read this twice back to back to indicate current status.
 	  */
-	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_STATUS,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+	status = hw->phy.ops.read_reg(hw, MDIO_STAT1, MDIO_MMD_AN,
 				      &autoneg_status);
 	if (status)
 		return status;
@@ -1762,7 +1761,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 
 	/* Vendor alarm triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_CHIP_STD_INT_FLAG,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				      MDIO_MMD_VEND1,
 				      &reg);
 
 	if (status || !(reg & IXGBE_MDIO_GLOBAL_VEN_ALM_INT_EN))
@@ -1770,7 +1769,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 
 	/* Vendor Auto-Neg alarm triggered or Global alarm 1 triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_FLAG,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				      MDIO_MMD_VEND1,
 				      &reg);
 
 	if (status || !(reg & (IXGBE_MDIO_GLOBAL_AN_VEN_ALM_INT_EN |
@@ -1779,7 +1778,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 
 	/* Global alarm triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_ALARM_1,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				      MDIO_MMD_VEND1,
 				      &reg);
 
 	if (status)
@@ -1794,7 +1793,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 	if (reg & IXGBE_MDIO_GLOBAL_ALM_1_DEV_FAULT) {
 		/*  device fault alarm triggered */
 		status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_FAULT_MSG,
-					  IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					  MDIO_MMD_VEND1,
 					  &reg);
 		if (status)
 			return status;
@@ -1809,14 +1808,14 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 
 	/* Vendor alarm 2 triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_CHIP_STD_INT_FLAG,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &reg);
+				      MDIO_MMD_AN, &reg);
 
 	if (status || !(reg & IXGBE_MDIO_GLOBAL_STD_ALM2_INT))
 		return status;
 
 	/* link connect/disconnect event occurred */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_TX_ALARM2,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &reg);
+				      MDIO_MMD_AN, &reg);
 
 	if (status)
 		return status;
@@ -1848,20 +1847,20 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 
 	/* Enable link status change alarm */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &reg);
+				      MDIO_MMD_AN, &reg);
 	if (status)
 		return status;
 
 	reg |= IXGBE_MDIO_PMA_TX_VEN_LASI_INT_EN;
 
 	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
-				       IXGBE_MDIO_AUTO_NEG_DEV_TYPE, reg);
+				       MDIO_MMD_AN, reg);
 	if (status)
 		return status;
 
 	/* Enable high temperature failure and global fault alarms */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_MASK,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				      MDIO_MMD_VEND1,
 				      &reg);
 	if (status)
 		return status;
@@ -1870,14 +1869,14 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 		IXGBE_MDIO_GLOBAL_INT_DEV_FAULT_EN);
 
 	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_GLOBAL_INT_MASK,
-				       IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				       MDIO_MMD_VEND1,
 				       reg);
 	if (status)
 		return status;
 
 	/* Enable vendor Auto-Neg alarm and Global Interrupt Mask 1 alarm */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_MASK,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				      MDIO_MMD_VEND1,
 				      &reg);
 	if (status)
 		return status;
@@ -1886,14 +1885,14 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 		IXGBE_MDIO_GLOBAL_ALARM_1_INT);
 
 	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_MASK,
-				       IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				       MDIO_MMD_VEND1,
 				       reg);
 	if (status)
 		return status;
 
 	/* Enable chip-wide vendor alarm */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_CHIP_STD_MASK,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				      MDIO_MMD_VEND1,
 				      &reg);
 	if (status)
 		return status;
@@ -1901,7 +1900,7 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 	reg |= IXGBE_MDIO_GLOBAL_VEN_ALM_INT_EN;
 
 	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_GLOBAL_INT_CHIP_STD_MASK,
-				       IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+				       MDIO_MMD_VEND1,
 				       reg);
 
 	return status;
@@ -2039,14 +2038,12 @@ static s32 ixgbe_ext_phy_t_x550em_get_link(struct ixgbe_hw *hw, bool *link_up)
 	*link_up = false;
 
 	/* read this twice back to back to indicate current status */
-	ret = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_STATUS,
-				   IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+	ret = hw->phy.ops.read_reg(hw, MDIO_STAT1, MDIO_MMD_AN,
 				   &autoneg_status);
 	if (ret)
 		return ret;
 
-	ret = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_STATUS,
-				   IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+	ret = hw->phy.ops.read_reg(hw, MDIO_STAT1, MDIO_MMD_AN,
 				   &autoneg_status);
 	if (ret)
 		return ret;
@@ -2092,7 +2089,7 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 		return 0;
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_STAT,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      MDIO_MMD_AN,
 				      &speed);
 	if (status)
 		return status;
@@ -2153,10 +2150,10 @@ static s32 ixgbe_led_on_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
 
 	/* To turn on the LED, set mode to ON. */
 	hw->phy.ops.read_reg(hw, IXGBE_X557_LED_PROVISIONING + led_idx,
-			     IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE, &phy_data);
+			     MDIO_MMD_VEND1, &phy_data);
 	phy_data |= IXGBE_X557_LED_MANUAL_SET_MASK;
 	hw->phy.ops.write_reg(hw, IXGBE_X557_LED_PROVISIONING + led_idx,
-			      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE, phy_data);
+			      MDIO_MMD_VEND1, phy_data);
 
 	return 0;
 }
@@ -2175,10 +2172,10 @@ static s32 ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
 
 	/* To turn on the LED, set mode to ON. */
 	hw->phy.ops.read_reg(hw, IXGBE_X557_LED_PROVISIONING + led_idx,
-			     IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE, &phy_data);
+			     MDIO_MMD_VEND1, &phy_data);
 	phy_data &= ~IXGBE_X557_LED_MANUAL_SET_MASK;
 	hw->phy.ops.write_reg(hw, IXGBE_X557_LED_PROVISIONING + led_idx,
-			      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE, phy_data);
+			      MDIO_MMD_VEND1, phy_data);
 
 	return 0;
 }
@@ -2199,7 +2196,7 @@ static s32 ixgbe_get_lcd_t_x550em(struct ixgbe_hw *hw,
 	*lcd_speed = IXGBE_LINK_SPEED_UNKNOWN;
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_AUTO_NEG_LP_STATUS,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      MDIO_MMD_AN,
 				      &an_lp_status);
 	if (status)
 		return status;
@@ -2346,7 +2343,7 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 		return ixgbe_set_copper_phy_power(hw, false);
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_STAT,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      MDIO_MMD_AN,
 				      &speed);
 	if (status)
 		return status;
@@ -2368,20 +2365,20 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 
 	/* Clear AN completed indication */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_TX_ALARM,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      MDIO_MMD_AN,
 				      &autoneg_reg);
 	if (status)
 		return status;
 
-	status = hw->phy.ops.read_reg(hw, IXGBE_MII_10GBASE_T_AUTONEG_CTRL_REG,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+	status = hw->phy.ops.read_reg(hw, MDIO_AN_10GBT_CTRL,
+				      MDIO_MMD_AN,
 				      &an_10g_cntl_reg);
 	if (status)
 		return status;
 
 	status = hw->phy.ops.read_reg(hw,
 				      IXGBE_MII_AUTONEG_VENDOR_PROVISION_1_REG,
-				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      MDIO_MMD_AN,
 				      &autoneg_reg);
 	if (status)
 		return status;
@@ -2539,7 +2536,7 @@ static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 
 	status = hw->phy.ops.read_reg(hw,
 				      IXGBE_MDIO_TX_VENDOR_ALARMS_3,
-				      IXGBE_MDIO_PMA_PMD_DEV_TYPE,
+				      MDIO_MMD_PMAPMD,
 				      &reg);
 	if (status)
 		return status;
@@ -2550,7 +2547,7 @@ static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 	if (reg & IXGBE_MDIO_TX_VENDOR_ALARMS_3_RST_MASK) {
 		status = hw->phy.ops.read_reg(hw,
 					IXGBE_MDIO_GLOBAL_RES_PR_10,
-					IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					MDIO_MMD_VEND1,
 					&reg);
 		if (status)
 			return status;
@@ -2559,7 +2556,7 @@ static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 
 		status = hw->phy.ops.write_reg(hw,
 					IXGBE_MDIO_GLOBAL_RES_PR_10,
-					IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					MDIO_MMD_VEND1,
 					reg);
 		if (status)
 			return status;
