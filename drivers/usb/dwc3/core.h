@@ -1151,6 +1151,7 @@ struct dwc3_event_depevt {
 /* Control-only Status */
 #define DEPEVT_STATUS_CONTROL_DATA	1
 #define DEPEVT_STATUS_CONTROL_STATUS	2
+#define DEPEVT_STATUS_CONTROL_PHASE(n)	((n) & 3)
 
 /* In response to Start Transfer */
 #define DEPEVT_TRANSFER_NO_RESOURCE	1
