@@ -890,11 +890,12 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_PPC_MMU_RADIX 134
 #define KVM_CAP_PPC_MMU_HASH_V3 135
 #define KVM_CAP_IMMEDIATE_EXIT 136
-#define KVM_CAP_MIPS_VZ 137
-#define KVM_CAP_MIPS_TE 138
-#define KVM_CAP_MIPS_64BIT 139
-#define KVM_CAP_S390_GS 140
-#define KVM_CAP_S390_AIS 141
+#define KVM_CAP_ARM_USER_IRQ 137
+#define KVM_CAP_MIPS_VZ 138
+#define KVM_CAP_MIPS_TE 139
+#define KVM_CAP_MIPS_64BIT 140
+#define KVM_CAP_S390_GS 141
+#define KVM_CAP_S390_AIS 142
 #define KVM_CAP_S390_BPB 152
 #define KVM_CAP_GET_MSR_FEATURES 153
 
@@ -1367,5 +1368,12 @@ struct kvm_assigned_msix_entry {
 
 #define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
 #define KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK  (1ULL << 1)
+
+/* Available with KVM_CAP_ARM_USER_IRQ */
+
+/* Bits for run->s.regs.device_irq_level */
+#define KVM_ARM_DEV_EL1_VTIMER		(1 << 0)
+#define KVM_ARM_DEV_EL1_PTIMER		(1 << 1)
+#define KVM_ARM_DEV_PMU			(1 << 2)
 
 #endif /* __LINUX_KVM_H */
