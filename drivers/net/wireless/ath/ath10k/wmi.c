@@ -4956,6 +4956,23 @@ exit:
 	return 0;
 }
 
+static inline void ath10k_wmi_queue_set_coverage_class_work(struct ath10k *ar)
+{
+	if (ar->hw_params.hw_ops->set_coverage_class) {
+		spin_lock_bh(&ar->data_lock);
+
+		/* This call only ensures that the modified coverage class
+		 * persists in case the firmware sets the registers back to
+		 * their default value. So calling it is only necessary if the
+		 * coverage class has a non-zero value.
+		 */
+		if (ar->fw_coverage.coverage_class)
+			queue_work(ar->workqueue, &ar->set_coverage_class_work);
+
+		spin_unlock_bh(&ar->data_lock);
+	}
+}
+
 static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -4976,6 +4993,7 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_SCAN_EVENTID:
 		ath10k_wmi_event_scan(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_CHAN_INFO_EVENTID:
 		ath10k_wmi_event_chan_info(ar, skb);
@@ -4985,15 +5003,18 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_DEBUG_MESG_EVENTID:
 		ath10k_wmi_event_debug_mesg(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_UPDATE_STATS_EVENTID:
 		ath10k_wmi_event_update_stats(ar, skb);
 		break;
 	case WMI_VDEV_START_RESP_EVENTID:
 		ath10k_wmi_event_vdev_start_resp(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_VDEV_STOPPED_EVENTID:
 		ath10k_wmi_event_vdev_stopped(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_PEER_STA_KICKOUT_EVENTID:
 		ath10k_wmi_event_peer_sta_kickout(ar, skb);
@@ -5009,12 +5030,14 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_ROAM_EVENTID:
 		ath10k_wmi_event_roam(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
 	case WMI_DEBUG_PRINT_EVENTID:
 		ath10k_wmi_event_debug_print(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_PDEV_QVIT_EVENTID:
 		ath10k_wmi_event_pdev_qvit(ar, skb);
@@ -5063,6 +5086,7 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -5106,6 +5130,7 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_10X_SCAN_EVENTID:
 		ath10k_wmi_event_scan(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_CHAN_INFO_EVENTID:
 		ath10k_wmi_event_chan_info(ar, skb);
@@ -5115,15 +5140,18 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10X_DEBUG_MESG_EVENTID:
 		ath10k_wmi_event_debug_mesg(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_UPDATE_STATS_EVENTID:
 		ath10k_wmi_event_update_stats(ar, skb);
 		break;
 	case WMI_10X_VDEV_START_RESP_EVENTID:
 		ath10k_wmi_event_vdev_start_resp(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_VDEV_STOPPED_EVENTID:
 		ath10k_wmi_event_vdev_stopped(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_PEER_STA_KICKOUT_EVENTID:
 		ath10k_wmi_event_peer_sta_kickout(ar, skb);
@@ -5139,12 +5167,14 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10X_ROAM_EVENTID:
 		ath10k_wmi_event_roam(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
 	case WMI_10X_DEBUG_PRINT_EVENTID:
 		ath10k_wmi_event_debug_print(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_PDEV_QVIT_EVENTID:
 		ath10k_wmi_event_pdev_qvit(ar, skb);
@@ -5184,6 +5214,7 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_10X_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_PDEV_UTF_EVENTID:
 		/* ignore utf events */
@@ -5230,6 +5261,7 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_10_2_SCAN_EVENTID:
 		ath10k_wmi_event_scan(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_CHAN_INFO_EVENTID:
 		ath10k_wmi_event_chan_info(ar, skb);
@@ -5239,15 +5271,18 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_2_DEBUG_MESG_EVENTID:
 		ath10k_wmi_event_debug_mesg(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_UPDATE_STATS_EVENTID:
 		ath10k_wmi_event_update_stats(ar, skb);
 		break;
 	case WMI_10_2_VDEV_START_RESP_EVENTID:
 		ath10k_wmi_event_vdev_start_resp(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_VDEV_STOPPED_EVENTID:
 		ath10k_wmi_event_vdev_stopped(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_PEER_STA_KICKOUT_EVENTID:
 		ath10k_wmi_event_peer_sta_kickout(ar, skb);
@@ -5263,12 +5298,14 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_2_ROAM_EVENTID:
 		ath10k_wmi_event_roam(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
 	case WMI_10_2_DEBUG_PRINT_EVENTID:
 		ath10k_wmi_event_debug_print(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_PDEV_QVIT_EVENTID:
 		ath10k_wmi_event_pdev_qvit(ar, skb);
@@ -5299,15 +5336,18 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_2_VDEV_STANDBY_REQ_EVENTID:
 		ath10k_wmi_event_vdev_standby_req(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_VDEV_RESUME_REQ_EVENTID:
 		ath10k_wmi_event_vdev_resume_req(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
 		return;
 	case WMI_10_2_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_event_temperature(ar, skb);
@@ -5370,12 +5410,14 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_DEBUG_MESG_EVENTID:
 		ath10k_wmi_event_debug_mesg(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
 		return;
 	case WMI_10_4_SCAN_EVENTID:
 		ath10k_wmi_event_scan(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_CHAN_INFO_EVENTID:
 		ath10k_wmi_event_chan_info(ar, skb);
@@ -5385,12 +5427,14 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_PEER_STA_KICKOUT_EVENTID:
 		ath10k_wmi_event_peer_sta_kickout(ar, skb);
 		break;
 	case WMI_10_4_ROAM_EVENTID:
 		ath10k_wmi_event_roam(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_HOST_SWBA_EVENTID:
 		ath10k_wmi_event_host_swba(ar, skb);
@@ -5400,12 +5444,15 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_DEBUG_PRINT_EVENTID:
 		ath10k_wmi_event_debug_print(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_VDEV_START_RESP_EVENTID:
 		ath10k_wmi_event_vdev_start_resp(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_VDEV_STOPPED_EVENTID:
 		ath10k_wmi_event_vdev_stopped(ar, skb);
+		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_WOW_WAKEUP_HOST_EVENTID:
 	case WMI_10_4_PEER_RATECODE_LIST_EVENTID:
@@ -6124,6 +6171,7 @@ void ath10k_wmi_start_scan_init(struct ath10k *ar,
 		| WMI_SCAN_EVENT_COMPLETED
 		| WMI_SCAN_EVENT_BSS_CHANNEL
 		| WMI_SCAN_EVENT_FOREIGN_CHANNEL
+		| WMI_SCAN_EVENT_FOREIGN_CHANNEL_EXIT
 		| WMI_SCAN_EVENT_DEQUEUED;
 	arg->scan_ctrl_flags |= WMI_SCAN_CHAN_STAT_EVENT;
 	arg->n_bssids = 1;
