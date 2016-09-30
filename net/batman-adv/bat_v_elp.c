@@ -92,26 +92,23 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 	 * cfg80211 API
 	 */
 	if (batadv_is_wifi_netdev(hard_iface->net_dev)) {
-		if (hard_iface->net_dev->ieee80211_ptr) {
-			ret = cfg80211_get_station(hard_iface->net_dev,
-						   neigh->addr, &sinfo);
-			if (ret == -ENOENT) {
-				/* Node is not associated anymore! It would be
-				 * possible to delete this neighbor. For now set
-				 * the throughput metric to 0.
-				 */
-				return 0;
-			}
-			if (ret)
-				goto default_throughput;
-			if (!(sinfo.filled & BIT(NL80211_STA_INFO_EXPECTED_THROUGHPUT)))
-				goto default_throughput;
+		if (!batadv_is_cfg80211_netdev(hard_iface->net_dev))
+			/* unsupported WiFi driver version */
+			goto default_throughput;
 
-			return sinfo.expected_throughput / 100;
+		ret = cfg80211_get_station(hard_iface->net_dev,
+					   neigh->addr, &sinfo);
+		if (ret == -ENOENT) {
+			/* Node is not associated anymore! It would be
+			 * possible to delete this neighbor. For now set
+			 * the throughput metric to 0.
+			 */
+			return 0;
+		if (!(sinfo.filled & BIT(NL80211_STA_INFO_EXPECTED_THROUGHPUT)))
+			goto default_throughput;
 		}
-
-		/* unsupported WiFi driver version */
-		goto default_throughput;
+		if (!ret)
+			return sinfo.expected_throughput / 100;
 	}
 
 	/* if not a wifi interface, check if this device provides data via
