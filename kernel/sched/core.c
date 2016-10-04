@@ -789,7 +789,9 @@ static void set_load_weight(struct task_struct *p)
 
 static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
-	update_rq_clock(rq);
+	if (!(flags & ENQUEUE_NOCLOCK))
+		update_rq_clock(rq);
+
 	if (!(flags & ENQUEUE_RESTORE)) {
 		sched_info_queued(rq, p);
 		psi_enqueue(p, flags & ENQUEUE_WAKEUP);
@@ -802,7 +804,9 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 
 static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 {
-	update_rq_clock(rq);
+	if (!(flags & DEQUEUE_NOCLOCK))
+		update_rq_clock(rq);
+
 	if (!(flags & DEQUEUE_SAVE)) {
 		sched_info_dequeued(rq, p);
 		psi_dequeue(p, flags & DEQUEUE_SLEEP);
