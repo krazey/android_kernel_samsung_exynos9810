@@ -921,13 +921,6 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
 		return -EINVAL;
 
-	/*
-	 * This code should only be called with valid 'pkey'
-	 * values originating from in-kernel users.  Complain
-	 * if a bad value is observed.
-	 */
-	WARN_ON_ONCE(pkey >= arch_max_pkey());
-
 	/* Set the bits we need in PKRU:  */
 	if (init_val & PKEY_DISABLE_ACCESS)
 		new_pkru_bits |= PKRU_AD_BIT;
