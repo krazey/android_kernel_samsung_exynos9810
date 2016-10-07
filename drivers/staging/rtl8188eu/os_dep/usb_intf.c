@@ -148,7 +148,7 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 }
 
-static void usb_intf_stop(struct adapter *padapter)
+void usb_intf_stop(struct adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
 
@@ -181,8 +181,7 @@ static void rtw_dev_unload(struct adapter *padapter)
 		if (padapter->xmitpriv.ack_tx)
 			rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_DRV_STOP);
 		/* s3. */
-		if (padapter->intf_stop)
-			padapter->intf_stop(padapter);
+		usb_intf_stop(padapter);
 		/* s4. */
 		if (!padapter->pwrctrlpriv.bInternalAutoSuspend)
 			rtw_stop_drv_threads(padapter);
@@ -365,8 +364,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		DBG_88E("Failed to allocate memory for HAL data\n");
 		goto free_adapter;
 	}
-
-	padapter->intf_stop = &usb_intf_stop;
 
 	/* step read_chip_version */
 	rtw_hal_read_chip_version(padapter);
