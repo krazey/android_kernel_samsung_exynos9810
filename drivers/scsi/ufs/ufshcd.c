@@ -7401,6 +7401,10 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 
 	ufshcd_vops_pre_setup_clocks(hba, on);
 
+	ret = ufshcd_vops_setup_clocks(hba, on, PRE_CHANGE);
+	if (ret)
+		return ret;
+
 	list_for_each_entry(clki, head, list) {
 		if (!IS_ERR_OR_NULL(clki->clk)) {
 			if (skip_ref_clk &&
@@ -7424,7 +7428,10 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 		}
 	}
 
-	ret = ufshcd_vops_setup_clocks(hba, on);
+	ret = ufshcd_vops_setup_clocks(hba, on, POST_CHANGE);
+	if (ret)
+		return ret;
+
 out:
 	if (ret) {
 		list_for_each_entry(clki, head, list) {
@@ -7515,8 +7522,6 @@ static void ufshcd_variant_hba_exit(struct ufs_hba *hba)
 {
 	if (!hba->vops)
 		return;
-
-	ufshcd_vops_setup_clocks(hba, false);
 
 	ufshcd_vops_setup_regulators(hba, false);
 
@@ -7969,7 +7974,6 @@ disable_clks:
 	ret = ufshcd_vops_suspend(hba, pm_op);
 	if (ret)
 		goto set_link_active;
-
 
 	/* Put the host controller in low power mode if possible */
 	ufshcd_hba_vreg_set_lpm(hba);

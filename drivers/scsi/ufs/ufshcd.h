@@ -306,7 +306,8 @@ struct ufs_hba_variant_ops {
 	int	(*clk_scale_notify)(struct ufs_hba *, bool,
 				    enum ufs_notify_change_status);
 	int	(*pre_setup_clocks)(struct ufs_hba *, bool);
-	int	(*setup_clocks)(struct ufs_hba *, bool);
+	int	(*setup_clocks)(struct ufs_hba *, bool,
+				enum ufs_notify_change_status);
 	int     (*setup_regulators)(struct ufs_hba *, bool);
 	void    (*host_reset)(struct ufs_hba *);
 	int	(*hce_enable_notify)(struct ufs_hba *,
@@ -990,10 +991,11 @@ static inline int ufshcd_vops_pre_setup_clocks(struct ufs_hba *hba, bool on)
 	return 0;
 }
 
-static inline int ufshcd_vops_setup_clocks(struct ufs_hba *hba, bool on)
+static inline int ufshcd_vops_setup_clocks(struct ufs_hba *hba, bool on,
+					enum ufs_notify_change_status status)
 {
 	if (hba->vops && hba->vops->setup_clocks)
-		return hba->vops->setup_clocks(hba, on);
+		return hba->vops->setup_clocks(hba, on, status);
 	return 0;
 }
 
