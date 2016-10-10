@@ -127,6 +127,8 @@ microchip,mcp4662-104	Microchip 8-bit Dual I2C Digital Potentiometer with NV Mem
 miramems,da226		MiraMEMS DA226 2-axis 14-bit digital accelerometer
 miramems,da280		MiraMEMS DA280 3-axis 14-bit digital accelerometer
 miramems,da311		MiraMEMS DA311 3-axis 12-bit digital accelerometer
+microchip,tc654		PWM Fan Speed Controller With Fan Fault Detection
+microchip,tc655		PWM Fan Speed Controller With Fan Fault Detection
 national,lm63		Temperature sensor with integrated fan control
 national,lm75		I2C TEMP SENSOR
 national,lm80		Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
