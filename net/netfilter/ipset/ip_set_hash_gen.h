@@ -261,7 +261,6 @@ htable_size(u8 hbits)
 struct htype {
 	struct htable __rcu *table; /* the hash table */
 	u32 maxelem;		/* max elements in the hash */
-	u32 elements;		/* current element (vs timeout) */
 	u32 initval;		/* random jhash init value */
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	u32 markmask;		/* markmask value for mark mask to store */
@@ -386,7 +385,7 @@ mtype_flush(struct ip_set *set)
 #ifdef IP_SET_HASH_WITH_NETS
 	memset(h->nets, 0, sizeof(struct net_prefixes) * NLEN(set->family));
 #endif
-	h->elements = 0;
+	set->elements = 0;
 }
 
 /* Destroy the hashtable part of the set */
@@ -492,7 +491,7 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 						nets_length, k);
 #endif
 				ip_set_ext_destroy(set, data);
-				h->elements--;
+				set->elements--;
 				d++;
 			}
 		}
@@ -701,11 +700,11 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	bool deleted = false, forceadd = false, reuse = false;
 	u32 key, multi = 0;
 
-	if (h->elements >= h->maxelem) {
+	if (set->elements >= h->maxelem) {
 		if (SET_WITH_TIMEOUT(set))
 			/* FIXME: when set is full, we slow down here */
 			mtype_expire(set, h, NLEN(set->family), set->dsize);
-		if (h->elements >= h->maxelem && SET_WITH_FORCEADD(set))
+		if (set->elements >= h->maxelem && SET_WITH_FORCEADD(set))
 			forceadd = true;
 	}
 
@@ -718,7 +717,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				pr_warn("Set %s is full, maxelem %u reached\n",
 					set->name, h->maxelem);
 			return -IPSET_ERR_HASH_FULL;
-		} else if (h->elements >= h->maxelem) {
+		} else if (set->elements >= h->maxelem) {
 			goto set_full;
 		}
 		old = NULL;
@@ -767,11 +766,11 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 					NLEN(set->family), i);
 #endif
 			ip_set_ext_destroy(set, data);
-			h->elements--;
+			set->elements--;
 		}
 		goto copy_data;
 	}
-	if (h->elements >= h->maxelem)
+	if (set->elements >= h->maxelem)
 		goto set_full;
 	/* Create a new slot */
 	if (n->pos >= n->size) {
@@ -796,7 +795,7 @@ copy_elem:
 	j = n->pos++;
 	data = ahash_data(n, j, set->dsize);
 copy_data:
-	h->elements++;
+	set->elements++;
 #ifdef IP_SET_HASH_WITH_NETS
 	for (i = 0; i < IPSET_NET_COUNT; i++)
 		mtype_add_cidr(h, NCIDR_PUT(DCIDR_GET(d->cidr, i)),
@@ -869,7 +868,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		smp_mb__after_atomic();
 		if (i + 1 == n->pos)
 			n->pos--;
-		h->elements--;
+		set->elements--;
 #ifdef IP_SET_HASH_WITH_NETS
 		for (j = 0; j < IPSET_NET_COUNT; j++)
 			mtype_del_cidr(h, NCIDR_PUT(DCIDR_GET(d->cidr, j)),
@@ -1070,7 +1069,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 #endif
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
-	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(h->elements)))
+	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(set->elements)))
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
