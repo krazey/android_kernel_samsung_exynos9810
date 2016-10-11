@@ -156,6 +156,12 @@ static int malidp_init(struct drm_device *drm)
 	return 0;
 }
 
+static void malidp_fini(struct drm_device *drm)
+{
+	malidp_de_planes_destroy(drm);
+	drm_mode_config_cleanup(drm);
+}
+
 static int malidp_irq_init(struct platform_device *pdev)
 {
 	int irq_de, irq_se, ret = 0;
@@ -417,8 +423,7 @@ bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
 port_fail:
-	malidp_de_planes_destroy(drm);
-	drm_mode_config_cleanup(drm);
+	malidp_fini(drm);
 init_fail:
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
@@ -451,8 +456,7 @@ static void malidp_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	malidp_de_planes_destroy(drm);
-	drm_mode_config_cleanup(drm);
+	malidp_fini(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
 	clk_disable_unprepare(hwdev->mclk);
