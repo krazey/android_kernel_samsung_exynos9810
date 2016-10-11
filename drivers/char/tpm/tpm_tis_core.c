@@ -182,11 +182,13 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int size = 0, burstcnt, rc;
 
-	while (size < count &&
-	       wait_for_tpm_stat(chip,
+	while (size < count) {
+		rc = wait_for_tpm_stat(chip,
 				 TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 				 chip->timeout_c,
-				 &priv->read_queue, true) == 0) {
+				 &priv->read_queue, true);
+		if (rc < 0)
+			return rc;
 		burstcnt = get_burstcount(chip);
 		if (burstcnt < 0) {
 			dev_err(&chip->dev, "Unable to read burstcount\n");
@@ -237,8 +239,11 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		goto out;
 	}
 
-	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
-			  &priv->int_queue, false);
+	if (wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
+				&priv->int_queue, false) < 0) {
+		size = -ETIME;
+		goto out;
+	}
 	status = tpm_tis_status(chip);
 	if (status & TPM_STS_DATA_AVAIL) {	/* retry? */
 		dev_err(&chip->dev, "Error left over data\n");
@@ -293,8 +298,11 @@ static int tpm_tis_send_data(struct tpm_chip *chip, const u8 *buf, size_t len)
 
 		count += burstcnt;
 
-		wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
-				  &priv->int_queue, false);
+		if (wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
+					&priv->int_queue, false) < 0) {
+			rc = -ETIME;
+			goto out_err;
+		}
 		status = tpm_tis_status(chip);
 		if (!itpm && (status & TPM_STS_DATA_EXPECT) == 0) {
 			rc = -EIO;
@@ -307,8 +315,11 @@ static int tpm_tis_send_data(struct tpm_chip *chip, const u8 *buf, size_t len)
 	if (rc < 0)
 		goto out_err;
 
-	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
-			  &priv->int_queue, false);
+	if (wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
+				&priv->int_queue, false) < 0) {
+		rc = -ETIME;
+		goto out_err;
+	}
 	status = tpm_tis_status(chip);
 	if (!itpm && (status & TPM_STS_DATA_EXPECT) != 0) {
 		rc = -EIO;
