@@ -2577,7 +2577,7 @@ static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 #define IS_IVB_GT1(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0156 || \
 				 INTEL_DEVID(dev_priv) == 0x0152 || \
 				 INTEL_DEVID(dev_priv) == 0x015a)
-#define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
+#define IS_VALLEYVIEW(dev_priv)	((dev_priv)->info.is_valleyview)
 #define IS_CHERRYVIEW(dev_priv)	((dev_priv)->info.is_cherryview)
 #define IS_HASWELL(dev_priv)	((dev_priv)->info.is_haswell)
 #define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
