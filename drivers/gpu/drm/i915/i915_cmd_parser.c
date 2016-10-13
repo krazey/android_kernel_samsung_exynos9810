@@ -1532,6 +1532,7 @@ err:
 int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	bool active = false;
 
 	/* If the command parser is not enabled, report 0 - unsupported */

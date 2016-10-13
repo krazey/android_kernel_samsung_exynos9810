@@ -435,7 +435,7 @@ intel_engine_sync_index(struct intel_engine_cs *engine,
 	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
 	 */
 
-	idx = (other - engine) - 1;
+	idx = (other->id - engine->id) - 1;
 	if (idx < 0)
 		idx += I915_NUM_ENGINES;
 
