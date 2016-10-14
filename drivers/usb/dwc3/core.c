@@ -1240,8 +1240,6 @@ static int dwc3_get_option(struct dwc3 *dwc)
 
 }
 
-#define DWC3_ALIGN_MASK		(16 - 1)
-
 static int dwc3_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
@@ -1254,14 +1252,12 @@ static int dwc3_probe(struct platform_device *pdev)
 	int			ret;
 
 	void __iomem		*regs;
-	void			*mem;
 
 	pr_info("%s: +++\n", __func__);
-	mem = devm_kzalloc(dev, sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
-	if (!mem)
+	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
+	if (!dwc)
 		return -ENOMEM;
 
-	dwc = PTR_ALIGN(mem, DWC3_ALIGN_MASK + 1);
 	dwc->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
