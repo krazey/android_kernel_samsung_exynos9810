@@ -401,9 +401,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
-	fpu_switch_t fpu_switch;
+	unsigned prev_fsindex, prev_gsindex;
 
-	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
+	switch_fpu_prepare(prev_fpu, cpu);
 
 	/* We must save %fs and %gs before load_TLS() because
 	 * %fs and %gs may be cleared by load_TLS().
@@ -454,7 +454,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	load_seg_legacy(prev->gsindex, prev->gsbase,
 			next->gsindex, next->gsbase, GS);
 
-	switch_fpu_finish(next_fpu, fpu_switch);
+	switch_fpu_finish(next_fpu, cpu);
 
 	/*
 	 * Switch the PDA and FPU contexts.
