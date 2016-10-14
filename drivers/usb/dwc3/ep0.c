@@ -297,6 +297,8 @@ void dwc3_ep0_out_start(struct dwc3 *dwc)
 {
 	int				ret;
 
+	complete(&dwc->ep0_in_setup);
+
 	dwc3_ep0_prepare_one_trb(dwc, 0, dwc->ctrl_req_addr, 8,
 			DWC3_TRBCTL_CONTROL_SETUP, false);
 	ret = dwc3_ep0_start_trans(dwc, 0);
