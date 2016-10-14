@@ -1202,90 +1202,12 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 	dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 }
 
-static int dwc3_get_option(struct dwc3 *dwc)
+static void dwc3_get_properties(struct dwc3 *dwc)
 {
 	struct device		*dev = dwc->dev;
-	struct device_node	*node = dev->of_node;
-	int			value;
-
-/* 	There is no 'needs_fifo_resize' in Kernel 4.9 - Check if it can be removed */
-/*
-	if (!of_property_read_u32(node, "tx-fifo-resize", &value)) {
-		dwc->needs_fifo_resize = value ? true : false;
-	} else {
-		dev_err(dev, "can't get tx-fifo-resize from %s node", node->name);
-		return -EINVAL;
-	}
-*/
-	if (!of_property_read_u32(node, "adj-sof-accuracy", &value)) {
-		dwc->adj_sof_accuracy = value ? true : false;
-	} else {
-		dev_err(dev, "can't get adj-sof-accuracy from %s node", node->name);
-		return -EINVAL;
-	}
-	if (!of_property_read_u32(node, "is_not_vbus_pad", &value)) {
-		dwc->is_not_vbus_pad = value ? true : false;
-	} else {
-		dev_err(dev, "can't get is_not_vbus_pad from %s node", node->name);
-		return -EINVAL;
-	}
-	if (!of_property_read_u32(node, "enable_sprs_transfer", &value)) {
-		dwc->sparse_transfer_control = value ? true : false;
-	} else {
-		dev_err(dev, "can't get sprs-xfer-ctrl from %s node", node->name);
-		return -EINVAL;
-	}
-
-	return 0;
-
-}
-
-static int dwc3_probe(struct platform_device *pdev)
-{
-	struct device		*dev = &pdev->dev;
-	struct resource		*res;
-	struct dwc3		*dwc;
 	u8			lpm_nyet_threshold;
 	u8			tx_de_emphasis;
 	u8			hird_threshold;
-
-	int			ret;
-
-	void __iomem		*regs;
-
-	pr_info("%s: +++\n", __func__);
-	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
-	if (!dwc)
-		return -ENOMEM;
-
-	dwc->dev = dev;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing memory resource\n");
-		return -ENODEV;
-	}
-
-	dwc->xhci_resources[0].start = res->start;
-	dwc->xhci_resources[0].end = dwc->xhci_resources[0].start +
-					DWC3_XHCI_REGS_END;
-	dwc->xhci_resources[0].flags = res->flags;
-	dwc->xhci_resources[0].name = res->name;
-
-	res->start += DWC3_GLOBALS_REGS_START;
-
-	/*
-	 * Request memory region but exclude xHCI regs,
-	 * since it will be requested by the xhci-plat driver.
-	 */
-	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		ret = PTR_ERR(regs);
-		goto err0;
-	}
-
-	dwc->regs	= regs;
-	dwc->regs_size	= resource_size(res);
 
 	/* default to highest possible threshold */
 	lpm_nyet_threshold = 0xf;
@@ -1303,10 +1225,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->dr_mode = usb_get_dr_mode(dev);
 	dwc->suspend_clk_freq = of_usb_get_suspend_clk_freq(dev);
 	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_node);
-
-	ret = dwc3_get_option(dwc);
-	if (ret)
-		return ret;
 
 	dwc->has_lpm_erratum = device_property_read_bool(dev,
 				"snps,has-lpm-erratum");
@@ -1367,6 +1285,54 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc->hird_threshold = hird_threshold
 		| (dwc->is_utmi_l1_suspend << 4);
+
+}
+
+static int dwc3_probe(struct platform_device *pdev)
+{
+	struct device			*dev = &pdev->dev;
+	struct resource		 *res;
+	struct dwc3			 *dwc;
+
+	int					 ret;
+
+	void __iomem			*regs;
+
+	pr_info("%s: +++\n", __func__);
+	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
+	if (!dwc)
+		return -ENOMEM;
+
+	dwc->dev = dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "missing memory resource\n");
+		return -ENODEV;
+	}
+
+	dwc->xhci_resources[0].start = res->start;
+	dwc->xhci_resources[0].end = dwc->xhci_resources[0].start +
+					DWC3_XHCI_REGS_END;
+	dwc->xhci_resources[0].flags = res->flags;
+	dwc->xhci_resources[0].name = res->name;
+
+	res->start += DWC3_GLOBALS_REGS_START;
+
+	/*
+	 * Request memory region but exclude xHCI regs,
+	 * since it will be requested by the xhci-plat driver.
+	 */
+	regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(regs)) {
+		ret = PTR_ERR(regs);
+		goto err0;
+	}
+
+	dwc->regs		= regs;
+	dwc->regs_size	= resource_size(res);
+
+	dwc3_get_properties(dwc);
 
 	platform_set_drvdata(pdev, dwc);
 	dwc3_cache_hwparams(dwc);
