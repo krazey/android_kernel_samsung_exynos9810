@@ -29,6 +29,7 @@ struct lwtunnel_state {
 	int		(*orig_input)(struct sk_buff *);
 	int             len;
 	__u16		headroom;
+	struct		rcu_head rcu;
 	__u8            data[0];
 };
 
@@ -36,6 +37,7 @@ struct lwtunnel_encap_ops {
 	int (*build_state)(struct net_device *dev, struct nlattr *encap,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts);
+	void (*destroy_state)(struct lwtunnel_state *lws);
 	int (*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int (*input)(struct sk_buff *skb);
 	int (*fill_encap)(struct sk_buff *skb,
