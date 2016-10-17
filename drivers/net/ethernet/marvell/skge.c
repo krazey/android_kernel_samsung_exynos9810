@@ -1050,7 +1050,7 @@ static const char *skge_pause(enum pause_status status)
 static void skge_link_up(struct skge_port *skge)
 {
 	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG),
-		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
+		    LED_BLK_OFF|LED_SYNC_OFF|LED_REG_ON);
 
 	netif_carrier_on(skge->netdev);
 	netif_wake_queue(skge->netdev);
@@ -1064,7 +1064,7 @@ static void skge_link_up(struct skge_port *skge)
 
 static void skge_link_down(struct skge_port *skge)
 {
-	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_REG_OFF);
 	netif_carrier_off(skge->netdev);
 	netif_stop_queue(skge->netdev);
 
@@ -2670,7 +2670,7 @@ static int skge_down(struct net_device *dev)
 	if (hw->ports == 1)
 		free_irq(hw->pdev->irq, hw);
 
-	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_REG_OFF);
 	if (is_genesis(hw))
 		genesis_stop(skge);
 	else
