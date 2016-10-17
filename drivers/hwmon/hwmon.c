@@ -585,7 +585,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 
 	if (chip) {
 		struct attribute **attrs;
-		int ngroups = 2;
+		int ngroups = 2; /* terminating NULL plus &hwdev->groups */
 
 		if (groups)
 			for (i = 0; groups[i]; i++)
