@@ -30,6 +30,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/phy_led_triggers.h>
 #include <linux/mdio.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -939,6 +940,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	else
 		phy_resume(phydev);
 
+	phy_led_triggers_register(phydev);
+
 	return err;
 
 error:
@@ -1028,6 +1031,8 @@ void phy_detach(struct phy_device *phydev)
 			break;
 		}
 	}
+
+	phy_led_triggers_unregister(phydev);
 
 	/*
 	 * The phydev might go away on the put_device() below, so avoid
