@@ -2315,6 +2315,7 @@ static const struct of_device_id omap_nand_ids[] = {
 	{ .compatible = "ti,omap2-nand", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, omap_nand_ids);
 
 static struct platform_driver omap_nand_driver = {
 	.probe		= omap_nand_probe,
