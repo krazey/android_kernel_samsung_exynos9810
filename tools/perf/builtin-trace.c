@@ -856,7 +856,6 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
  */
 struct thread_trace {
 	u64		  entry_time;
-	u64		  exit_time;
 	bool		  entry_pending;
 	unsigned long	  nr_events;
 	unsigned long	  pfmaj, pfmin;
@@ -1598,8 +1597,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		ttrace->filename.pending_open = false;
 		++trace->stats.vfs_getname;
 	}
-
-	ttrace->exit_time = sample->time;
 
 	if (ttrace->entry_time) {
 		duration = sample->time - ttrace->entry_time;
