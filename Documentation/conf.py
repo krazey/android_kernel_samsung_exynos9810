@@ -342,7 +342,7 @@ if major == 1 and minor > 3:
 latex_documents = [
     ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
      'The kernel development community', 'manual'),
-    ('development-process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
+    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
      'The kernel development community', 'manual'),
     ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
      'The kernel development community', 'manual'),
