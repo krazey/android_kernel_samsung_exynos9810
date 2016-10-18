@@ -580,6 +580,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 				return -EINVAL;
 		}
 
+#ifndef CONFIG_WIRELESS_WDS
+		if (WARN_ON(all_iftypes & BIT(NL80211_IFTYPE_WDS)))
+			return -EINVAL;
+#endif
+
 		/* You can't even choose that many! */
 		if (WARN_ON(cnt < c->max_interfaces))
 			return -EINVAL;
@@ -617,6 +622,11 @@ int wiphy_register(struct wiphy *wiphy)
 		    (!rdev->ops->start_nan || !rdev->ops->stop_nan ||
 		     !rdev->ops->add_nan_func || !rdev->ops->del_nan_func)))
 		return -EINVAL;
+
+#ifndef CONFIG_WIRELESS_WDS
+	if (WARN_ON(wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS)))
+		return -EINVAL;
+#endif
 
 	/*
 	 * if a wiphy has unsupported modes for regulatory channel enforcement,
