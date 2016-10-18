@@ -1789,7 +1789,7 @@ busy:
  *
  * Reference counting: does not modify kref
  */
-static void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
+void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_seq_els_data els_data;
 
@@ -1826,6 +1826,7 @@ static void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 		break;
 	}
 }
+EXPORT_SYMBOL(fc_rport_recv_req);
 
 /**
  * fc_rport_recv_plogi_req() - Handler for Port Login (PLOGI) requests
@@ -2188,9 +2189,6 @@ static void fc_rport_flush_queue(void)
  */
 int fc_rport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.rport_recv_req)
-		lport->tt.rport_recv_req = fc_rport_recv_req;
-
 	if (!lport->tt.rport_flush_queue)
 		lport->tt.rport_flush_queue = fc_rport_flush_queue;
 
