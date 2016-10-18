@@ -3865,6 +3865,14 @@ struct net_device *netdev_all_upper_get_next_dev_rcu(struct net_device *dev,
 	     updev; \
 	     updev = netdev_all_upper_get_next_dev_rcu(dev, &(iter)))
 
+int netdev_walk_all_upper_dev_rcu(struct net_device *dev,
+                                  int (*fn)(struct net_device *upper_dev,
+                                            void *data),
+                                  void *data);
+
+bool netdev_has_upper_dev_all_rcu(struct net_device *dev,
+                                  struct net_device *upper_dev)
+
 bool netdev_has_any_upper_dev(struct net_device *dev);
 
 void *netdev_lower_get_next_private(struct net_device *dev,
@@ -3909,6 +3917,15 @@ struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
 	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)); \
 	     ldev; \
 	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)))
+
+int netdev_walk_all_lower_dev(struct net_device *dev,
+			      int (*fn)(struct net_device *lower_dev,
+					void *data),
+			      void *data);
+int netdev_walk_all_lower_dev_rcu(struct net_device *dev,
+				  int (*fn)(struct net_device *lower_dev,
+					    void *data),
+				  void *data);
 
 void *netdev_adjacent_get_private(struct list_head *adj_list);
 void *netdev_lower_get_first_private_rcu(struct net_device *dev);
