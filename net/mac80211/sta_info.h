@@ -219,6 +219,8 @@ struct tid_ampdu_rx {
 	u8 auto_seq:1,
 	   removed:1,
 	   started:1;
+	bool auto_seq;
+	bool removed;
 };
 
 /**
