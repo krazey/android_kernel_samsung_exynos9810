@@ -487,7 +487,8 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 }
 
 static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
-				    struct persistent_ram_ecc_info *ecc_info)
+				    struct persistent_ram_ecc_info *ecc_info,
+				    unsigned long flags)
 {
 	int ret;
 
@@ -522,6 +523,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 	prz->buffer->sig = sig;
 	persistent_ram_zap(prz);
 	prz->buffer_lock = __RAW_SPIN_LOCK_UNLOCKED(buffer_lock);
+	prz->flags = flags;
 
 	return 0;
 }
@@ -566,7 +568,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	if (ret)
 		goto err;
 
-	ret = persistent_ram_post_init(prz, sig, ecc_info);
+	ret = persistent_ram_post_init(prz, sig, ecc_info, flags);
 	if (ret)
 		goto err;
 
