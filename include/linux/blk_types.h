@@ -135,16 +135,18 @@ struct bio {
 #define BIO_QUIET	7	/* Make BIO Quiet */
 #define BIO_CHAIN	8	/* chained bio, ->bi_remaining in effect */
 #define BIO_REFFED	9	/* bio has elevated ->bi_cnt */
+#define BIO_THROTTLED	10	/* This bio has already been subjected to
+				 * throttling rules. Don't do it again. */
 #ifdef CONFIG_JOURNAL_DATA_TAG
 /* XXX Be carefull not to touch BIO_RESET_BITS */
-#define BIO_JOURNAL    9       /* bio contains journal data */
+#define BIO_JOURNAL    10       /* bio contains journal data */
 #endif
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
  * BVEC_POOL_IDX()
  */
-#define BIO_RESET_BITS	10
+#define BIO_RESET_BITS	11
 
 /*
  * We support 6 different bvec pools, the last one is magic in that it
@@ -187,10 +189,6 @@ enum rq_flag_bits {
 	__REQ_FUA,		/* forced unit access */
 	__REQ_PREFLUSH,		/* request for cache flush */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
-
-	/* bio only flags */
-	__REQ_THROTTLED,	/* This bio has already been subjected to
-				 * throttling rules. Don't do it again. */
 
 	/* request only flags */
 	__REQ_SORTED,		/* elevator knows about this request */
@@ -236,8 +234,6 @@ enum rq_flag_bits {
 	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_PREFLUSH | REQ_FUA | REQ_FLUSH_SEQ)
 
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
-#define REQ_THROTTLED		(1ULL << __REQ_THROTTLED)
-
 #define REQ_SORTED		(1ULL << __REQ_SORTED)
 #define REQ_SOFTBARRIER		(1ULL << __REQ_SOFTBARRIER)
 #define REQ_FUA			(1ULL << __REQ_FUA)
