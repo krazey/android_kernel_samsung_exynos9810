@@ -63,6 +63,7 @@ implementation.
 
    x86/index
    core-api/index
+   crypto/index
 
 Korean translations
 -------------------
