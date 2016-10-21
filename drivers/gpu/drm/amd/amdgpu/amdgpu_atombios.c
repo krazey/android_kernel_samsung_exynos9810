@@ -1772,14 +1772,23 @@ void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
 		WREG32(mmBIOS_SCRATCH_0 + i, adev->bios_scratch[i]);
 }
 
-/* Atom needs data in little endian format so swap as appropriate when copying
- * data to or from atom. Note that atom operates on dw units.
- *
- * Use to_le=true when sending data to atom and provide at least
- * ALIGN(num_bytes,4) bytes in the dst buffer.
- *
- * Use to_le=false when receiving data from atom and provide ALIGN(num_bytes,4)
- * byes in the src buffer.
+void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
+					      bool hung)
+{
+	u32 tmp = RREG32(mmBIOS_SCRATCH_3);
+
+	if (hung)
+		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
+	else
+		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
+
+	WREG32(mmBIOS_SCRATCH_3, tmp);
+}
+
+/* Atom needs data in little endian format
+ * so swap as appropriate when copying data to
+ * or from atom. Note that atom operates on
+ * dw units.
  */
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 {
