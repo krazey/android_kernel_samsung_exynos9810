@@ -42,18 +42,9 @@ struct acomp_req {
  * struct crypto_acomp - user-instantiated objects which encapsulate
  * algorithms and core processing logic
  *
- * @compress:		Function performs a compress operation
- * @decompress:		Function performs a de-compress operation
- * @dst_free:		Frees destination buffer if allocated inside the
- *			algorithm
- * @reqsize:		Context size for (de)compression requests
- * @base:		Common crypto API algorithm data structure
+ * @base:	Common crypto API algorithm data structure
  */
 struct crypto_acomp {
-	int (*compress)(struct acomp_req *req);
-	int (*decompress)(struct acomp_req *req);
-	void (*dst_free)(struct scatterlist *dst);
-	unsigned int reqsize;
 	struct crypto_tfm base;
 };
 
@@ -134,7 +125,7 @@ static inline struct acomp_alg *crypto_acomp_alg(struct crypto_acomp *tfm)
 
 static inline unsigned int crypto_acomp_reqsize(struct crypto_acomp *tfm)
 {
-	return tfm->reqsize;
+	return crypto_acomp_alg(tfm)->reqsize;
 }
 
 static inline void acomp_request_set_tfm(struct acomp_req *req,
@@ -174,7 +165,16 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
  *
  * Return:	allocated handle in case of success or NULL in case of an error
  */
-struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
+static inline struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm)
+{
+	struct acomp_req *req;
+
+	req = kzalloc(sizeof(*req) + crypto_acomp_reqsize(tfm), GFP_KERNEL);
+	if (likely(req))
+		acomp_request_set_tfm(req, tfm);
+
+	return req;
+}
 
 /**
  * acomp_request_free() -- zeroize and free asynchronous (de)compression
@@ -183,7 +183,17 @@ struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
  *
  * @req:	request to free
  */
-void acomp_request_free(struct acomp_req *req);
+static inline void acomp_request_free(struct acomp_req *req)
+{
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	struct acomp_alg *alg = crypto_acomp_alg(tfm);
+
+	if (req->flags & CRYPTO_ACOMP_ALLOC_OUTPUT) {
+		alg->dst_free(req->dst);
+		req->dst = NULL;
+	}
+	kzfree(req);
+}
 
 /**
  * acomp_request_set_callback() -- Sets an asynchronous callback
@@ -246,8 +256,9 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 static inline int crypto_acomp_compress(struct acomp_req *req)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	struct acomp_alg *alg = crypto_acomp_alg(tfm);
 
-	return tfm->compress(req);
+	return alg->compress(req);
 }
 
 /**
@@ -262,8 +273,9 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
 static inline int crypto_acomp_decompress(struct acomp_req *req)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	struct acomp_alg *alg = crypto_acomp_alg(tfm);
 
-	return tfm->decompress(req);
+	return alg->decompress(req);
 }
 
 #endif
