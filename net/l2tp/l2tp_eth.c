@@ -309,6 +309,8 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 
 	dev_net_set(dev, net);
 	l2tp_eth_adjust_mtu(tunnel, session, dev);
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU;
 
 	priv = netdev_priv(dev);
 	priv->dev = dev;
