@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2015 Caesar Wang <wxt@rock-chips.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,14 +40,19 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
-#include "rk3399.dtsi"
+#include "rk3368.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board";
-	compatible = "rockchip,rk3399-evb", "rockchip,rk3399",
-		     "google,rk3399evb-rev2";
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
@@ -84,140 +89,175 @@
 			232 233 234 235 236 237 238 239
 			240 241 242 243 244 245 246 247
 			248 249 250 251 252 253 254 255>;
-		default-brightness-level = <200>;
-		enable-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
-		pwms = <&pwm0 0 25000 0>;
+		default-brightness-level = <128>;
+		enable-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_en>;
+		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
+		pwm-delay-us = <10000>;
 	};
 
-	clkin_gmac: external-gmac-clock {
-		compatible = "fixed-clock";
-		clock-frequency = <125000000>;
-		clock-output-names = "clkin_gmac";
-		#clock-cells = <0>;
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		pinctrl-0 = <&emmc_reset>;
+		pinctrl-names = "default";
+		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 	};
 
-	vdd_center: vdd-center {
-		compatible = "pwm-regulator";
-		pwms = <&pwm3 0 25000 0>;
-		regulator-name = "vdd_center";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <1400000>;
-		regulator-always-on;
-		regulator-boot-on;
-		status = "okay";
+	keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+
+		power {
+			wakeup-source;
+			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
+			label = "GPIO Power";
+			linux,code = <KEY_POWER>;
+		};
 	};
 
-	vcc3v3_sys: vcc3v3-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	vcc5v0_sys: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-
-	vcc5v0_host: vcc5v0-host-regulator {
+	/* supplies both host and otg */
+	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 RK_PD1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vcc5v0_host_en>;
-		regulator-name = "vcc5v0_host";
-		vin-supply = <&vcc5v0_sys>;
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "vcc_host";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_phy: vcc-phy-regulator {
+	vcc_lan: vcc-lan-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc_phy";
+		regulator-name = "vcc_lan";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_io>;
+	};
+
+	vcc_sys: vcc-sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
-
-	vcc_phy: vcc-phy-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_phy";
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
 };
 
-&emmc_phy {
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	disable-wp;
+	mmc-pwrseq = <&emmc_pwrseq>;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
 };
 
 &gmac {
-	assigned-clocks = <&cru SCLK_RMII_SRC>;
-	assigned-clock-parents = <&clkin_gmac>;
-	clock_in_out = "input";
-	phy-supply = <&vcc_phy>;
-	phy-mode = "rgmii";
-	pinctrl-names = "default";
-	pinctrl-0 = <&rgmii_pins>;
-	snps,reset-gpio = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
+	phy-supply = <&vcc_lan>;
+	phy-mode = "rmii";
+	clock_in_out = "output";
+	snps,reset-gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 50000>;
-	tx_delay = <0x28>;
-	rx_delay = <0x11>;
+	snps,reset-delays-us = <0 10000 1000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins>;
+	tx_delay = <0x30>;
+	rx_delay = <0x10>;
+	status = "ok";
+};
+
+&i2c0 {
 	status = "okay";
+};
+
+&pinctrl {
+	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
+		bias-disable;
+		drive-strength = <8>;
+	};
+
+	pcfg_pull_up_drv_8ma: pcfg-pull-up-drv-8ma {
+		bias-pull-up;
+		drive-strength = <8>;
+	};
+
+	backlight {
+		bl_en: bl-en {
+			rockchip,pins = <0 20 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	emmc {
+		emmc_bus8: emmc-bus8 {
+			rockchip,pins = <1 18 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 19 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 20 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 21 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 22 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 23 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 24 RK_FUNC_2 &pcfg_pull_up_drv_8ma>,
+					<1 25 RK_FUNC_2 &pcfg_pull_up_drv_8ma>;
+		};
+
+		emmc-clk {
+			rockchip,pins = <2 4 RK_FUNC_2 &pcfg_pull_none_drv_8ma>;
+		};
+
+		emmc-cmd {
+			rockchip,pins = <1 26 RK_FUNC_2 &pcfg_pull_up_drv_8ma>;
+		};
+
+		emmc_reset: emmc-reset {
+			rockchip,pins = <2 3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	keys {
+		pwr_key: pwr-key {
+			rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	pmic {
+		pmic_int: pmic-int {
+			rockchip,pins = <0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdio {
+		wifi_reg_on: wifi-reg-on {
+			rockchip,pins = <3 4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_rst: bt-rst {
+			rockchip,pins = <3 5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins = <0 4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm0 {
 	status = "okay";
 };
 
-&pwm2 {
-	status = "okay";
-};
-
-&pwm3 {
-	status = "okay";
-};
-
-&sdhci {
-	bus-width = <8>;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
-	non-removable;
-	status = "okay";
-};
-
-&pcie_phy {
-	status = "disabled";
-};
-
-&pcie0 {
-	ep-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_HIGH>;
-	num-lanes = <4>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_clkreqn>;
-	status = "disabled";
-};
-
-&u2phy0 {
-	status = "okay";
-};
-
-&u2phy0_host {
-	phy-supply = <&vcc5v0_host>;
-	status = "okay";
-};
-
-&u2phy1 {
-	status = "okay";
-};
-
-&u2phy1_host {
-	phy-supply = <&vcc5v0_host>;
+&tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
 	status = "okay";
 };
 
@@ -229,35 +269,11 @@
 	status = "okay";
 };
 
-&usb_host0_ohci {
+&usb_otg {
+	dr_mode = "host";
 	status = "okay";
 };
 
-&usb_host1_ehci {
+&wdt {
 	status = "okay";
-};
-
-&usb_host1_ohci {
-	status = "okay";
-};
-
-&pinctrl {
-	pmic {
-		pmic_int_l: pmic-int-l {
-			rockchip,pins =
-				<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		pmic_dvs2: pmic-dvs2 {
-			rockchip,pins =
-				<1 18 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
-	usb2 {
-		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins =
-				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
 };
