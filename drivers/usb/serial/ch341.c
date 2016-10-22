@@ -150,10 +150,10 @@ static int ch341_control_in(struct usb_device *dev,
 	return 0;
 }
 
-static int ch341_set_baudrate(struct usb_device *dev,
-			      struct ch341_private *priv)
+static int ch341_init_set_baudrate(struct usb_device *dev,
+				   struct ch341_private *priv, unsigned ctrl)
 {
-	short a, b;
+	short a;
 	int r;
 	unsigned long factor;
 	short divisor;
@@ -173,11 +173,10 @@ static int ch341_set_baudrate(struct usb_device *dev,
 
 	factor = 0x10000 - factor;
 	a = (factor & 0xff00) | divisor;
-	b = factor & 0xff;
 
-	r = ch341_control_out(dev, CH341_REQ_WRITE_REG, 0x1312, a);
-	if (!r)
-		r = ch341_control_out(dev, CH341_REQ_WRITE_REG, 0x0f2c, b);
+	/* 0x9c is "enable SFR_UART Control register and timer" */
+	r = ch341_control_out(dev, CH341_REQ_SERIAL_INIT,
+			      0x9c | (ctrl << 8), a | 0x80);
 
 	return r;
 }
@@ -231,10 +230,6 @@ static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 	if (r < 0)
 		goto out;
 
-	r = ch341_set_baudrate(dev, priv);
-	if (r < 0)
-		goto out;
-
 	/* expect two bytes 0x56 0x00 */
 	r = ch341_control_in(dev, CH341_REQ_READ_REG, 0x2518, 0, buffer, size);
 	if (r < 0)
@@ -249,11 +244,7 @@ static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 	if (r < 0)
 		goto out;
 
-	r = ch341_control_out(dev, CH341_REQ_SERIAL_INIT, 0x501f, 0xd90a);
-	if (r < 0)
-		goto out;
-
-	r = ch341_set_baudrate(dev, priv);
+	r = ch341_init_set_baudrate(dev, priv, 0);
 	if (r < 0)
 		goto out;
 
@@ -374,6 +365,12 @@ static void ch341_set_termios(struct tty_struct *tty,
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned baud_rate;
 	unsigned long flags;
+	unsigned char ctrl;
+	int r;
+
+	/* redundant changes may cause the chip to lose bytes */
+	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
+		return;
 
 	baud_rate = tty_get_baud_rate(tty);
 
@@ -381,6 +378,8 @@ static void ch341_set_termios(struct tty_struct *tty,
 		priv->baud_rate = baud_rate;
 		ch341_set_baudrate(port->serial->dev, priv);
 	}
+
+	ctrl  = CH341_LCR_ENABLE_RX | CH341_LCR_ENABLE_TX
 
 	/* Unimplemented:
 	 * (cflag & CSIZE) : data bits [5, 8]
