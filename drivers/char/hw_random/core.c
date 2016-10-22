@@ -93,6 +93,7 @@ static void add_early_randomness(struct hwrng *rng)
 	mutex_unlock(&reading_mutex);
 	if (bytes_read > 0)
 		add_device_randomness(rng_buffer, bytes_read);
+	memset(rng_buffer, 0, size);
 }
 
 static inline void cleanup_rng(struct kref *kref)
@@ -288,6 +289,7 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 		}
 	}
 out:
+	memset(rng_buffer, 0, rng_buffer_size());
 	return ret ? : err;
 
 out_unlock_reading:
@@ -428,6 +430,7 @@ static int hwrng_fillfn(void *unused)
 		/* Outside lock, sure, but y'know: randomness. */
 		add_hwgenerator_randomness((void *)rng_fillbuf, rc,
 					   rc * current_quality * 8 >> 10);
+		memset(rng_fillbuf, 0, rng_buffer_size());
 	}
 	hwrng_fill = NULL;
 	return 0;
