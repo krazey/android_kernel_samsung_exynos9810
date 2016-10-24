@@ -602,13 +602,14 @@ static int nl80211_prepare_wdev_dump(struct sk_buff *skb,
 
 	if (!cb->args[0]) {
 		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
+				  genl_family_attrbuf(&nl80211_fam),
+				  nl80211_fam.maxattr, nl80211_policy);
 		if (err)
 			return err;
 
-		*wdev = __cfg80211_wdev_from_attrs(sock_net(skb->sk),
-						   nl80211_fam.attrbuf);
+		*wdev = __cfg80211_wdev_from_attrs(
+					sock_net(skb->sk),
+					genl_family_attrbuf(&nl80211_fam));
 		if (IS_ERR(*wdev))
 			return PTR_ERR(*wdev);
 		*rdev = wiphy_to_rdev((*wdev)->wiphy);
@@ -1944,7 +1945,7 @@ static int nl80211_dump_wiphy_parse(struct sk_buff *skb,
 				    struct netlink_callback *cb,
 				    struct nl80211_dump_wiphy_state *state)
 {
-	struct nlattr **tb = nl80211_fam.attrbuf;
+	struct nlattr **tb = genl_family_attrbuf(&nl80211_fam);
 	int ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
 			      tb, nl80211_fam.maxattr, nl80211_policy);
 	/* ignore parse errors for backward compatibility */
@@ -7748,6 +7749,7 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
 
 static int nl80211_dump_survey(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct nlattr **attrbuf = genl_family_attrbuf(&nl80211_fam);
 	struct survey_info survey;
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
@@ -7761,7 +7763,7 @@ static int nl80211_dump_survey(struct sk_buff *skb, struct netlink_callback *cb)
 		goto out_err;
 
 	/* prepare_wdev_dump parsed the attributes */
-	radio_stats = nl80211_fam.attrbuf[NL80211_ATTR_SURVEY_RADIO_STATS];
+	radio_stats = attrbuf[NL80211_ATTR_SURVEY_RADIO_STATS];
 
 	if (!wdev->netdev) {
 		res = -EINVAL;
@@ -8602,14 +8604,14 @@ static int nl80211_testmode_dump(struct sk_buff *skb,
 		 */
 		phy_idx = cb->args[0] - 1;
 	} else {
+		struct nlattr **attrbuf = genl_family_attrbuf(&nl80211_fam);
+
 		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
+				  attrbuf, nl80211_fam.maxattr, nl80211_policy);
 		if (err)
 			goto out_err;
 
-		rdev = __cfg80211_rdev_from_attrs(sock_net(skb->sk),
-						  nl80211_fam.attrbuf);
+		rdev = __cfg80211_rdev_from_attrs(sock_net(skb->sk), attrbuf);
 		if (IS_ERR(rdev)) {
 			err = PTR_ERR(rdev);
 			goto out_err;
@@ -8617,9 +8619,8 @@ static int nl80211_testmode_dump(struct sk_buff *skb,
 		phy_idx = rdev->wiphy_idx;
 		rdev = NULL;
 
-		if (nl80211_fam.attrbuf[NL80211_ATTR_TESTDATA])
-			cb->args[1] =
-				(long)nl80211_fam.attrbuf[NL80211_ATTR_TESTDATA];
+		if (attrbuf[NL80211_ATTR_TESTDATA])
+			cb->args[1] = (long)attrbuf[NL80211_ATTR_TESTDATA];
 	}
 
 	if (cb->args[1]) {
@@ -11440,6 +11441,7 @@ static int nl80211_prepare_vendor_dump(struct sk_buff *skb,
 				       struct cfg80211_registered_device **rdev,
 				       struct wireless_dev **wdev)
 {
+	struct nlattr **attrbuf = genl_family_attrbuf(&nl80211_fam);
 	u32 vid, subcmd;
 	unsigned int i;
 	int vcmd_idx = -1;
@@ -11471,27 +11473,24 @@ static int nl80211_prepare_vendor_dump(struct sk_buff *skb,
 	}
 
 	err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-			  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-			  nl80211_policy);
+			  attrbuf, nl80211_fam.maxattr, nl80211_policy);
 	if (err)
 		return err;
 
-	if (!nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_ID] ||
-	    !nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_SUBCMD])
+        if (!attrbuf[NL80211_ATTR_VENDOR_ID] ||
+            !attrbuf[NL80211_ATTR_VENDOR_SUBCMD])
 		return -EINVAL;
 
-	*wdev = __cfg80211_wdev_from_attrs(sock_net(skb->sk),
-					   nl80211_fam.attrbuf);
+	*wdev = __cfg80211_wdev_from_attrs(sock_net(skb->sk), attrbuf);
 	if (IS_ERR(*wdev))
 		*wdev = NULL;
 
-	*rdev = __cfg80211_rdev_from_attrs(sock_net(skb->sk),
-					   nl80211_fam.attrbuf);
+        *rdev = __cfg80211_rdev_from_attrs(sock_net(skb->sk), attrbuf);
 	if (IS_ERR(*rdev))
 		return PTR_ERR(*rdev);
 
-	vid = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_ID]);
-	subcmd = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_SUBCMD]);
+	vid = nla_get_u32(attrbuf[NL80211_ATTR_VENDOR_ID]);
+	subcmd = nla_get_u32(attrbuf[NL80211_ATTR_VENDOR_SUBCMD]);
 
 	for (i = 0; i < (*rdev)->wiphy.n_vendor_commands; i++) {
 		const struct wiphy_vendor_command *vcmd;
@@ -11511,9 +11510,9 @@ static int nl80211_prepare_vendor_dump(struct sk_buff *skb,
 	if (vcmd_idx < 0)
 		return -EOPNOTSUPP;
 
-	if (nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_DATA]) {
-		data = nla_data(nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_DATA]);
-		data_len = nla_len(nl80211_fam.attrbuf[NL80211_ATTR_VENDOR_DATA]);
+	if (attrbuf[NL80211_ATTR_VENDOR_DATA]) {
+		data = nla_data(attrbuf[NL80211_ATTR_VENDOR_DATA]);
+		data_len = nla_len(attrbuf[NL80211_ATTR_VENDOR_DATA]);
 	}
 
 	/* 0 is the first index - add 1 to parse only once */
