@@ -136,13 +136,7 @@ static const struct nla_policy hsr_genl_policy[HSR_A_MAX + 1] = {
 	[HSR_A_IF2_SEQ] = { .type = NLA_U16 },
 };
 
-static struct genl_family hsr_genl_family = {
-	.hdrsize = 0,
-	.name = "HSR",
-	.version = 1,
-	.maxattr = HSR_A_MAX,
-	.netnsok = true,
-};
+static struct genl_family hsr_genl_family;
 
 static const struct genl_multicast_group hsr_mcgrps[] = {
 	{ .name = "hsr-network", },
@@ -481,6 +475,18 @@ static const struct genl_ops hsr_ops[] = {
 	},
 };
 
+static struct genl_family hsr_genl_family = {
+	.hdrsize = 0,
+	.name = "HSR",
+	.version = 1,
+	.maxattr = HSR_A_MAX,
+	.module = THIS_MODULE,
+	.ops = hsr_ops,
+	.n_ops = ARRAY_SIZE(hsr_ops),
+	.mcgrps = hsr_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(hsr_mcgrps),
+};
+
 int __init hsr_netlink_init(void)
 {
 	int rc;
@@ -489,8 +495,7 @@ int __init hsr_netlink_init(void)
 	if (rc)
 		goto fail_rtnl_link_register;
 
-	rc = genl_register_family_with_ops_groups(&hsr_genl_family, hsr_ops,
-						  hsr_mcgrps);
+	rc = genl_register_family(&hsr_genl_family);
 	if (rc)
 		goto fail_genl_register_family;
 

@@ -680,6 +680,7 @@ static struct genl_family dp_packet_genl_family = {
 	.parallel_ops = true,
 	.ops = dp_packet_genl_ops,
 	.n_ops = ARRAY_SIZE(dp_packet_genl_ops),
+	.module = THIS_MODULE,
 };
 
 static void get_dp_stats(const struct datapath *dp, struct ovs_dp_stats *stats,
@@ -1457,6 +1458,7 @@ static struct genl_family dp_flow_genl_family = {
 	.n_ops = ARRAY_SIZE(dp_flow_genl_ops),
 	.mcgrps = &ovs_dp_flow_multicast_group,
 	.n_mcgrps = 1,
+	.module = THIS_MODULE,
 };
 
 static size_t ovs_dp_cmd_msg_size(void)
@@ -1842,6 +1844,7 @@ static struct genl_family dp_datapath_genl_family = {
 	.n_ops = ARRAY_SIZE(dp_datapath_genl_ops),
 	.mcgrps = &ovs_dp_datapath_multicast_group,
 	.n_mcgrps = 1,
+	.module = THIS_MODULE,
 };
 
 /* Called with ovs_mutex or RCU read lock. */
@@ -2263,6 +2266,7 @@ struct genl_family dp_vport_genl_family = {
 	.n_ops = ARRAY_SIZE(dp_vport_genl_ops),
 	.mcgrps = &ovs_dp_vport_multicast_group,
 	.n_mcgrps = 1,
+	.module = THIS_MODULE,
 };
 
 static struct genl_family * const dp_genl_families[] = {
