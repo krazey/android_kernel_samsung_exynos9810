@@ -1369,6 +1369,14 @@ struct i915_gem_mm {
 	 */
 	struct list_head unbound_list;
 
+	/** Protects access to the userfault_list */
+	spinlock_t userfault_lock;
+
+	/** List of all objects in gtt_space, currently mmaped by userspace.
+	 * All objects within this list must also be on bound_list.
+	 */
+	struct list_head userfault_list;
+
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
 
@@ -2211,6 +2219,11 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
+	/**
+	 * Whether the object is currently in the GGTT mmap.
+	 */
+	struct list_head userfault_link;
+
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
@@ -2237,13 +2250,6 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv:2;
-
-	/**
-	 * Whether the current gtt mapping needs to be mappable (and isn't just
-	 * mappable by accident). Track pin and fault separate for a more
-	 * accurate mappable working set.
-	 */
-	unsigned int fault_mappable:1;
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
