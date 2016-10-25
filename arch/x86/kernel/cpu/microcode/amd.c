@@ -311,7 +311,7 @@ void __init load_ucode_amd_bsp(unsigned int family)
  * In save_microcode_in_initrd_amd() BSP's patch is copied to amd_ucode_patch,
  * which is used upon resume from suspend.
  */
-void load_ucode_amd_ap(void)
+void load_ucode_amd_ap(unsigned int family)
 {
 	struct microcode_amd *mc;
 	size_t *usize;
@@ -349,7 +349,7 @@ static void __init get_bsp_sig(void)
 		smp_call_function_single(bsp, collect_cpu_sig_on_bsp, NULL, 1);
 }
 #else
-void load_ucode_amd_ap(void)
+void load_ucode_amd_ap(unsigned int family)
 {
 	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
@@ -398,7 +398,7 @@ void load_ucode_amd_ap(void)
 }
 #endif
 
-int __init save_microcode_in_initrd_amd(void)
+int __init save_microcode_in_initrd_amd(unsigned int family)
 {
 	unsigned long cont;
 	int retval = 0;
