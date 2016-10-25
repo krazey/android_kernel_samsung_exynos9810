@@ -4169,16 +4169,16 @@ static u32 bond_mode_bcast_speed(struct slave *slave, u32 speed)
 	return speed;
 }
 
-static int bond_ethtool_get_settings(struct net_device *bond_dev,
-				     struct ethtool_cmd *ecmd)
+static int bond_ethtool_get_link_ksettings(struct net_device *bond_dev,
+					   struct ethtool_link_ksettings *cmd)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct list_head *iter;
 	struct slave *slave;
 	u32 speed = 0;
 
-	ecmd->duplex = DUPLEX_UNKNOWN;
-	ecmd->port = PORT_OTHER;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.port = PORT_OTHER;
 
 	/* Since bond_slave_can_tx returns false for all inactive or down slaves, we
 	 * do not need to check mode.  Though link speed might not represent
@@ -4194,12 +4194,12 @@ static int bond_ethtool_get_settings(struct net_device *bond_dev,
 				else
 					speed += slave->speed;
 			}
-			if (ecmd->duplex == DUPLEX_UNKNOWN &&
+			if (cmd->base.duplex == DUPLEX_UNKNOWN &&
 			    slave->duplex != DUPLEX_UNKNOWN)
-				ecmd->duplex = slave->duplex;
+				cmd->base.duplex = slave->duplex;
 		}
 	}
-	ethtool_cmd_speed_set(ecmd, speed ? : SPEED_UNKNOWN);
+	cmd->base.speed = speed ? : SPEED_UNKNOWN;
 
 	return 0;
 }
@@ -4215,8 +4215,8 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
-	.get_settings		= bond_ethtool_get_settings,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ksettings	= bond_ethtool_get_link_ksettings,
 };
 
 static const struct net_device_ops bond_netdev_ops = {
