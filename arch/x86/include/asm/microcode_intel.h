@@ -67,10 +67,6 @@ static inline u32 intel_get_microcode_revision(void)
 	return rev;
 }
 
-extern int has_newer_microcode(void *mc, unsigned int csig, int cpf, int rev);
-extern int microcode_sanity_check(void *mc, int print_err);
-extern int find_matching_signature(void *mc, unsigned int csig, int cpf);
-
 #ifdef CONFIG_MICROCODE_INTEL
 extern void __init load_ucode_intel_bsp(void);
 extern void load_ucode_intel_ap(void);
