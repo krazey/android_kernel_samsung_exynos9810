@@ -30,8 +30,6 @@
 #include "dma.h"
 #include "s3c24xx-i2s.h"
 
-#include <linux/platform_data/asoc-s3c.h>
-
 static struct snd_dmaengine_dai_dma_data s3c24xx_i2s_pcm_stereo_out = {
 	.addr_width	= 2,
 };
@@ -449,14 +447,8 @@ static const struct snd_soc_component_driver s3c24xx_i2s_component = {
 
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct resource *res;
-	struct s3c_audio_pdata *pdata = dev_get_platdata(&pdev->dev);
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "missing platform data");
-		return -ENXIO;
-	}
+	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -468,9 +460,7 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 		return PTR_ERR(s3c24xx_i2s.regs);
 
 	s3c24xx_i2s_pcm_stereo_out.addr = res->start + S3C2410_IISFIFO;
-	s3c24xx_i2s_pcm_stereo_out.filter_data = pdata->dma_playback;
 	s3c24xx_i2s_pcm_stereo_in.addr = res->start + S3C2410_IISFIFO;
-	s3c24xx_i2s_pcm_stereo_in.filter_data = pdata->dma_capture;
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev,
 						 pdata->dma_filter,
