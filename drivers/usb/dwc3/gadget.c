@@ -265,6 +265,7 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	/* Only delete from the list if the item isn't poisoned. */
 	if (req->list.next != LIST_POISON1)
 		list_del(&req->list);
+		req->remaining = 0;
 
 	if (req->request.status == -EINPROGRESS)
 		req->request.status = status;
@@ -2468,7 +2469,7 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		return 1;
 
 	count = trb->size & DWC3_TRB_SIZE_MASK;
-	req->request.actual += count;
+	req->remaining += count;
 
 	if (dep->direction) {
 		if (count) {
@@ -2522,11 +2523,10 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	struct dwc3_request	*req, *n;
 	struct dwc3_trb		*trb;
 	bool			ioc = false;
-	int			ret;
+	int			ret = 0;
 
 	list_for_each_entry_safe(req, n, &dep->started_list, list) {
 		unsigned length;
-		unsigned actual;
 		int chain;
 
 		length = req->request.length;
@@ -2554,17 +2554,10 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 					event, status, chain);
 		}
 
-		/*
-		 * We assume here we will always receive the entire data block
-		 * which we should receive. Meaning, if we program RX to
-		 * receive 4K but we receive only 2K, we assume that's all we
-		 * should receive and we simply bounce the request back to the
-		 * gadget driver for further processing.
-		 */
-		actual = length - req->request.actual;
-		req->request.actual = actual;
+		req->request.actual = length - req->remaining;
 
-		if (ret && chain && (actual < length) && req->num_pending_sgs)
+		if (ret && chain && (req->request.actual < length)
+				&& req->num_pending_sgs)
 			return __dwc3_gadget_kick_transfer(dep, 0);
 
 		dwc3_gadget_giveback(dep, req, status);
