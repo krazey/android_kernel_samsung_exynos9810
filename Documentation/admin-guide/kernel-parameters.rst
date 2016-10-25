@@ -1991,9 +1991,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted::
 			0: force disabled
 			1: force enabled
 
-	kstack=N	[X86] Print N words from the kernel stack
-			in oops dumps.
-
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
 
