@@ -6183,6 +6183,7 @@ F:	drivers/ide/ide-cd*
 
 IEEE 802.15.4 SUBSYSTEM
 M:	Alexander Aring <aar@pengutronix.de>
+M:	Stefan Schmidt <stefan@osg.samsung.com>
 L:	linux-wpan@vger.kernel.org
 W:	http://wpan.cakelab.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
