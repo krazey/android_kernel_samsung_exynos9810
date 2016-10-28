@@ -522,8 +522,13 @@ static ssize_t in_illuminance_input_target_show(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
+	int ret;
 
-	return sprintf(buf, "%d\n", chip->taos_settings.als_cal_target);
+	mutex_lock(&chip->als_mutex);
+	ret = sprintf(buf, "%d\n", chip->taos_settings.als_cal_target);
+	mutex_unlock(&chip->als_mutex);
+
+	return ret;
 }
 
 static ssize_t in_illuminance_input_target_store(struct device *dev,
@@ -537,7 +542,9 @@ static ssize_t in_illuminance_input_target_store(struct device *dev,
 	if (kstrtoint(buf, 0, &value) || !value)
 		return -EINVAL;
 
+	mutex_lock(&chip->als_mutex);
 	chip->taos_settings.als_cal_target = value;
+	mutex_unlock(&chip->als_mutex);
 
 	return len;
 }
@@ -547,12 +554,15 @@ static ssize_t in_illuminance_calibrate_store(struct device *dev,
 					      const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int value;
 
 	if (kstrtoint(buf, 0, &value) || value != 1)
 		return -EINVAL;
 
+	mutex_lock(&chip->als_mutex);
 	taos_als_calibrate(indio_dev);
+	mutex_unlock(&chip->als_mutex);
 
 	return len;
 }
@@ -592,6 +602,8 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 	int value[ARRAY_SIZE(taos_device_lux) * 3 + 1];
 	int n, ret = -EINVAL;
 
+	mutex_lock(&chip->als_mutex);
+
 	get_options(buf, ARRAY_SIZE(value), value);
 
 	/* We now have an array of ints starting at value[1], and
@@ -626,6 +638,8 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 	ret = len;
 
 done:
+	mutex_unlock(&chip->als_mutex);
+
 	return ret;
 }
 
