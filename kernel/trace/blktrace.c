@@ -1913,14 +1913,14 @@ void blk_dump_cmd(char *buf, struct request *rq)
 
 SIO_PATCH_VERSION(ftrace_discard_bugfix, 1, 0, "");
 
-void blk_fill_rwbs(char *rwbs, int op, u32 rw, int bytes)
+void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes)
 {
 	int i = 0;
 
-	if (rw & REQ_PREFLUSH)
+	if (op & REQ_PREFLUSH)
 		rwbs[i++] = 'F';
 
-	switch (op) {
+	switch (op & REQ_OP_MASK) {
 	case REQ_OP_DISCARD:
 		rwbs[i++] = 'D';
 		break;
@@ -1942,13 +1942,13 @@ void blk_fill_rwbs(char *rwbs, int op, u32 rw, int bytes)
 		rwbs[i++] = 'N';
 	}
 
-	if (rw & REQ_FUA)
+	if (op & REQ_FUA)
 		rwbs[i++] = 'F';
-	if (rw & REQ_RAHEAD)
+	if (op & REQ_RAHEAD)
 		rwbs[i++] = 'A';
-	if (rw & REQ_SYNC)
+	if (op & REQ_SYNC)
 		rwbs[i++] = 'S';
-	if (rw & REQ_META)
+	if (op & REQ_META)
 		rwbs[i++] = 'M';
 
 	rwbs[i] = '\0';
