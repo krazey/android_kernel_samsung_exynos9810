@@ -373,6 +373,8 @@ static struct perf_limits *limits = &performance_limits;
 static struct perf_limits *limits = &powersave_limits;
 #endif
 
+static DEFINE_MUTEX(intel_pstate_limits_lock);
+
 #ifdef CONFIG_ACPI
 
 static bool intel_pstate_get_ppc_enable_status(void)
@@ -731,13 +733,18 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	update_turbo_state();
 	if (limits->turbo_disabled) {
 		pr_warn("Turbo disabled by BIOS or unavailable on processor\n");
+		mutex_unlock(&intel_pstate_limits_lock);
 		return -EPERM;
 	}
 
 	limits->no_turbo = clamp_t(int, input, 0, 1);
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	if (hwp_active)
 		intel_pstate_hwp_set_online_cpus();
@@ -755,6 +762,8 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	limits->max_sysfs_pct = clamp_t(int, input, 0 , 100);
 	limits->max_perf_pct = min(limits->max_policy_pct,
 				   limits->max_sysfs_pct);
@@ -763,6 +772,8 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	limits->max_perf_pct = max(limits->min_perf_pct,
 				   limits->max_perf_pct);
 	limits->max_perf = div_fp(limits->max_perf_pct, 100);
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	if (hwp_active)
 		intel_pstate_hwp_set_online_cpus();
@@ -779,6 +790,8 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	limits->min_sysfs_pct = clamp_t(int, input, 0 , 100);
 	limits->min_perf_pct = max(limits->min_policy_pct,
 				   limits->min_sysfs_pct);
@@ -787,6 +800,8 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	limits->min_perf_pct = min(limits->max_perf_pct,
 				   limits->min_perf_pct);
 	limits->min_perf = div_fp(limits->min_perf_pct, 100);
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	if (hwp_active)
 		intel_pstate_hwp_set_online_cpus();
@@ -1559,6 +1574,7 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 
 static void intel_pstate_set_performance_limits(struct perf_limits *limits)
 {
+	mutex_lock(&intel_pstate_limits_lock);
 	limits->no_turbo = 0;
 	limits->turbo_disabled = 0;
 	limits->max_perf_pct = 100;
@@ -1569,11 +1585,15 @@ static void intel_pstate_set_performance_limits(struct perf_limits *limits)
 	limits->max_sysfs_pct = 100;
 	limits->min_policy_pct = 0;
 	limits->min_sysfs_pct = 0;
+	mutex_unlock(&intel_pstate_limits_lock);
 }
 
 static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					    struct perf_limits *limits)
 {
+
+	mutex_lock(&intel_pstate_limits_lock);
+
 	limits->max_policy_pct = DIV_ROUND_UP(policy->max * 100,
 					      policy->cpuinfo.max_freq);
 	limits->max_policy_pct = clamp_t(int, limits->max_policy_pct, 0, 100);
@@ -1602,6 +1622,8 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 	limits->min_perf = div_fp(limits->min_perf_pct, 100);
 	limits->max_perf = div_fp(limits->max_perf_pct, 100);
 	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	pr_debug("cpu:%d max_perf_pct:%d min_perf_pct:%d\n", policy->cpu,
 		 limits->max_perf_pct, limits->min_perf_pct);
