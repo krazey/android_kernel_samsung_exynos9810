@@ -60,6 +60,7 @@ implementation.
    :maxdepth: 2
 
    x86/index
+   core-api/index
 
 Indices and tables
 ==================
