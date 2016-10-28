@@ -995,8 +995,8 @@ mlxsw_sx_port_mac_learning_mode_set(struct mlxsw_sx_port *mlxsw_sx_port,
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(spmlr), spmlr_pl);
 }
 
-static int __mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
-				  u8 module, u8 width)
+static int __mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
+				      u8 module, u8 width)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port;
 	struct net_device *dev;
@@ -1120,8 +1120,8 @@ err_alloc_stats:
 	return err;
 }
 
-static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
-				u8 module, u8 width)
+static int mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
+				    u8 module, u8 width)
 {
 	int err;
 
@@ -1131,7 +1131,7 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 			local_port);
 		return err;
 	}
-	err = __mlxsw_sx_port_create(mlxsw_sx, local_port, module, width);
+	err = __mlxsw_sx_port_eth_create(mlxsw_sx, local_port, module, width);
 	if (err)
 		goto err_port_create;
 
@@ -1142,7 +1142,7 @@ err_port_create:
 	return err;
 }
 
-static void __mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
+static void __mlxsw_sx_port_eth_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port = mlxsw_sx->ports[local_port];
 
@@ -1154,9 +1154,9 @@ static void __mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	free_netdev(mlxsw_sx_port->dev);
 }
 
-static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
+static void mlxsw_sx_port_eth_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 {
-	__mlxsw_sx_port_remove(mlxsw_sx, local_port);
+	__mlxsw_sx_port_eth_remove(mlxsw_sx, local_port);
 	mlxsw_core_port_fini(mlxsw_sx->core, local_port);
 }
 
@@ -1171,7 +1171,7 @@ static void mlxsw_sx_ports_remove(struct mlxsw_sx *mlxsw_sx)
 
 	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
 		if (mlxsw_sx_port_created(mlxsw_sx, i))
-			mlxsw_sx_port_remove(mlxsw_sx, i);
+			mlxsw_sx_port_eth_remove(mlxsw_sx, i);
 	kfree(mlxsw_sx->ports);
 }
 
@@ -1194,7 +1194,7 @@ static int mlxsw_sx_ports_create(struct mlxsw_sx *mlxsw_sx)
 			goto err_port_module_info_get;
 		if (!width)
 			continue;
-		err = mlxsw_sx_port_create(mlxsw_sx, i, module, width);
+		err = mlxsw_sx_port_eth_create(mlxsw_sx, i, module, width);
 		if (err)
 			goto err_port_create;
 	}
@@ -1204,7 +1204,7 @@ err_port_create:
 err_port_module_info_get:
 	for (i--; i >= 1; i--)
 		if (mlxsw_sx_port_created(mlxsw_sx, i))
-			mlxsw_sx_port_remove(mlxsw_sx, i);
+			mlxsw_sx_port_eth_remove(mlxsw_sx, i);
 	kfree(mlxsw_sx->ports);
 	return err;
 }
