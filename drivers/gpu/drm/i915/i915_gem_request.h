@@ -25,7 +25,7 @@
 #ifndef I915_GEM_REQUEST_H
 #define I915_GEM_REQUEST_H
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #include "i915_gem.h"
 #include "i915_sw_fence.h"
@@ -62,7 +62,7 @@ struct intel_signal_node {
  * The requests are reference counted.
  */
 struct drm_i915_gem_request {
-	struct fence fence;
+	struct dma_fence fence;
 	spinlock_t lock;
 
 	/** On Which ring this request was generated */
@@ -145,7 +145,7 @@ struct drm_i915_gem_request {
 	struct list_head execlist_link;
 };
 
-extern const struct fence_ops i915_fence_ops;
+extern const struct dma_fence_ops i915_fence_ops;
 
 static inline bool dma_fence_is_i915(const struct dma_fence *fence)
 {
@@ -172,7 +172,7 @@ i915_gem_request_get_engine(struct drm_i915_gem_request *req)
 }
 
 static inline struct drm_i915_gem_request *
-to_request(struct fence *fence)
+to_request(struct dma_fence *fence)
 {
 	/* We assume that NULL fence/request are interoperable */
 	BUILD_BUG_ON(offsetof(struct drm_i915_gem_request, fence) != 0);
@@ -183,19 +183,19 @@ to_request(struct fence *fence)
 static inline struct drm_i915_gem_request *
 i915_gem_request_get(struct drm_i915_gem_request *req)
 {
-	return to_request(fence_get(&req->fence));
+	return to_request(dma_fence_get(&req->fence));
 }
 
 static inline struct drm_i915_gem_request *
 i915_gem_request_get_rcu(struct drm_i915_gem_request *req)
 {
-	return to_request(fence_get_rcu(&req->fence));
+	return to_request(dma_fence_get_rcu(&req->fence));
 }
 
 static inline void
 i915_gem_request_put(struct drm_i915_gem_request *req)
 {
-	fence_put(&req->fence);
+	dma_fence_put(&req->fence);
 }
 
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
@@ -228,13 +228,13 @@ struct intel_rps_client;
 #define IS_RPS_CLIENT(p) (!IS_ERR(p))
 #define IS_RPS_USER(p) (!IS_ERR_OR_NULL(p))
 
-int i915_wait_request(struct drm_i915_gem_request *req,
-		      unsigned int flags,
-		      s64 *timeout,
-		      struct intel_rps_client *rps)
+long i915_wait_request(struct drm_i915_gem_request *req,
+		       unsigned int flags,
+		       long timeout)
 	__attribute__((nonnull(1)));
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
+#define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
@@ -344,25 +344,6 @@ i915_gem_active_set(struct i915_gem_active *active,
 {
 	list_move(&active->link, &request->active_list);
 	rcu_assign_pointer(active->request, request);
-}
-
-/**
- * i915_gem_active_set_retire_fn - updates the retirement callback
- * @active - the active tracker
- * @fn - the routine called when the request is retired
- * @mutex - struct_mutex used to guard retirements
- *
- * i915_gem_active_set_retire_fn() updates the function pointer that
- * is called when the final request associated with the @active tracker
- * is retired.
- */
-static inline void
-i915_gem_active_set_retire_fn(struct i915_gem_active *active,
-			      i915_gem_retire_fn fn,
-			      struct mutex *mutex)
-{
-	lockdep_assert_held(mutex);
-	active->retire = fn ?: i915_gem_retire_noop;
 }
 
 static inline struct drm_i915_gem_request *
@@ -518,7 +499,7 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 		 * compiler.
 		 *
 		 * The atomic operation at the heart of
-		 * i915_gem_request_get_rcu(), see fence_get_rcu(), is
+		 * i915_gem_request_get_rcu(), see dma_fence_get_rcu(), is
 		 * atomic_inc_not_zero() which is only a full memory barrier
 		 * when successful. That is, if i915_gem_request_get_rcu()
 		 * returns the request (and so with the reference counted
@@ -588,13 +569,40 @@ i915_gem_active_is_idle(const struct i915_gem_active *active,
 }
 
 /**
- * i915_gem_active_wait- waits until the request is completed
+ * i915_gem_active_wait - waits until the request is completed
+ * @active - the active request on which to wait
+ *
+ * i915_gem_active_wait() waits until the request is completed before
+ * returning. Note that it does not guarantee that the request is
+ * retired first, see i915_gem_active_retire().
+ *
+ * i915_gem_active_wait() returns immediately if the active
+ * request is already complete.
+ */
+static inline int __must_check
+i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
+{
+	struct drm_i915_gem_request *request;
+	long ret;
+
+	request = i915_gem_active_peek(active, mutex);
+	if (!request)
+		return 0;
+
+	ret = i915_wait_request(request,
+				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				MAX_SCHEDULE_TIMEOUT);
+	return ret < 0 ? ret : 0;
+}
+
+/**
+ * i915_gem_active_wait_unlocked - waits until the request is completed
  * @active - the active request on which to wait
  * @flags - how to wait
  * @timeout - how long to wait at most
  * @rps - userspace client to charge for a waitboost
  *
- * i915_gem_active_wait() waits until the request is completed before
+ * i915_gem_active_wait_unlocked() waits until the request is completed before
  * returning, without requiring any locks to be held. Note that it does not
  * retire any requests before returning.
  *
@@ -610,18 +618,19 @@ i915_gem_active_is_idle(const struct i915_gem_active *active,
  * Returns 0 if successful, or a negative error code.
  */
 static inline int
-i915_gem_active_wait(const struct i915_gem_active *active, unsigned int flags)
+i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
+			      unsigned int flags)
 {
 	struct drm_i915_gem_request *request;
-	int ret = 0;
+	long ret = 0;
 
 	request = i915_gem_active_get_unlocked(active);
 	if (request) {
-		ret = i915_wait_request(request, flags, timeout, rps);
+		ret = i915_wait_request(request, flags, MAX_SCHEDULE_TIMEOUT);
 		i915_gem_request_put(request);
 	}
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -638,7 +647,7 @@ i915_gem_active_retire(struct i915_gem_active *active,
 		       struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
-	int ret;
+	long ret;
 
 	request = i915_gem_active_raw(active, mutex);
 	if (!request)
@@ -646,8 +655,8 @@ i915_gem_active_retire(struct i915_gem_active *active,
 
 	ret = i915_wait_request(request,
 				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				NULL, NULL);
-	if (ret)
+				MAX_SCHEDULE_TIMEOUT);
+	if (ret < 0)
 		return ret;
 
 	list_del_init(&active->link);
