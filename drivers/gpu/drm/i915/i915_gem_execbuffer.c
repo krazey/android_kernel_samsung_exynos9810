@@ -419,15 +419,6 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 	unsigned long offset;
 	void *vaddr;
 
-	if (cache->node.allocated) {
-		wmb();
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, page),
-				       cache->node.start, I915_CACHE_NONE, 0);
-		cache->page = page;
-		return unmask_page(cache->vaddr);
-	}
-
 	if (cache->vaddr) {
 		io_mapping_unmap_atomic((void __force __iomem *) unmask_page(cache->vaddr));
 	} else {
@@ -467,6 +458,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 
 	offset = cache->node.start;
 	if (cache->node.allocated) {
+		wmb();
 		ggtt->base.insert_page(&ggtt->base,
 				       i915_gem_object_get_dma_address(obj, page),
 				       offset, I915_CACHE_NONE, 0);
