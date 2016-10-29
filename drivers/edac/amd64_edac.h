@@ -18,7 +18,7 @@
 #include <linux/edac.h>
 #include <asm/cpu_device_id.h>
 #include <asm/msr.h>
-#include "edac_core.h"
+#include "edac_module.h"
 #include "mce_amd.h"
 
 #define amd64_debug(fmt, arg...) \
