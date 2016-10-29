@@ -19,6 +19,8 @@
 #include <linux/debugfs.h>
 #include <linux/numa.h>
 
+#define EDAC_DEVICE_NAME_LEN	31
+
 struct device;
 
 #define EDAC_OPSTATE_INVAL	-1
