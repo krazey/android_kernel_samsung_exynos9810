@@ -643,13 +643,15 @@ static int ad7192_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	st->reg = devm_regulator_get(&spi->dev, "avdd");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
+	if (IS_ERR(st->reg))
+		return PTR_ERR(st->reg);
 
-		voltage_uv = regulator_get_voltage(st->reg);
+	ret = regulator_enable(st->reg);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to enable specified AVdd supply\n");
+		return ret;
 	}
+	voltage_uv = regulator_get_voltage(st->reg);
 
 	if (pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
@@ -698,8 +700,7 @@ static int ad7192_probe(struct spi_device *spi)
 error_remove_trigger:
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 
 	return ret;
 }
@@ -712,8 +713,7 @@ static int ad7192_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 
 	return 0;
 }
