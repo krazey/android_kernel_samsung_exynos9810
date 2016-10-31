@@ -327,7 +327,7 @@ static const struct qede_link_mode_mapping qed_lm_map[] = {
 {								\
 	int i;							\
 								\
-	for (i = 0; i < QED_LM_COUNT; i++) {			\
+	for (i = 0; i < ARRAY_SIZE(qed_lm_map); i++) {		\
 		if ((caps) & (qed_lm_map[i].qed_link_mode))	\
 			__set_bit(qed_lm_map[i].ethtool_link_mode,\
 				  lk_ksettings->link_modes.name); \
@@ -338,7 +338,7 @@ static const struct qede_link_mode_mapping qed_lm_map[] = {
 {								\
 	int i;							\
 								\
-	for (i = 0; i < QED_LM_COUNT; i++) {			\
+	for (i = 0; i < ARRAY_SIZE(qed_lm_map); i++) {		\
 		if (test_bit(qed_lm_map[i].ethtool_link_mode,	\
 			     lk_ksettings->link_modes.name))	\
 			caps |= qed_lm_map[i].qed_link_mode;	\
