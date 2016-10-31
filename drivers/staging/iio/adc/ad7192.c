@@ -154,7 +154,7 @@
  */
 
 struct ad7192_state {
-	struct regulator		*reg;
+	struct regulator		*avdd;
 	struct regulator		*dvdd;
 	u16				int_vref_mv;
 	u32				mclk;
@@ -643,11 +643,11 @@ static int ad7192_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	st->reg = devm_regulator_get(&spi->dev, "avdd");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
+	st->avdd = devm_regulator_get(&spi->dev, "avdd");
+	if (IS_ERR(st->avdd))
+		return PTR_ERR(st->avdd);
 
-	ret = regulator_enable(st->reg);
+	ret = regulator_enable(st->avdd);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to enable specified AVdd supply\n");
 		return ret;
@@ -656,16 +656,16 @@ static int ad7192_probe(struct spi_device *spi)
 	st->dvdd = devm_regulator_get(&spi->dev, "dvdd");
 	if (IS_ERR(st->dvdd)) {
 		ret = PTR_ERR(st->dvdd);
-		goto error_disable_reg;
+		goto error_disable_avdd;
 	}
 
 	ret = regulator_enable(st->dvdd);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to enable specified DVdd supply\n");
-		goto error_disable_reg;
+		goto error_disable_avdd;
 	}
 
-	voltage_uv = regulator_get_voltage(st->reg);
+	voltage_uv = regulator_get_voltage(st->avdd);
 
 	if (pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
@@ -715,8 +715,8 @@ error_remove_trigger:
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 error_disable_dvdd:
 	regulator_disable(st->dvdd);
-error_disable_reg:
-	regulator_disable(st->reg);
+error_disable_avdd:
+	regulator_disable(st->avdd);
 
 	return ret;
 }
@@ -730,7 +730,7 @@ static int ad7192_remove(struct spi_device *spi)
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
 	regulator_disable(st->dvdd);
-	regulator_disable(st->reg);
+	regulator_disable(st->avdd);
 
 	return 0;
 }
