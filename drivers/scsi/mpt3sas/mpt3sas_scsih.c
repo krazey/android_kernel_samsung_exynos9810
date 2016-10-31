@@ -424,7 +424,7 @@ _scsih_get_sas_address(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		return 0;
 	}
 
-	/* we hit this becuase the given parent handle doesn't exist */
+	/* we hit this because the given parent handle doesn't exist */
 	if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 		return -ENXIO;
 
@@ -1524,7 +1524,7 @@ _scsih_display_sata_capabilities(struct MPT3SAS_ADAPTER *ioc,
 /*
  * raid transport support -
  * Enabled for SLES11 and newer, in older kernels the driver will panic when
- * unloading the driver followed by a load - I beleive that the subroutine
+ * unloading the driver followed by a load - I believe that the subroutine
  * raid_class_release() is not cleaning up properly.
  */
 
@@ -2949,7 +2949,7 @@ _scsih_ublock_io_device(struct MPT3SAS_ADAPTER *ioc, u64 sas_address)
  * @ioc: per adapter object
  * @handle: device handle
  *
- * During device pull we need to appropiately set the sdev state.
+ * During device pull we need to appropriately set the sdev state.
  */
 static void
 _scsih_block_io_all_device(struct MPT3SAS_ADAPTER *ioc)
@@ -2978,7 +2978,7 @@ _scsih_block_io_all_device(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  * @handle: device handle
  *
- * During device pull we need to appropiately set the sdev state.
+ * During device pull we need to appropriately set the sdev state.
  */
 static void
 _scsih_block_io_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
@@ -3986,7 +3986,7 @@ _scsih_flush_running_cmds(struct MPT3SAS_ADAPTER *ioc)
  * _scsih_setup_eedp - setup MPI request for EEDP transfer
  * @ioc: per adapter object
  * @scmd: pointer to scsi command object
- * @mpi_request: pointer to the SCSI_IO reqest message frame
+ * @mpi_request: pointer to the SCSI_IO request message frame
  *
  * Supporting protection 1 and 3.
  *
@@ -4136,7 +4136,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
-	/* device busy with task managment */
+	/* device busy with task management */
 	} else if (sas_target_priv_data->tm_busy ||
 	    sas_device_priv_data->block)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -6414,7 +6414,7 @@ _scsih_reprobe_lun(struct scsi_device *sdev, void *no_uld_attach)
 {
 	sdev->no_uld_attach = no_uld_attach ? 1 : 0;
 	sdev_printk(KERN_INFO, sdev, "%s raid component\n",
-	    sdev->no_uld_attach ? "hidding" : "exposing");
+	    sdev->no_uld_attach ? "hiding" : "exposing");
 	WARN_ON(scsi_device_reprobe(sdev));
 }
 
@@ -9306,7 +9306,7 @@ scsih_init(void)
 	 /* queuecommand callback hander */
 	scsi_io_cb_idx = mpt3sas_base_register_callback_handler(_scsih_io_done);
 
-	/* task managment callback handler */
+	/* task management callback handler */
 	tm_cb_idx = mpt3sas_base_register_callback_handler(_scsih_tm_done);
 
 	/* base internal commands callback handler */
