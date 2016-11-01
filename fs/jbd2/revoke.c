@@ -653,7 +653,7 @@ static void flush_descriptor(journal_t *journal,
 	if (journal->j_flags & JBD2_JOURNAL_TAG)
 		set_buffer_journal(descriptor);
 #endif
-	write_dirty_buffer(descriptor, WRITE_SYNC);
+	write_dirty_buffer(descriptor, REQ_SYNC);
 }
 #endif
 
