@@ -1882,6 +1882,7 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 	mmput(mm);
 	return len;
 }
+EXPORT_SYMBOL_GPL(access_process_vm);
 
 /**
  * nommu_shrink_inode_mappings - Shrink the shared mappings on an inode
