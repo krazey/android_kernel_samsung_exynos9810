@@ -17,7 +17,6 @@ struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 
-#ifdef CONFIG_BLOCK
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
@@ -145,8 +144,6 @@ struct bio {
 #define BVEC_POOL_BITS		(4)
 #define BVEC_POOL_OFFSET	(16 - BVEC_POOL_BITS)
 #define BVEC_POOL_IDX(bio)	((bio)->bi_flags >> BVEC_POOL_OFFSET)
-
-#endif /* CONFIG_BLOCK */
 
 #define __SEC_BYPASS	(0)
 #define SEC_BYPASS	(1ULL << __SEC_BYPASS)
