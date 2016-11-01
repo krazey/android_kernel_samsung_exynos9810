@@ -5157,11 +5157,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		(unsigned long)instance);
 
-	if (instance->msix_vectors ?
-		megasas_setup_irqs_msix(instance, 1) :
-		megasas_setup_irqs_ioapic(instance))
-		goto fail_setup_irqs;
-
 	instance->ctrl_info = kzalloc(sizeof(struct megasas_ctrl_info),
 				GFP_KERNEL);
 	if (instance->ctrl_info == NULL)
@@ -5177,6 +5172,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (instance->instancet->init_adapter(instance))
 		goto fail_init_adapter;
 
+	if (instance->msix_vectors ?
+		megasas_setup_irqs_msix(instance, 1) :
+		megasas_setup_irqs_ioapic(instance))
+		goto fail_init_adapter;
 
 	instance->instancet->enable_intr(instance);
 
@@ -5317,9 +5316,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 fail_get_pd_list:
 	instance->instancet->disable_intr(instance);
-fail_init_adapter:
 	megasas_destroy_irqs(instance);
-fail_setup_irqs:
+fail_init_adapter:
 	if (instance->msix_vectors)
 		pci_disable_msix(instance->pdev);
 	instance->msix_vectors = 0;
