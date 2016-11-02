@@ -436,11 +436,10 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 	s3c24xx_i2s_pcm_stereo_out.addr = res->start + S3C2410_IISFIFO;
 	s3c24xx_i2s_pcm_stereo_in.addr = res->start + S3C2410_IISFIFO;
 
-	ret = samsung_asoc_dma_platform_register(&pdev->dev,
-						 pdata->dma_filter,
+	ret = samsung_asoc_dma_platform_register(&pdev->dev, NULL,
 						 NULL, NULL);
 	if (ret) {
-                dev_err(&pdev->dev, "Failed to register the DMA: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register the DMA: %d\n", ret);
 		return ret;
 	}
 
