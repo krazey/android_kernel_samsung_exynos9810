@@ -43,6 +43,7 @@ merged much easier.
    gpu/index
    80211/index
    security/index
+   sound/index
 
 This section describes CPU vulnerabilities and their mitigations.
 
