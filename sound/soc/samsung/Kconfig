@@ -265,4 +265,13 @@ config SND_SOC_SAMSUNG_AUDIO
 source "sound/soc/samsung/abox/Kconfig"
 source "sound/soc/samsung/vts/Kconfig"
 
+config SND_SOC_SAMSUNG_TM2_WM5110
+	tristate "SoC I2S Audio support for WM5110 on TM2 board"
+	depends on SND_SOC_SAMSUNG && MFD_ARIZONA && I2C && SPI_MASTER
+	select SND_SOC_MAX98504
+	select SND_SOC_WM5110
+	select SND_SAMSUNG_I2S
+	help
+	  Say Y if you want to add support for SoC audio on the TM2 board.
+
 endif #SND_SOC_SAMSUNG
