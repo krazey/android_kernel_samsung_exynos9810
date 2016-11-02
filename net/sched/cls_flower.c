@@ -294,6 +294,7 @@ static void fl_destroy_rcu(struct rcu_head *rcu)
 
 	INIT_WORK(&head->work, fl_destroy_sleepable);
 	schedule_work(&head->work);
+}
 
 static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
 {
@@ -313,9 +314,6 @@ static bool fl_destroy(struct tcf_proto *tp, bool force)
 
 	list_for_each_entry_safe(f, next, &head->filters, list)
 		__fl_delete(tp, f);
-
-	__module_get(THIS_MODULE);
-	call_rcu(&head->rcu, fl_destroy_rcu);
 	return true;
 }
 
