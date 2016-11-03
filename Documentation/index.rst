@@ -41,6 +41,7 @@ merged much easier.
    driver-api/index
    media/index
    gpu/index
+   tpm/index
    80211/index
 
 This section describes CPU vulnerabilities and their mitigations.
