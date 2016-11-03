@@ -9096,7 +9096,7 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 					msrs[i].host, false);
 }
 
-void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
+static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 tscl;
