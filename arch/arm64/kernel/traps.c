@@ -361,6 +361,8 @@ static void dump_backtrace_auto_summary(struct pt_regs *regs, struct task_struct
 					 stack + sizeof(struct pt_regs));
 		}
 	}
+
+	put_task_stack(tsk);
 }
 #endif
 
