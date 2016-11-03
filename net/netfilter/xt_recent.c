@@ -243,7 +243,7 @@ static void recent_table_flush(struct recent_table *t)
 static bool
 recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 	struct recent_net *recent_net = recent_pernet(net);
 	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;
@@ -252,7 +252,7 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	u_int8_t ttl;
 	bool ret = info->invert;
 
-	if (par->family == NFPROTO_IPV4) {
+	if (xt_family(par) == NFPROTO_IPV4) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (info->side == XT_RECENT_DEST)
@@ -273,7 +273,7 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	}
 
 	/* use TTL as seen before forwarding */
-	if (par->out != NULL && skb->sk == NULL)
+	if (xt_out(par) != NULL && skb->sk == NULL)
 		ttl++;
 
 	spin_lock_bh(&recent_lock);
@@ -281,12 +281,12 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	nf_inet_addr_mask(&addr, &addr_mask, &t->mask);
 
-	e = recent_entry_lookup(t, &addr_mask, par->family,
+	e = recent_entry_lookup(t, &addr_mask, xt_family(par),
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
 		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
-		e = recent_entry_init(t, &addr_mask, par->family, ttl);
+		e = recent_entry_init(t, &addr_mask, xt_family(par), ttl);
 		if (e == NULL)
 			par->hotdrop = true;
 		ret = !ret;
