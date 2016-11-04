@@ -561,7 +561,7 @@ static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
 			if (!next_req) {
 				spin_unlock_irqrestore(&context_info->lock,
 							flags);
-				err = MMC_BLK_NEW_REQUEST;
+				status = MMC_BLK_NEW_REQUEST;
 				break; /* return err */
 			}
 		}
@@ -730,7 +730,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		}
 	}
 
-	if (status == MMC_BLK_SUCCESS && areq)
+	if (status == MMC_BLK_SUCCESS && areq) {
 #ifdef CONFIG_BLOCK
 		if (host->latency_hist_enabled) {
 			areq->mrq->io_start = ktime_get();
