@@ -1086,9 +1086,17 @@ nouveau_connector_helper_funcs = {
 	.best_encoder = nouveau_connector_best_encoder,
 };
 
+static int
+nouveau_connector_dpms(struct drm_connector *connector, int mode)
+{
+	if (connector->dev->mode_config.funcs->atomic_commit)
+		return drm_atomic_helper_connector_dpms(connector, mode);
+	return drm_helper_connector_dpms(connector, mode);
+}
+
 static const struct drm_connector_funcs
 nouveau_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = nouveau_connector_dpms,
 	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect,
 	.force = nouveau_connector_force,
@@ -1103,7 +1111,7 @@ nouveau_connector_funcs = {
 
 static const struct drm_connector_funcs
 nouveau_connector_funcs_lvds = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = nouveau_connector_dpms,
 	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect_lvds,
 	.force = nouveau_connector_force,
@@ -1347,7 +1355,10 @@ nouveau_connector_create(struct drm_device *dev, int index)
 			return ERR_PTR(ret);
 		}
 
-		funcs = &nouveau_connector_funcs_dp;
+		if (dev->mode_config.funcs->atomic_commit)
+			funcs = &nouveau_connector_funcs;
+		else
+			funcs = &nouveau_connector_funcs_dp;
 		break;
 	default:
 		funcs = &nouveau_connector_funcs;
