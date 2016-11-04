@@ -1623,7 +1623,7 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
  * Otherwise we don't understand what happened, so abort.
  */
 static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
-	struct mmc_blk_request *brq, int *ecc_err, bool *gen_err)
+	struct mmc_blk_request *brq, bool *ecc_err, bool *gen_err)
 {
 	bool prev_cmd_status_valid = true;
 	u32 status, stop_status = 0;
@@ -1662,7 +1662,7 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 	if ((status & R1_CARD_ECC_FAILED) ||
 	    (brq->stop.resp[0] & R1_CARD_ECC_FAILED) ||
 	    (brq->cmd.resp[0] & R1_CARD_ECC_FAILED))
-		*ecc_err = 1;
+		*ecc_err = true;
 
 	mmc_card_error_logging(card, brq, status);
 
@@ -1696,7 +1696,7 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 		}
 
 		if (stop_status & R1_CARD_ECC_FAILED)
-			*ecc_err = 1;
+			*ecc_err = true;
 		mmc_card_error_logging(card, brq, stop_status);
 	}
 
@@ -1949,7 +1949,7 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	struct mmc_blk_request *brq = &mq_mrq->brq;
 	struct request *req = mq_mrq->req;
 	int need_retune = card->host->need_retune;
-	int ecc_err = 0;
+	bool ecc_err = false;
 	bool gen_err = false;
 
 	/*
