@@ -237,8 +237,6 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	u32 reg = dwmac->ctrl_reg;
 	u32 val;
 
-	clk_prepare_enable(dwmac->clk);
-
 	if (dwmac->gmac_en)
 		regmap_update_bits(regmap, reg, EN_MASK, EN);
 
@@ -334,15 +332,13 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac) {
-		ret = -ENOMEM;
-		goto err_remove_config_dt;
-	}
+	if (!dwmac)
+		return -ENOMEM;
 
 	ret = sti_dwmac_parse_data(dwmac, pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to parse OF data\n");
-		goto err_remove_config_dt;
+		return ret;
 	}
 
 	dwmac->fix_retime_src = data->fix_retime_src;
@@ -350,21 +346,22 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = data->fix_retime_src;
 
+	ret = clk_prepare_enable(dwmac->clk);
+	if (ret)
+		return ret;
+
 	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
 	if (ret)
-		goto err_remove_config_dt;
+		goto disable_clk;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
-		goto err_dwmac_exit;
+		goto disable_clk;
 
 	return 0;
 
-err_dwmac_exit:
-	sti_dwmac_exit(pdev, plat_dat->bsp_priv);
-err_remove_config_dt:
-	stmmac_remove_config_dt(pdev, plat_dat);
-
+disable_clk:
+	clk_disable_unprepare(dwmac->clk);
 	return ret;
 }
 
@@ -394,6 +391,7 @@ static int sti_dwmac_resume(struct device *dev)
 	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 
+	clk_prepare_enable(dwmac->clk);
 	sti_dwmac_init(pdev, dwmac);
 
 	return stmmac_resume(dev);
