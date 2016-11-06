@@ -128,7 +128,6 @@ struct hv_ring_buffer_info {
 	u32 ring_data_startoffset;
 	u32 priv_write_index;
 	u32 priv_read_index;
-	u32 cached_read_index;
 };
 
 /*
@@ -181,19 +180,6 @@ static inline u32 hv_get_bytes_to_write(struct hv_ring_buffer_info *rbi)
 	return write;
 }
 
-static inline u32 hv_get_cached_bytes_to_write(
-	const struct hv_ring_buffer_info *rbi)
-{
-	u32 read_loc, write_loc, dsize, write;
-
-	dsize = rbi->ring_datasize;
-	read_loc = rbi->cached_read_index;
-	write_loc = rbi->ring_buffer->write_index;
-
-	write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
-		read_loc - write_loc;
-	return write;
-}
 /*
  * VMBUS version is 32 bit entity broken up into
  * two 16 bit quantities: major_number. minor_number.
@@ -641,7 +627,6 @@ struct vmbus_channel_msginfo {
 
 	/* Synchronize the request/response if needed */
 	struct completion  waitevent;
-	struct vmbus_channel *waiting_channel;
 	union {
 		struct vmbus_channel_version_supported version_supported;
 		struct vmbus_channel_open_result open_result;
@@ -1184,6 +1169,13 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
+static inline const char *vmbus_dev_name(const struct hv_device *device_obj)
+{
+	const struct kobject *kobj = &device_obj->device.kobj;
+
+	return kobj->name;
+}
+
 void vmbus_hvsock_device_unregister(struct vmbus_channel *channel);
 
 int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
@@ -1497,7 +1489,7 @@ hv_get_ring_buffer(struct hv_ring_buffer_info *ring_info)
 
 static inline  void hv_signal_on_read(struct vmbus_channel *channel)
 {
-	u32 cur_write_sz, cached_write_sz;
+	u32 cur_write_sz;
 	u32 pending_sz;
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
 
@@ -1521,22 +1513,10 @@ static inline  void hv_signal_on_read(struct vmbus_channel *channel)
 
 	cur_write_sz = hv_get_bytes_to_write(rbi);
 
-	if (cur_write_sz <= pending_sz)
-		return;
-
-	cached_write_sz = hv_get_cached_bytes_to_write(rbi);
-	if (cached_write_sz <= pending_sz)
+	if (cur_write_sz >= pending_sz)
 		vmbus_setevent(channel);
 
 	return;
-}
-
-static inline void
-init_cached_read_index(struct vmbus_channel *channel)
-{
-	struct hv_ring_buffer_info *rbi = &channel->inbound;
-
-	rbi->cached_read_index = rbi->ring_buffer->read_index;
 }
 
 /*
@@ -1589,8 +1569,6 @@ static inline void put_pkt_raw(struct vmbus_channel *channel,
 /*
  * This call commits the read index and potentially signals the host.
  * Here is the pattern for using the "in-place" consumption APIs:
- *
- * init_cached_read_index();
  *
  * while (get_next_pkt_raw() {
  *	process the packet "in-place";
