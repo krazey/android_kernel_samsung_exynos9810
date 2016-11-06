@@ -70,7 +70,7 @@ static const struct vmbus_device vmbus_devs[] = {
 	/* PCIE */
 	{ .dev_type = HV_PCIE,
 	  HV_PCIE_GUID,
-	  .perf_device = false,
+	  .perf_device = true,
 	},
 
 	/* Synthetic Frame Buffer */
@@ -146,29 +146,6 @@ static const struct {
 	{ HV_AVMA2_GUID },
 	{ HV_RDV_GUID	},
 };
-
-/*
- * The rescinded channel may be blocked waiting for a response from the host;
- * take care of that.
- */
-static void vmbus_rescind_cleanup(struct vmbus_channel *channel)
-{
-	struct vmbus_channel_msginfo *msginfo;
-	unsigned long flags;
-
-
-	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-
-	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
-				msglistentry) {
-
-		if (msginfo->waiting_channel == channel) {
-			complete(&msginfo->waitevent);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
-}
 
 static bool is_unsupported_vmbus_devs(const uuid_le *guid)
 {
@@ -344,8 +321,7 @@ static void vmbus_release_relid(u32 relid)
 	memset(&msg, 0, sizeof(struct vmbus_channel_relid_released));
 	msg.child_relid = relid;
 	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
-	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released),
-		       true);
+	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released));
 }
 
 void hv_event_tasklet_disable(struct vmbus_channel *channel)
@@ -413,7 +389,6 @@ void vmbus_free_channels(void)
 {
 	struct vmbus_channel *channel, *tmp;
 
-	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry_safe(channel, tmp, &vmbus_connection.chn_list,
 		listentry) {
 		/* hv_process_channel_removal() needs this */
@@ -421,7 +396,6 @@ void vmbus_free_channels(void)
 
 		vmbus_device_unregister(channel->device_obj);
 	}
-	mutex_unlock(&vmbus_connection.channel_mutex);
 }
 
 /*
@@ -675,19 +649,13 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
 
-#define UNLOAD_DELAY_UNIT_MS	10		/* 10 milliseconds */
-#define UNLOAD_WAIT_MS		(100*1000)	/* 100 seconds */
-#define UNLOAD_WAIT_LOOPS	(UNLOAD_WAIT_MS/UNLOAD_DELAY_UNIT_MS)
-#define UNLOAD_MSG_MS		(5*1000)	/* Every 5 seconds */
-#define UNLOAD_MSG_LOOPS	(UNLOAD_MSG_MS/UNLOAD_DELAY_UNIT_MS)
-
 static void vmbus_wait_for_unload(void)
 {
 	int cpu;
 	void *page_addr;
 	struct hv_message *msg;
 	struct vmbus_channel_message_header *hdr;
-	u32 message_type, i;
+	u32 message_type;
 
 	/*
 	 * CHANNELMSG_UNLOAD_RESPONSE is always delivered to the CPU which was
@@ -697,18 +665,10 @@ static void vmbus_wait_for_unload(void)
 	 * functional and vmbus_unload_response() will complete
 	 * vmbus_connection.unload_event. If not, the last thing we can do is
 	 * read message pages for all CPUs directly.
-	 *
-	 * Wait up to 100 seconds since an Azure host must writeback any dirty
-	 * data in its disk cache before the VMbus UNLOAD request will
-	 * complete. This flushing has been empirically observed to take up
-	 * to 50 seconds in cases with a lot of dirty data, so allow additional
-	 * leeway and for inaccuracies in mdelay(). But eventually time out so
-	 * that the panic path can't get hung forever in case the response
-	 * message isn't seen.
 	 */
-	for (i = 1; i <= UNLOAD_WAIT_LOOPS; i++) {
+	while (1) {
 		if (completion_done(&vmbus_connection.unload_event))
-			goto completed;
+			break;
 
 		for_each_online_cpu(cpu) {
 			page_addr = hv_context.synic_message_page[cpu];
@@ -728,18 +688,9 @@ static void vmbus_wait_for_unload(void)
 			vmbus_signal_eom(msg, message_type);
 		}
 
-		/*
-		 * Give a notice periodically so someone watching the
-		 * serial output won't think it is completely hung.
-		 */
-		if (!(i % UNLOAD_MSG_LOOPS))
-			pr_notice("Waiting for VMBus UNLOAD to complete\n");
-
-		mdelay(UNLOAD_DELAY_UNIT_MS);
+		mdelay(10);
 	}
-	pr_err("Continuing even though VMBus UNLOAD did not complete\n");
 
-completed:
 	/*
 	 * We're crashing and already got the UNLOAD_RESPONSE, cleanup all
 	 * maybe-pending messages on all CPUs to be able to receive new
@@ -775,8 +726,7 @@ void vmbus_initiate_unload(bool crash)
 	init_completion(&vmbus_connection.unload_event);
 	memset(&hdr, 0, sizeof(struct vmbus_channel_message_header));
 	hdr.msgtype = CHANNELMSG_UNLOAD;
-	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header),
-		       !crash);
+	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header));
 
 	/*
 	 * vmbus_initiate_unload() is also called on crash and the crash can be
@@ -802,7 +752,6 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	/* Allocate the channel object and save this offer. */
 	newchannel = alloc_channel();
 	if (!newchannel) {
-		vmbus_release_relid(offer->child_relid);
 		pr_err("Unable to allocate channel object\n");
 		return;
 	}
@@ -871,8 +820,6 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	spin_lock_irqsave(&channel->lock, flags);
 	channel->rescind = true;
 	spin_unlock_irqrestore(&channel->lock, flags);
-
-	vmbus_rescind_cleanup(channel);
 
 	if (channel->device_obj) {
 		if (channel->chn_rescind_callback) {
@@ -1167,8 +1114,8 @@ int vmbus_request_offers(void)
 	msg->msgtype = CHANNELMSG_REQUESTOFFERS;
 
 
-	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_message_header),
-			     true);
+	ret = vmbus_post_msg(msg,
+			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0) {
 		pr_err("Unable to request offers - %d\n", ret);
 

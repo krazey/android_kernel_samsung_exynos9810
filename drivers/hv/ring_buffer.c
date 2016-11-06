@@ -66,25 +66,14 @@ u32 hv_end_read(struct hv_ring_buffer_info *rbi)
  *	   once the ring buffer is empty, it will clear the
  *	   interrupt_mask and re-check to see if new data has
  *	   arrived.
- *
- * KYS: Oct. 30, 2016:
- * It looks like Windows hosts have logic to deal with DOS attacks that
- * can be triggered if it receives interrupts when it is not expecting
- * the interrupt. The host expects interrupts only when the ring
- * transitions from empty to non-empty (or full to non full on the guest
- * to host ring).
- * So, base the signaling decision solely on the ring state until the
- * host logic is fixed.
  */
 
-static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel,
-			       bool kick_q)
+static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi,
+			      enum hv_signal_policy policy)
 {
-	struct hv_ring_buffer_info *rbi = &channel->outbound;
-
 	virt_mb();
 	if (READ_ONCE(rbi->ring_buffer->interrupt_mask))
-		return;
+		return false;
 
 	/* check interrupt_mask before read_index */
 	virt_rmb();
@@ -93,9 +82,9 @@ static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel,
 	 * ring transitions from being empty to non-empty.
 	 */
 	if (old_write == READ_ONCE(rbi->ring_buffer->read_index))
-		vmbus_setevent(channel);
+		return true;
 
-	return;
+	return false;
 }
 
 /* Get the next write location for the specified ring buffer. */
@@ -284,9 +273,9 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 }
 
 /* Write to the ring buffer. */
-int hv_ringbuffer_write(struct vmbus_channel *channel,
-		    struct kvec *kv_list, u32 kv_count, bool lock,
-		    bool kick_q)
+int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
+		    struct kvec *kv_list, u32 kv_count, bool *signal, bool lock,
+		    enum hv_signal_policy policy)
 {
 	int i = 0;
 	u32 bytes_avail_towrite;
@@ -296,10 +285,6 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	u32 old_write;
 	u64 prev_indices = 0;
 	unsigned long flags = 0;
-	struct hv_ring_buffer_info *outring_info = &channel->outbound;
-
-	if (channel->rescind)
-		return -ENODEV;
 
 	for (i = 0; i < kv_count; i++)
 		totalbytes_towrite += kv_list[i].iov_len;
@@ -352,17 +337,13 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	if (lock)
 		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
 
-	hv_signal_on_write(old_write, channel, kick_q);
-
-	if (channel->rescind)
-		return -ENODEV;
-
+	*signal = hv_need_to_signal(old_write, outring_info, policy);
 	return 0;
 }
 
-int hv_ringbuffer_read(struct vmbus_channel *channel,
+int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
-		       u64 *requestid, bool raw)
+		       u64 *requestid, bool *signal, bool raw)
 {
 	u32 bytes_avail_toread;
 	u32 next_read_location = 0;
@@ -371,7 +352,6 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 	u32 offset;
 	u32 packetlen;
 	int ret = 0;
-	struct hv_ring_buffer_info *inring_info = &channel->inbound;
 
 	if (buflen <= 0)
 		return -EINVAL;
@@ -390,7 +370,6 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 		return ret;
 	}
 
-	init_cached_read_index(channel);
 	next_read_location = hv_get_next_read_location(inring_info);
 	next_read_location = hv_copyfrom_ringbuffer(inring_info, &desc,
 						    sizeof(desc),
@@ -430,7 +409,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 	/* Update the read index */
 	hv_set_next_read_location(inring_info, next_read_location);
 
-	hv_signal_on_read(channel);
+	*signal = hv_need_to_signal_on_read(inring_info);
 
 	return ret;
 }
