@@ -163,8 +163,8 @@ out:
 	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
 	if (task->task_done)
 		task->task_done(task);
-	if (sas_dev && sas_dev->running_req)
-		sas_dev->running_req--;
+	if (sas_dev)
+		atomic64_dec(&sas_dev->running_req);
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
@@ -304,7 +304,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 
 	hisi_hba->slot_prep = slot;
 
-	sas_dev->running_req++;
+	atomic64_inc(&sas_dev->running_req);
 	++(*pass);
 
 	return 0;
@@ -1028,7 +1028,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 
 	hisi_hba->slot_prep = slot;
 
-	sas_dev->running_req++;
+	atomic64_inc(&sas_dev->running_req);
+
 	/* send abort command to our chip */
 	hisi_hba->hw->start_delivery(hisi_hba);
 
