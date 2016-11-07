@@ -1197,7 +1197,7 @@ EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
 /**
  * drm_atomic_set_fence_for_plane - set fence for plane
  * @plane_state: atomic state object for the plane
- * @fence: fence to use for the plane
+ * @fence: dma_fence to use for the plane
  *
  * Helper to setup the plane_state fence in case it is not set yet.
  * By using this drivers doesn't need to worry if the user choose
@@ -1213,10 +1213,10 @@ EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
  */
 void
 drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
-			       struct fence *fence)
+			       struct dma_fence *fence)
 {
 	if (plane_state->fence) {
-		fence_put(fence);
+		dma_fence_put(fence);
 		return;
 	}
 

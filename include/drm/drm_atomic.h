@@ -347,7 +347,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 void drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 				 struct drm_framebuffer *fb);
 void drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
-				    struct fence *fence);
+				    struct dma_fence *fence);
 int __must_check
 drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 				  struct drm_crtc *crtc);
