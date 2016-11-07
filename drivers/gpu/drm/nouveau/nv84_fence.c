@@ -142,7 +142,6 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 		ret = nouveau_bo_vma_add(priv->bo_gart, cli->vm,
 					&fctx->vma_gart);
 	}
-	mutex_unlock(&priv->mutex);
 
 	if (ret)
 		nv84_fence_context_del(chan);

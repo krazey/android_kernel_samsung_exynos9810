@@ -585,6 +585,6 @@ static const struct fence_ops nouveau_fence_ops_uevent = {
 	.get_timeline_name = nouveau_fence_get_timeline_name,
 	.enable_signaling = nouveau_fence_enable_signaling,
 	.signaled = nouveau_fence_is_signaled,
-	.wait = fence_default_wait,
+	.wait = dma_fence_default_wait,
 	.release = nouveau_fence_release
 };
