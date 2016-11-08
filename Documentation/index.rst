@@ -64,6 +64,14 @@ implementation.
    x86/index
    core-api/index
 
+Korean translations
+-------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/ko_KR/index
+
 Indices and tables
 ==================
 
