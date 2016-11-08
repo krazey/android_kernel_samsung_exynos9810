@@ -322,4 +322,9 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
 	return rc;
 }
 
+static inline long plapr_signal_sys_reset(long cpu)
+{
+	return plpar_hcall_norets(H_SIGNAL_SYS_RESET, cpu);
+}
+
 #endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */
