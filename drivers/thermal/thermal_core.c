@@ -328,16 +328,6 @@ static void __bind(struct thermal_zone_device *tz, int mask,
 	}
 }
 
-static void __unbind(struct thermal_zone_device *tz, int mask,
-		     struct thermal_cooling_device *cdev)
-{
-	int i;
-
-	for (i = 0; i < tz->trips; i++)
-		if (mask & (1 << i))
-			thermal_zone_unbind_cooling_device(tz, i, cdev);
-}
-
 static void bind_cdev(struct thermal_cooling_device *cdev)
 {
 	int i, ret;
@@ -1060,6 +1050,16 @@ thermal_of_cooling_device_register(struct device_node *np,
 	return __thermal_cooling_device_register(np, type, devdata, ops);
 }
 EXPORT_SYMBOL_GPL(thermal_of_cooling_device_register);
+
+static void __unbind(struct thermal_zone_device *tz, int mask,
+		     struct thermal_cooling_device *cdev)
+{
+	int i;
+
+	for (i = 0; i < tz->trips; i++)
+		if (mask & (1 << i))
+			thermal_zone_unbind_cooling_device(tz, i, cdev);
+}
 
 /**
  * thermal_cooling_device_unregister - removes the registered thermal cooling device
