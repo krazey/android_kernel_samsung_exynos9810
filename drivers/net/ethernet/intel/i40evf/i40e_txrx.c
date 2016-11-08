@@ -1491,7 +1491,7 @@ tx_only:
 	else
 		i40e_update_enable_itr(vsi, q_vector);
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**
