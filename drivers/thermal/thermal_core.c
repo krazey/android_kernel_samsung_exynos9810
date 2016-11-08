@@ -918,7 +918,7 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 	if (!tz->ops->get_trip_type)
 		return -EPERM;
 
-	if (!sscanf(attr->attr.name, "trip_point_%d_type", &trip))
+	if (sscanf(attr->attr.name, "trip_point_%d_type", &trip) != 1)
 		return -EINVAL;
 
 	result = tz->ops->get_trip_type(tz, trip, &type);
@@ -950,7 +950,7 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	if (!tz->ops->set_trip_temp)
 		return -EPERM;
 
-	if (!sscanf(attr->attr.name, "trip_point_%d_temp", &trip))
+	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip) != 1)
 		return -EINVAL;
 
 	if (kstrtoint(buf, 10, &temperature))
@@ -976,7 +976,7 @@ trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 	if (!tz->ops->get_trip_temp)
 		return -EPERM;
 
-	if (!sscanf(attr->attr.name, "trip_point_%d_temp", &trip))
+	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip) != 1)
 		return -EINVAL;
 
 	ret = tz->ops->get_trip_temp(tz, trip, &temperature);
@@ -998,7 +998,7 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 	if (!tz->ops->set_trip_hyst)
 		return -EPERM;
 
-	if (!sscanf(attr->attr.name, "trip_point_%d_hyst", &trip))
+	if (sscanf(attr->attr.name, "trip_point_%d_hyst", &trip) != 1)
 		return -EINVAL;
 
 	if (kstrtoint(buf, 10, &temperature))
@@ -1028,7 +1028,7 @@ trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
 	if (!tz->ops->get_trip_hyst)
 		return -EPERM;
 
-	if (!sscanf(attr->attr.name, "trip_point_%d_hyst", &trip))
+	if (sscanf(attr->attr.name, "trip_point_%d_hyst", &trip) != 1)
 		return -EINVAL;
 
 	ret = tz->ops->get_trip_hyst(tz, trip, &temperature);
@@ -1043,7 +1043,7 @@ passive_store(struct device *dev, struct device_attribute *attr,
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int state;
 
-	if (!sscanf(buf, "%d\n", &state))
+	if (sscanf(buf, "%d\n", &state) != 1)
 		return -EINVAL;
 
 	/* sanity check: values below 1000 millicelcius don't make sense
@@ -1503,7 +1503,7 @@ thermal_cooling_device_cur_state_store(struct device *dev,
 	unsigned long state;
 	int result;
 
-	if (!sscanf(buf, "%ld\n", &state))
+	if (sscanf(buf, "%ld\n", &state) != 1)
 		return -EINVAL;
 
 	if ((long)state < 0)
