@@ -8415,10 +8415,6 @@ void ufshcd_remove(struct ufs_hba *hba)
 
 	ufshcd_exit_clk_gating(hba);
 	ufshcd_exit_latency_hist(hba);
-#if defined(CONFIG_PM_DEVFREQ)
-	if (ufshcd_is_clkscaling_enabled(hba))
-		devfreq_remove_device(hba->devfreq);
-#endif
 	ufshcd_hba_exit(hba);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
@@ -9021,7 +9017,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 
 #if defined(CONFIG_PM_DEVFREQ)
 	if (ufshcd_is_clkscaling_enabled(hba)) {
-		hba->devfreq = devfreq_add_device(dev, &ufs_devfreq_profile,
+		hba->devfreq = devm_devfreq_add_device(dev, &ufs_devfreq_profile,
 						   "simple_ondemand", NULL);
 		if (IS_ERR(hba->devfreq)) {
 			dev_err(hba->dev, "Unable to register with devfreq %ld\n",
