@@ -38,7 +38,12 @@
 #define ARM64_HARDEN_BRANCH_PREDICTOR		17
 #define ARM64_SSBD				18
 #define ARM64_MISMATCHED_CACHE_TYPE		19
+/*
+ * The macro below will be moved to asm/cpucaps.h together with the
+ * ARM64_NCAPS update.
+ */
+#define ARM64_HAS_NO_FPSIMD			20
 
-#define ARM64_NCAPS				20
+#define ARM64_NCAPS				21
 
 #endif /* __ASM_CPUCAPS_H */
