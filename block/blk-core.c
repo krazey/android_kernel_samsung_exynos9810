@@ -2530,6 +2530,11 @@ void blk_start_request(struct request *req)
 {
 	blk_dequeue_request(req);
 
+	if (test_bit(QUEUE_FLAG_STATS, &req->q->queue_flags)) {
+		blk_stat_set_issue_time(&req->issue_stat);
+		req->rq_flags |= RQF_STATS;
+	}
+
 	/*
 	 * We are now handing the request to the hardware, initialize
 	 * resid_len to full count and add the timeout handler.
@@ -2749,8 +2754,13 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
  */
 void blk_finish_request(struct request *req, int error)
 {
+	struct request_queue *q = req->q;
+
+	if (req->rq_flags & RQF_STATS)
+		blk_stat_add(&q->rq_stats[rq_data_dir(req)], req);
+
 	if (req->rq_flags & RQF_QUEUED)
-		blk_queue_end_tag(req->q, req);
+		blk_queue_end_tag(q, req);
 
 	BUG_ON(blk_queued_rq(req));
 
@@ -2770,7 +2780,7 @@ void blk_finish_request(struct request *req, int error)
 		if (blk_bidi_rq(req))
 			__blk_put_request(req->next_rq->q, req->next_rq);
 
-		__blk_put_request(req->q, req);
+		__blk_put_request(q, req);
 	}
 }
 EXPORT_SYMBOL(blk_finish_request);
