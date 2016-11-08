@@ -871,6 +871,10 @@ static struct gpio_desc *acpi_gpiochip_parse_own_gpio(
 	u32 gpios[2];
 	int ret;
 
+	*lflags = 0;
+	*dflags = 0;
+	*name = NULL;
+
 	ret = fwnode_property_read_u32_array(fwnode, "gpios", gpios,
 					     ARRAY_SIZE(gpios));
 	if (ret < 0)
@@ -883,10 +887,6 @@ static struct gpio_desc *acpi_gpiochip_parse_own_gpio(
 	desc = gpiochip_get_desc(chip, ret);
 	if (IS_ERR(desc))
 		return desc;
-
-	*lflags = 0;
-	*dflags = 0;
-	*name = NULL;
 
 	if (gpios[1])
 		*lflags |= GPIO_ACTIVE_LOW;
