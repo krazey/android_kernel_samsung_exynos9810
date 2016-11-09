@@ -51,6 +51,7 @@ MODULE_PARM_DESC(idle_timeout,
 #define COMPLETION_TIMEOUT msecs_to_jiffies(completion_timeout)
 
 static char *chanerr_str[] = {
+	"DMA Transfer Source Address Error",
 	"DMA Transfer Destination Address Error",
 	"Next Descriptor Address Error",
 	"Descriptor Error",
