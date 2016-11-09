@@ -574,12 +574,13 @@ error_attrs:
 static struct msi_desc *
 msi_setup_entry(struct pci_dev *dev, int nvec, bool affinity)
 {
+	static const struct irq_affinity default_affd;
 	struct cpumask *masks = NULL;
 	struct msi_desc *entry;
 	u16 control;
 
 	if (affinity) {
-		masks = irq_create_affinity_masks(dev->irq_affinity, nvec);
+		masks = irq_create_affinity_masks(nvec, &default_affd);
 		if (!masks)
 			pr_err("Unable to allocate affinity masks, ignoring\n");
 	}
@@ -713,13 +714,14 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 			      struct msix_entry *entries, int nvec,
 			      bool affinity)
 {
+	static const struct irq_affinity default_affd;
 	struct cpumask *curmsk, *masks = NULL;
 	struct msi_desc *entry;
 	void __iomem *addr;
 	int ret, i;
 
 	if (affinity) {
-		masks = irq_create_affinity_masks(dev->irq_affinity, nvec);
+		masks = irq_create_affinity_masks(nvec, &default_affd);
 		if (!masks)
 			pr_err("Unable to allocate affinity masks, ignoring\n");
 	}
