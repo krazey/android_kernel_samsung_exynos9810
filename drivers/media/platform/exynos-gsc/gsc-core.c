@@ -1149,7 +1149,7 @@ static int gsc_runtime_resume(struct device *dev)
 	struct gsc_dev *gsc = dev_get_drvdata(dev);
 	int ret = 0;
 
-	pr_debug("gsc%d: state: 0x%lx", gsc->id, gsc->state);
+	pr_debug("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
 
 	ret = clk_prepare_enable(gsc->clock);
 	if (ret)
@@ -1171,7 +1171,7 @@ static int gsc_runtime_suspend(struct device *dev)
 	if (!ret)
 		clk_disable_unprepare(gsc->clock);
 
-	pr_debug("gsc%d: state: 0x%lx", gsc->id, gsc->state);
+	pr_debug("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
 	return ret;
 }
 #endif
