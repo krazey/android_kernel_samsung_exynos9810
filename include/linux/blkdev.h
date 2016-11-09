@@ -42,6 +42,7 @@ struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
+struct rq_wb;
 
 #define BLKDEV_MIN_RQ	4
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
@@ -398,6 +399,8 @@ struct request_queue {
 	struct elevator_queue	*elevator;
 	int			nr_rqs[2];	/* # allocated [a]sync rqs */
 	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
+
+	struct rq_wb		*rq_wb;
 
 	/*
 	 * If blkcg is not used, @q->root_rl serves all requests.  If blkcg
