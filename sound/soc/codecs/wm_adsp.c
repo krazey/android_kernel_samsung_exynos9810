@@ -212,6 +212,7 @@
 
 #define WM_ADSP_ACKED_CTL_TIMEOUT_MS         100
 #define WM_ADSP_ACKED_CTL_N_QUICKPOLLS       10
+
 #define WM_ADSP_ACKED_CTL_MIN_VALUE          0
 #define WM_ADSP_ACKED_CTL_MAX_VALUE          0xFFFFFF
 
