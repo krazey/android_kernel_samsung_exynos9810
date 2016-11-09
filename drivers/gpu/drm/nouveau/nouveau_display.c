@@ -108,7 +108,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
-	int ret, retry = 20;
+	int ret, retry = 1;
 
 	do {
 		ret = nvif_mthd(&disp->disp, 0, &args, sizeof(args));
@@ -349,19 +349,6 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	}                                                                      \
 } while(0)
 
-static void
-nouveau_display_hpd_work(struct work_struct *work)
-{
-	struct nouveau_drm *drm = container_of(work, typeof(*drm), hpd_work);
-
-	pm_runtime_get_sync(drm->dev->dev);
-
-	drm_helper_hpd_irq_event(drm->dev);
-
-	pm_runtime_mark_last_busy(drm->dev->dev);
-	pm_runtime_put_sync(drm->dev->dev);
-}
-
 #ifdef CONFIG_ACPI
 
 /*
@@ -373,35 +360,34 @@ nouveau_display_hpd_work(struct work_struct *work)
 #define ACPI_VIDEO_NOTIFY_PROBE			0x81
 #endif
 
+static void
+nouveau_display_acpi_work(struct work_struct *work)
+{
+	struct nouveau_drm *drm = container_of(work, typeof(*drm), acpi_work);
+
+	pm_runtime_get_sync(drm->dev->dev);
+
+	drm_helper_hpd_irq_event(drm->dev);
+
+	pm_runtime_mark_last_busy(drm->dev->dev);
+	pm_runtime_put_sync(drm->dev->dev);
+}
+
 static int
 nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 			  void *data)
 {
 	struct nouveau_drm *drm = container_of(nb, typeof(*drm), acpi_nb);
 	struct acpi_bus_event *info = data;
-	int ret;
 
 	if (!strcmp(info->device_class, ACPI_VIDEO_CLASS)) {
 		if (info->type == ACPI_VIDEO_NOTIFY_PROBE) {
-			ret = pm_runtime_get(drm->dev->dev);
-			if (ret == 1 || ret == -EACCES) {
-				/* If the GPU is already awake, or in a state
-				 * where we can't wake it up, it can handle
-				 * it's own hotplug events.
-				 */
-				pm_runtime_put_autosuspend(drm->dev->dev);
-			} else if (ret == 0) {
-				/* This may be the only indication we receive
-				 * of a connector hotplug on a runtime
-				 * suspended GPU, schedule hpd_work to check.
-				 */
-				NV_DEBUG(drm, "ACPI requested connector reprobe\n");
-				schedule_work(&drm->hpd_work);
-				pm_runtime_put_noidle(drm->dev->dev);
-			} else {
-				NV_WARN(drm, "Dropped ACPI reprobe event due to RPM error: %d\n",
-					ret);
-			}
+			/*
+			 * This may be the only indication we receive of a
+			 * connector hotplug on a runtime suspended GPU,
+			 * schedule acpi_work to check.
+			 */
+			schedule_work(&drm->acpi_work);
 
 			/* acpi-video should not generate keypresses for this */
 			return NOTIFY_BAD;
@@ -424,9 +410,7 @@ nouveau_display_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* enable connector detection and polling for connectors without HPD
-	 * support
-	 */
+	/* enable polling for external displays */
 	drm_kms_helper_poll_enable(dev);
 
 	/* enable hotplug interrupts */
@@ -446,14 +430,14 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
-	struct drm_crtc *crtc;
+	int head;
 
 	if (!suspend)
 		drm_crtc_force_disable_all(dev);
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
-	drm_for_each_crtc(crtc, dev)
-		drm_crtc_vblank_off(crtc);
+	for (head = 0; head < dev->mode_config.num_crtc; head++)
+		drm_vblank_off(dev, head);
 
 	/* disable flip completion events */
 	nvif_notify_put(&drm->flip);
@@ -598,8 +582,8 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	nouveau_backlight_init(dev);
-	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
 #ifdef CONFIG_ACPI
+	INIT_WORK(&drm->acpi_work, nouveau_display_acpi_work);
 	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
 	register_acpi_notifier(&drm->acpi_nb);
 #endif
@@ -798,7 +782,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_crtc *crtc;
-	int ret;
+	int ret, head;
 
 	if (dev->mode_config.funcs->atomic_commit) {
 		nouveau_display_init(dev);
@@ -851,6 +835,10 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		return;
 
 	drm_helper_resume_force_mode(dev);
+
+	/* Make sure that drm and hw vblank irqs get resumed if needed. */
+	for (head = 0; head < dev->mode_config.num_crtc; head++)
+		drm_vblank_on(dev, head);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);

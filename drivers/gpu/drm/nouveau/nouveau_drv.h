@@ -163,11 +163,9 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
-	struct work_struct hpd_work;
-	struct work_struct fbcon_work;
-	int fbcon_new_state;
 #ifdef CONFIG_ACPI
 	struct notifier_block acpi_nb;
+	struct work_struct acpi_work;
 #endif
 
 	/* power management */
