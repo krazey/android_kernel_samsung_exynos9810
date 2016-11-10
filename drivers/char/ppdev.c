@@ -301,7 +301,7 @@ static int register_device(int minor, struct pp_struct *pp)
 
 	port = parport_find_number(minor);
 	if (!port) {
-		printk(KERN_WARNING "%s: no associated port!\n", name);
+		pr_warn("%s: no associated port!\n", name);
 		kfree(name);
 		return -ENXIO;
 	}
@@ -316,7 +316,7 @@ static int register_device(int minor, struct pp_struct *pp)
 	kfree(name);
 
 	if (!pdev) {
-		printk(KERN_WARNING "%s: failed to register device!\n", name);
+		pr_warn("%s: failed to register device!\n", name);
 		ida_simple_remove(&ida_index, index);
 		return -ENXIO;
 	}
@@ -857,8 +857,7 @@ static int __init ppdev_init(void)
 	int err = 0;
 
 	if (register_chrdev(PP_MAJOR, CHRDEV, &pp_fops)) {
-		printk(KERN_WARNING CHRDEV ": unable to get major %d\n",
-		       PP_MAJOR);
+		pr_warn(CHRDEV ": unable to get major %d\n", PP_MAJOR);
 		return -EIO;
 	}
 	ppdev_class = class_create(THIS_MODULE, CHRDEV);
@@ -868,11 +867,11 @@ static int __init ppdev_init(void)
 	}
 	err = parport_register_driver(&pp_driver);
 	if (err < 0) {
-		printk(KERN_WARNING CHRDEV ": unable to register with parport\n");
+		pr_warn(CHRDEV ": unable to register with parport\n");
 		goto out_class;
 	}
 
-	printk(KERN_INFO PP_VERSION "\n");
+	pr_info(PP_VERSION "\n");
 	goto out;
 
 out_class:
