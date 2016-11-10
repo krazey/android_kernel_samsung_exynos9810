@@ -4697,6 +4697,7 @@ static void selinux_task_to_inode(struct task_struct *p,
 		return;
 #endif  /* CONFIG_RKP_KDP */
 
+	isec->sclass = inode_mode_to_security_class(inode->i_mode);
 	isec->sid = sid;
 	isec->initialized = LABEL_INITIALIZED;
 }
