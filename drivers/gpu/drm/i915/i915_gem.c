@@ -2232,30 +2232,6 @@ static unsigned int swiotlb_max_size(void)
 #endif
 }
 
-static void i915_sg_trim(struct sg_table *orig_st)
-{
-	struct sg_table new_st;
-	struct scatterlist *sg, *new_sg;
-	unsigned int i;
-
-	if (orig_st->nents == orig_st->orig_nents)
-		return;
-
-	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL))
-		return;
-
-	new_sg = new_st.sgl;
-	for_each_sg(orig_st->sgl, sg, orig_st->nents, i) {
-		sg_set_page(new_sg, sg_page(sg), sg->length, 0);
-		/* called before being DMA mapped, no need to copy sg->dma_* */
-		new_sg = sg_next(new_sg);
-	}
-
-	sg_free_table(orig_st);
-
-	*orig_st = new_st;
-}
-
 static struct sg_table *
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
@@ -2340,9 +2316,6 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	}
 	if (sg) /* loop terminated early; short sg table */
 		sg_mark_end(sg);
-
-	/* Trim unused sg entries to avoid wasting memory. */
-	i915_sg_trim(st);
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
 	if (ret)
@@ -3223,22 +3196,23 @@ err_unpin:
 	return ret;
 }
 
-void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
-			     bool force)
+bool
+i915_gem_clflush_object(struct drm_i915_gem_object *obj,
+			bool force)
 {
 	/* If we don't have a page list set up, then we're not pinned
 	 * to GPU, and we can ignore the cache flush because it'll happen
 	 * again at bind time.
 	 */
 	if (!obj->mm.pages)
-		return;
+		return false;
 
 	/*
 	 * Stolen memory is always coherent with the GPU as it is explicitly
 	 * marked as wc by the system, or the system is cache-coherent.
 	 */
 	if (obj->stolen || obj->phys_handle)
-		return;
+		return false;
 
 	/* If the GPU is snooping the contents of the CPU cache,
 	 * we do not need to manually clear the CPU cache lines.  However,
@@ -3250,12 +3224,14 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 */
 	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level)) {
 		obj->cache_dirty = true;
-		return;
+		return false;
 	}
 
 	trace_i915_gem_object_clflush(obj);
 	drm_clflush_sg(obj->mm.pages);
 	obj->cache_dirty = false;
+
+	return true;
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -3301,7 +3277,9 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
 		return;
 
-	i915_gem_clflush_object(obj, obj->pin_display);
+	if (i915_gem_clflush_object(obj, obj->pin_display))
+		i915_gem_chipset_flush(to_i915(obj->base.dev));
+
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 
 	obj->base.write_domain = 0;
@@ -3508,8 +3486,10 @@ out:
 	 * object is now coherent at its new cache level (with respect
 	 * to the access domain).
 	 */
-	if (obj->cache_dirty && cpu_write_needs_clflush(obj))
-		i915_gem_clflush_object(obj, true);
+	if (obj->cache_dirty && cpu_write_needs_clflush(obj)) {
+		if (i915_gem_clflush_object(obj, true))
+			i915_gem_chipset_flush(to_i915(obj->base.dev));
+	}
 
 	return 0;
 }

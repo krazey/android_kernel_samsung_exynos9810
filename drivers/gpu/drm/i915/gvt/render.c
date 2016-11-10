@@ -157,6 +157,8 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 
 	intel_uncore_forcewake_put(dev_priv, fw);
 
+	intel_uncore_forcewake_put(dev_priv, fw);
+
 	gvt_dbg_core("invalidate TLB for ring %d\n", ring_id);
 }
 

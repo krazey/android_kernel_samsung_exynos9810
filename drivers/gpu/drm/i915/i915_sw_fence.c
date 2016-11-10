@@ -244,6 +244,20 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	return pending;
 }
 
+int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
+				 struct i915_sw_fence *signaler,
+				 wait_queue_t *wq)
+{
+	return __i915_sw_fence_await_sw_fence(fence, signaler, wq, 0);
+}
+
+int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
+				     struct i915_sw_fence *signaler,
+				     gfp_t gfp)
+{
+	return __i915_sw_fence_await_sw_fence(fence, signaler, NULL, gfp);
+}
+
 struct i915_sw_dma_fence_cb {
         struct dma_fence_cb base;
 	struct i915_sw_fence *fence;

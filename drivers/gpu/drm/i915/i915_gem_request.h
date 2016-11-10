@@ -162,6 +162,21 @@ int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
 void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
 
+<<<<<<< HEAD
+=======
+static inline u32
+i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
+{
+	return req ? req->global_seqno : 0;
+}
+
+static inline struct intel_engine_cs *
+i915_gem_request_get_engine(struct drm_i915_gem_request *req)
+{
+	return req ? req->engine : NULL;
+}
+
+>>>>>>> db8feb6979e9 (Merge tag 'drm-intel-next-2016-11-08' of git://anongit.freedesktop.org/git/drm-intel into drm-next)
 static inline struct drm_i915_gem_request *
 to_request(struct dma_fence *fence)
 {
@@ -247,6 +262,7 @@ __i915_gem_request_started(const struct drm_i915_gem_request *req)
 
 static inline bool
 i915_gem_request_started(const struct drm_i915_gem_request *req)
+<<<<<<< HEAD
 {
 	if (!req->global_seqno)
 		return false;
@@ -257,6 +273,18 @@ i915_gem_request_started(const struct drm_i915_gem_request *req)
 static inline bool
 __i915_gem_request_completed(const struct drm_i915_gem_request *req)
 {
+=======
+{
+	if (!req->global_seqno)
+		return false;
+
+	return __i915_gem_request_started(req);
+}
+
+static inline bool
+__i915_gem_request_completed(const struct drm_i915_gem_request *req)
+{
+>>>>>>> db8feb6979e9 (Merge tag 'drm-intel-next-2016-11-08' of git://anongit.freedesktop.org/git/drm-intel into drm-next)
 	GEM_BUG_ON(!req->global_seqno);
 	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
 				 req->global_seqno);
