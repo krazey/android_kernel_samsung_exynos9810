@@ -2019,6 +2019,8 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 	if (new_tsp == NULL)
 		return -ENOMEM;
 
+	new->security = new_tsp;
+
 	rc = smk_copy_rules(&new_tsp->smk_rules, &old_tsp->smk_rules, gfp);
 	if (rc != 0)
 		return rc;
@@ -2028,7 +2030,6 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 	if (rc != 0)
 		return rc;
 
-	new->security = new_tsp;
 	return 0;
 }
 
