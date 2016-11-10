@@ -506,8 +506,8 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 	while (skb->len > max_fragment_size) {
 		/* The initial check in this function should cover this case */
 		if (frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1) {
-			ret = -1;
-			goto out;
+			ret = -EINVAL;
+			goto free_skb;
 		}
 
 		skb_fragment = batadv_frag_create(skb, &frag_header, mtu);
