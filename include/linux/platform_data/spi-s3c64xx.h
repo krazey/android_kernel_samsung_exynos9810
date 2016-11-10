@@ -83,7 +83,6 @@ struct s3c64xx_spi_info {
 	int swap_mode;
 	int secure_mode;
 	int (*cfg_gpio)(void);
-	dma_filter_fn filter;
 	enum spi_domain domain;
 	unsigned int dbg_mode;
 };
