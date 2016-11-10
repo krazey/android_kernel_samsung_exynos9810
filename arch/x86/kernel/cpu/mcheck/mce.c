@@ -2598,26 +2598,14 @@ static void mce_reenable_cpu(void)
 	}
 }
 
-/* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static int
-mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+static int mce_cpu_dead(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
+	mce_intel_hcpu_update(cpu);
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DEAD:
-		mce_intel_hcpu_update(cpu);
-
-		/* intentionally ignoring frozen here */
-		if (!(action & CPU_TASKS_FROZEN))
-			cmci_rediscover();
-		break;
-	case CPU_DOWN_PREPARE:
-
-		break;
-	}
-
-	return NOTIFY_OK;
+	/* intentionally ignoring frozen here */
+	if (!cpuhp_tasks_frozen)
+		cmci_rediscover();
+	return 0;
 }
 
 static int mce_cpu_online(unsigned int cpu)
@@ -2647,10 +2635,6 @@ static int mce_cpu_pre_down(unsigned int cpu)
 	mce_device_remove(cpu);
 	return 0;
 }
-
-static struct notifier_block mce_cpu_notifier = {
-	.notifier_call = mce_cpu_callback,
-};
 
 static __init void mce_init_banks(void)
 {
@@ -2691,15 +2675,16 @@ static __init int mcheck_init_device(void)
 	if (err)
 		goto err_out_mem;
 
+	err = cpuhp_setup_state(CPUHP_X86_MCE_DEAD, "x86/mce:dead", NULL,
+				mce_cpu_dead);
+	if (err)
+		goto err_out_mem;
+
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/mce:online",
 				mce_cpu_online, mce_cpu_pre_down);
 	if (err < 0)
-		goto err_out_mem;
+		goto err_out_online;
 	hp_online = err;
-
-	cpu_notifier_register_begin();
-	__register_hotcpu_notifier(&mce_cpu_notifier);
-	cpu_notifier_register_done();
 
 	register_syscore_ops(&mce_syscore_ops);
 
@@ -2713,6 +2698,9 @@ static __init int mcheck_init_device(void)
 err_register:
 	unregister_syscore_ops(&mce_syscore_ops);
 	cpuhp_remove_state(hp_online);
+
+err_out_online:
+	cpuhp_remove_state(CPUHP_X86_MCE_DEAD);
 
 err_out_mem:
 	free_cpumask_var(mce_device_initialized);
