@@ -366,7 +366,7 @@ Printer
 .. kernel-doc:: include/drm/drm_print.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_print.c
+.. kernel-doc:: include/drm/drm_print.h
    :export:
 
 

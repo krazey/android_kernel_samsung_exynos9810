@@ -173,8 +173,6 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(state);
 
-	drm_printf(p, "\thwpipe=%s\n", pstate->hwpipe ?
-			pstate->hwpipe->name : "(null)");
 	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->alpha);
@@ -883,7 +881,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary)
 	type = primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
 				 mdp5_plane->formats, mdp5_plane->nformats,
-				 type, NULL);
+				 type, "%s", mdp5_plane->name);
 	if (ret)
 		goto fail;
 

@@ -138,6 +138,15 @@ struct dma_buf_attachment;
 #define DRM_UT_VBL		0x20
 #define DRM_UT_STATE		0x40
 
+extern __printf(6, 7)
+void drm_dev_printk(const struct device *dev, const char *level,
+		    unsigned int category, const char *function_name,
+		    const char *prefix, const char *format, ...);
+
+extern __printf(3, 4)
+void drm_printk(const char *level, unsigned int category,
+		const char *format, ...);
+
 /***********************************************************************/
 /** \name DRM template customization defaults */
 /*@{*/
