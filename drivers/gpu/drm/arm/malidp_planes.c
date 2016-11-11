@@ -220,6 +220,13 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val &= ~LAYER_COMP_MASK;
 	val |= LAYER_COMP_PIXEL;
 
+	/*
+	 * always enable pixel alpha blending until we have a way to change
+	 * blend modes
+	 */
+	val &= ~LAYER_COMP_MASK;
+	val |= LAYER_COMP_PIXEL;
+
 	/* set the 'enable layer' bit */
 	val |= LAYER_ENABLE;
 
