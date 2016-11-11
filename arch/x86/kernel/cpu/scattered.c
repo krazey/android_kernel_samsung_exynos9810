@@ -17,13 +17,6 @@ struct cpuid_bit {
 	u32 sub_leaf;
 };
 
-enum cpuid_regs {
-	CR_EAX = 0,
-	CR_ECX,
-	CR_EDX,
-	CR_EBX
-};
-
 void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 {
 	u32 max_level;
@@ -31,14 +24,14 @@ void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 	const struct cpuid_bit *cb;
 
 	static const struct cpuid_bit cpuid_bits[] = {
-		{ X86_FEATURE_APERFMPERF,	CR_ECX, 0, 0x00000006, 0 },
-		{ X86_FEATURE_EPB,		CR_ECX, 3, 0x00000006, 0 },
-		{ X86_FEATURE_CAT_L3,		CR_EBX, 1, 0x00000010, 0 },
-		{ X86_FEATURE_CAT_L2,		CR_EBX, 2, 0x00000010, 0 },
-		{ X86_FEATURE_CDP_L3,		CR_ECX, 2, 0x00000010, 1 },
-		{ X86_FEATURE_HW_PSTATE,	CR_EDX, 7, 0x80000007, 0 },
-		{ X86_FEATURE_CPB,		CR_EDX, 9, 0x80000007, 0 },
-		{ X86_FEATURE_PROC_FEEDBACK,	CR_EDX,11, 0x80000007, 0 },
+		{ X86_FEATURE_APERFMPERF,	CPUID_ECX, 0, 0x00000006, 0 },
+		{ X86_FEATURE_EPB,		CPUID_ECX, 3, 0x00000006, 0 },
+		{ X86_FEATURE_CAT_L3,		CPUID_EBX, 1, 0x00000010, 0 },
+		{ X86_FEATURE_CAT_L2,		CPUID_EBX, 2, 0x00000010, 0 },
+		{ X86_FEATURE_CDP_L3,		CPUID_ECX, 2, 0x00000010, 1 },
+		{ X86_FEATURE_HW_PSTATE,	CPUID_EDX, 7, 0x80000007, 0 },
+		{ X86_FEATURE_CPB,		CPUID_EDX, 9, 0x80000007, 0 },
+		{ X86_FEATURE_PROC_FEEDBACK,	CPUID_EDX,11, 0x80000007, 0 },
 		{ 0, 0, 0, 0, 0 }
 	};
 
@@ -50,8 +43,9 @@ void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 		    max_level > (cb->level | 0xffff))
 			continue;
 
-		cpuid_count(cb->level, cb->sub_leaf, &regs[CR_EAX],
-			    &regs[CR_EBX], &regs[CR_ECX], &regs[CR_EDX]);
+		cpuid_count(cb->level, cb->sub_leaf, &regs[CPUID_EAX],
+			    &regs[CPUID_EBX], &regs[CPUID_ECX],
+			    &regs[CPUID_EDX]);
 
 		if (regs[cb->reg] & (1 << cb->bit))
 			set_cpu_cap(c, cb->feature);
