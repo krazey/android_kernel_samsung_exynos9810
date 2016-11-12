@@ -39,15 +39,6 @@ int __pure nokaslr(void)
 	return __nokaslr;
 }
 
-/*
- * Allow the platform to override the allocation granularity: this allows
- * systems that have the capability to run with a larger page size to deal
- * with the allocations for initrd and fdt more efficiently.
- */
-#ifndef EFI_ALLOC_ALIGN
-#define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
-#endif
-
 static int __section(.data) __nokaslr;
 
 int __pure nokaslr(void)
