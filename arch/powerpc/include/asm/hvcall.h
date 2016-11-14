@@ -431,27 +431,6 @@ static inline unsigned int get_longbusy_msecs(int longbusy_rc)
 	}
 }
 
-#ifdef CONFIG_PPC_PSERIES
-extern int CMO_PrPSP;
-extern int CMO_SecPSP;
-extern unsigned long CMO_PageSize;
-
-static inline int cmo_get_primary_psp(void)
-{
-	return CMO_PrPSP;
-}
-
-static inline int cmo_get_secondary_psp(void)
-{
-	return CMO_SecPSP;
-}
-
-static inline unsigned long cmo_get_page_size(void)
-{
-	return CMO_PageSize;
-}
-#endif /* CONFIG_PPC_PSERIES */
-
 struct h_cpu_char_result {
 	u64 character;
 	u64 behaviour;
