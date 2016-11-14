@@ -287,6 +287,12 @@ Explicit Fencing Properties
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :doc: explicit fencing properties
 
+Tile Group Property
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Tile group
+
 Existing KMS Properties
 -----------------------
 
