@@ -1838,7 +1838,6 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 	int i, n;
 	unsigned int signbits;
 	unsigned int d;
-	unsigned long dl;
 
 	ni_load_channelgain_list(dev, s, 1, &insn->chanspec);
 
@@ -1889,15 +1888,15 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			 * bit to move a single 16bit stranded sample into
 			 * the FIFO.
 			 */
-			dl = 0;
+			d = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
 				if (ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) &
 				    0x01) {
 					/* Get stranded sample into FIFO */
 					ni_writel(dev, 0x01,
 						  NI6143_AI_FIFO_CTRL_REG);
-					dl = ni_readl(dev,
-						      NI6143_AI_FIFO_DATA_REG);
+					d = ni_readl(dev,
+						     NI6143_AI_FIFO_DATA_REG);
 					break;
 				}
 			}
@@ -1905,7 +1904,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
-			data[n] = (((dl >> 16) & 0xFFFF) + signbits) & 0xFFFF;
+			data[n] = (((d >> 16) & 0xFFFF) + signbits) & 0xFFFF;
 		}
 	} else {
 		for (n = 0; n < insn->n; n++) {
@@ -1921,9 +1920,9 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				return -ETIME;
 			}
 			if (devpriv->is_m_series) {
-				dl = ni_readl(dev, NI_M_AI_FIFO_DATA_REG);
-				dl &= mask;
-				data[n] = dl;
+				d = ni_readl(dev, NI_M_AI_FIFO_DATA_REG);
+				d &= mask;
+				data[n] = d;
 			} else {
 				d = ni_readw(dev, NI_E_AI_FIFO_DATA_REG);
 				d += signbits;
