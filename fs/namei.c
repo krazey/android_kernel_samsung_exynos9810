@@ -1817,7 +1817,7 @@ static inline int should_follow_link(struct nameidata *nd, struct path *link,
 {
 	if (likely(!d_is_symlink(link->dentry)))
 		return 0;
-	if (!follow)
+	if (!follow && !(nd->flags & LOOKUP_FOLLOW))
 		return 0;
 	/* make sure that d_is_symlink above matches inode */
 	if (nd->flags & LOOKUP_RCU) {
@@ -2332,12 +2332,7 @@ static inline int lookup_last(struct nameidata *nd)
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	return walk_component(nd,
-			nd->flags & LOOKUP_FOLLOW
-				? nd->depth
-					? WALK_PUT | WALK_GET
-					: WALK_GET
-				: 0);
+	return walk_component(nd, nd->depth ? WALK_PUT : 0);
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
@@ -2714,7 +2709,7 @@ mountpoint_last(struct nameidata *nd)
 	if (nd->depth)
 		put_link(nd);
 	path.mnt = nd->path.mnt;
-	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW,
+	error = should_follow_link(nd, &path, 0,
 				   d_backing_inode(path.dentry), 0);
 	if (unlikely(error))
 		return error;
@@ -3426,8 +3421,7 @@ static int do_last(struct nameidata *nd,
 finish_lookup:
 	if (nd->depth)
 		put_link(nd);
-	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW,
-				   inode, seq);
+	error = should_follow_link(nd, &path, 0, inode, seq);
 	if (unlikely(error))
 		return error;
 
