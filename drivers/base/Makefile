@@ -27,5 +27,7 @@ obj-$(CONFIG_GENERIC_ARCH_TOPOLOGY) += arch_topology.o
 
 obj-y			+= test/
 
+obj-y			+= test/
+
 ccflags-$(CONFIG_DEBUG_DRIVER) := -DDEBUG
 
