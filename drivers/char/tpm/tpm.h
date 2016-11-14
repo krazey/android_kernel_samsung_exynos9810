@@ -35,6 +35,8 @@
 #include <linux/cdev.h>
 #include <linux/highmem.h>
 
+#include "tpm_eventlog.h"
+
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 4096,
@@ -147,6 +149,11 @@ enum tpm_chip_flags {
 	TPM_CHIP_FLAG_ALWAYS_POWERED	= BIT(5),
 };
 
+struct tpm_chip_seqops {
+	struct tpm_chip *chip;
+	const struct seq_operations *seqops;
+};
+
 struct tpm_chip {
 	struct device dev;
 	struct cdev cdev;
@@ -157,6 +164,10 @@ struct tpm_chip {
 	 */
 	struct rw_semaphore ops_sem;
 	const struct tpm_class_ops *ops;
+
+	struct tpm_bios_log log;
+	struct tpm_chip_seqops bin_log_seqops;
+	struct tpm_chip_seqops ascii_log_seqops;
 
 	unsigned int flags;
 
