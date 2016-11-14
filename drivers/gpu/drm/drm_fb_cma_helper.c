@@ -285,7 +285,7 @@ int drm_fb_cma_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct dma_buf *dma_buf;
-	struct fence *fence;
+	struct dma_fence *fence;
 
 	if ((plane->state->fb == state->fb) || !state->fb)
 		return 0;
