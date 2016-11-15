@@ -5002,7 +5002,7 @@ void __napi_schedule_irqoff(struct napi_struct *n)
 }
 EXPORT_SYMBOL(__napi_schedule_irqoff);
 
-void __napi_complete(struct napi_struct *n)
+bool __napi_complete(struct napi_struct *n)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
 
@@ -5012,16 +5012,17 @@ void __napi_complete(struct napi_struct *n)
 	 * napi_complete_done().
 	 */
 	if (unlikely(test_bit(NAPI_STATE_IN_BUSY_POLL, &n->state)))
-		return;
+		return false;
 
 	list_del_init(&n->poll_list);
 	smp_mb__before_atomic();
 	sd->current_napi = NULL;
 	clear_bit(NAPI_STATE_SCHED, &n->state);
+	return true;
 }
 EXPORT_SYMBOL(__napi_complete);
 
-void napi_complete_done(struct napi_struct *n, int work_done)
+bool napi_complete_done(struct napi_struct *n, int work_done)
 {
 	unsigned long flags;
 
@@ -5033,7 +5034,7 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 	 */
 	if (unlikely(n->state & (NAPIF_STATE_NPSVC |
 				 NAPIF_STATE_IN_BUSY_POLL)))
-		return;
+		return false;
 
 	if (n->gro_list) {
 		unsigned long timeout = 0;
@@ -5055,6 +5056,7 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 		__napi_complete(n);
 		local_irq_restore(flags);
 	}
+	return true;
 }
 EXPORT_SYMBOL(napi_complete_done);
 
