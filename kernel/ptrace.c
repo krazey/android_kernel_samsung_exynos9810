@@ -76,6 +76,9 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent,
 static void ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 {
 	__ptrace_link(child, new_parent, current_cred());
+	rcu_read_lock();
+	child->ptracer_cred = get_cred(__task_cred(new_parent));
+	rcu_read_unlock();
 }
 
 /**
@@ -409,11 +412,6 @@ static int ptrace_attach(struct task_struct *task, long request,
 
 	task_lock(task);
 	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH_REALCREDS);
-	if (!retval) {
-		struct mm_struct *mm = task->mm;
-		if (mm && ns_capable(mm->user_ns, CAP_SYS_PTRACE))
-			flags |= PT_PTRACE_CAP;
-	}
 	task_unlock(task);
 	if (retval)
 		goto unlock_creds;
