@@ -891,7 +891,7 @@ fail:
  stop_kthread:
 	sugov_kthread_stop(sg_policy);
 
- free_sg_policy:
+free_sg_policy:
 	mutex_unlock(&global_tunables_lock);
 
 	sugov_policy_free(sg_policy);
