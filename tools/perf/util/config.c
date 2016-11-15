@@ -621,6 +621,13 @@ int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
 	return collect_config(var, value, set);
 }
 
+int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
+			     const char *var, const char *value)
+{
+	config_file_name = file_name;
+	return collect_config(var, value, set);
+}
+
 static int perf_config_set__init(struct perf_config_set *set)
 {
 	int ret = -1;
