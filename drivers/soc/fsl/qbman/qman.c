@@ -2694,6 +2694,7 @@ const struct qm_portal_config *qman_get_qm_portal_config(
 {
 	return portal->config;
 }
+EXPORT_SYMBOL(qman_get_qm_portal_config);
 
 struct gen_pool *qm_fqalloc; /* FQID allocator */
 struct gen_pool *qm_qpalloc; /* pool-channel allocator */
