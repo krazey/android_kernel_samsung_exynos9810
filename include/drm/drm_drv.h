@@ -291,8 +291,6 @@ struct drm_driver {
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/**
-	 * @gem_create_object: constructor for gem objects
-	 *
 	 * Hook for allocating the GEM object struct, for use by core
 	 * helpers.
 	 */
@@ -423,7 +421,6 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
 void drm_dev_unregister(struct drm_device *dev);
-int drm_dev_set_unique(struct drm_device *dev, const char *name);
 
 void drm_dev_ref(struct drm_device *dev);
 void drm_dev_unref(struct drm_device *dev);

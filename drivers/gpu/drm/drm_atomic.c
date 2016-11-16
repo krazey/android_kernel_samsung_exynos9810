@@ -878,9 +878,10 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	/* Check whether this plane supports the fb pixel format. */
 	ret = drm_plane_check_pixel_format(plane, state->fb->pixel_format);
 	if (ret) {
-		char *format_name = drm_get_format_name(state->fb->pixel_format);
-		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n", format_name);
-		kfree(format_name);
+		struct drm_format_name_buf format_name;
+		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n",
+		                 drm_get_format_name(state->fb->pixel_format,
+		                                     &format_name));
 		return ret;
 	}
 
@@ -919,6 +920,39 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	}
 
 	return 0;
+}
+
+static void drm_atomic_plane_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	struct drm_plane *plane = state->plane;
+	struct drm_rect src  = drm_plane_state_src(state);
+	struct drm_rect dest = drm_plane_state_dest(state);
+
+	drm_printf(p, "plane[%u]: %s\n", plane->base.id, plane->name);
+	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+	drm_printf(p, "\tfb=%u\n", state->fb ? state->fb->base.id : 0);
+	if (state->fb) {
+		struct drm_framebuffer *fb = state->fb;
+		int i, n = drm_format_num_planes(fb->pixel_format);
+		struct drm_format_name_buf format_name;
+
+		drm_printf(p, "\t\tformat=%s\n",
+		              drm_get_format_name(fb->pixel_format, &format_name));
+		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
+		drm_printf(p, "\t\tlayers:\n");
+		for (i = 0; i < n; i++) {
+			drm_printf(p, "\t\t\tpitch[%d]=%u\n", i, fb->pitches[i]);
+			drm_printf(p, "\t\t\toffset[%d]=%u\n", i, fb->offsets[i]);
+			drm_printf(p, "\t\t\tmodifier[%d]=0x%llx\n", i, fb->modifier[i]);
+		}
+	}
+	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
+	drm_printf(p, "\tsrc-pos=" DRM_RECT_FP_FMT "\n", DRM_RECT_FP_ARG(&src));
+	drm_printf(p, "\trotation=%x\n", state->rotation);
+
+	if (plane->funcs->atomic_print_state)
+		plane->funcs->atomic_print_state(p, state);
 }
 
 /**
