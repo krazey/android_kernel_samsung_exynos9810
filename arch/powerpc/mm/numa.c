@@ -1122,7 +1122,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 		nid = hot_add_node_scn_to_nid(scn_addr);
 	}
 
-	if (nid < 0 || !node_online(nid))
+	if (nid < 0 || !node_possible(nid))
 		nid = first_online_node;
 
 	return nid;
