@@ -216,7 +216,7 @@ static int stmmac_mdio_write_gmac4(struct mii_bus *bus, int phyaddr, int phyreg,
  */
 int stmmac_mdio_reset(struct mii_bus *bus)
 {
-#if IS_ENABLED(CONFIG_STMMAC_PLATFORM)
+#if defined(CONFIG_STMMAC_PLATFORM)
 	struct net_device *ndev = bus->priv;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned int mii_address = priv->hw->mii.addr;
@@ -240,8 +240,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 			of_property_read_u32_array(np,
 				"snps,reset-delays-us", data->delays, 3);
 
-			if (devm_gpio_request(priv->device, data->reset_gpio,
-					      "mdio-reset"))
+			if (gpio_request(data->reset_gpio, "mdio-reset"))
 				return 0;
 		}
 
@@ -261,7 +260,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 #endif
 
 	if (data->phy_reset) {
-		pr_debug("stmmac_mdio_reset: calling phy_reset\n");
+		netdev_dbg(ndev, "stmmac_mdio_reset: calling phy_reset\n");
 		data->phy_reset(priv->plat->bsp_priv);
 	}
 
@@ -326,7 +325,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	else
 		err = mdiobus_register(new_bus);
 	if (err != 0) {
-		pr_err("%s: Cannot register as MDIO bus\n", new_bus->name);
+		netdev_err(ndev, "Cannot register the MDIO bus\n");
 		goto bus_register_fail;
 	}
 
@@ -373,16 +372,16 @@ int stmmac_mdio_register(struct net_device *ndev)
 				irq_str = irq_num;
 				break;
 			}
-			pr_info("%s: PHY ID %08x at %d IRQ %s (%s)%s\n",
-				ndev->name, phydev->phy_id, addr,
-				irq_str, phydev_name(phydev),
-				act ? " active" : "");
+			netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
+				    phydev->phy_id, addr,
+				    irq_str, phydev_name(phydev),
+				    act ? " active" : "");
 			found = 1;
 		}
 	}
 
 	if (!found && !mdio_node) {
-		pr_warn("%s: No PHY found\n", ndev->name);
+		netdev_warn(ndev, "No PHY found\n");
 		mdiobus_unregister(new_bus);
 		mdiobus_free(new_bus);
 		return -ENODEV;
