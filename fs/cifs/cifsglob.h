@@ -1356,6 +1356,7 @@ struct mid_q_entry {
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
+	bool decrypted:1;	/* decrypted entry */
 };
 
 struct close_cancelled_open {
