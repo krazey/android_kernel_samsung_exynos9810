@@ -38,6 +38,7 @@ merged much easier.
 
    process/index
    dev-tools/index
+   doc-guide/index
    driver-api/index
    media/index
    gpu/index
