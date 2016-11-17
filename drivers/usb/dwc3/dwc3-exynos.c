@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/usb_phy_generic.h>
@@ -492,19 +491,6 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
 	if (!exynos)
 		return -ENOMEM;
-
-	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
-	 * Once we move to full device tree support this will vanish off.
-	 */
-#if IS_ENABLED(CONFIG_ZONE_DMA)
-	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
-#else
-	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(36));
-#endif
-	if (ret)
-		return ret;
 
 	platform_set_drvdata(pdev, exynos);
 
