@@ -97,8 +97,6 @@ enum board_idx {
 	BCM57407_NPAR,
 	BCM57414_NPAR,
 	BCM57416_NPAR,
-	BCM57452,
-	BCM57454,
 	NETXTREME_E_VF,
 	NETXTREME_C_VF,
 };
@@ -133,8 +131,6 @@ static const struct {
 	{ "Broadcom BCM57407 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57416 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57452 NetXtreme-E 10Gb/25Gb/40Gb/50Gb Ethernet" },
-	{ "Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	{ "Broadcom NetXtreme-E Ethernet Virtual Function" },
 	{ "Broadcom NetXtreme-C Ethernet Virtual Function" },
 };
@@ -170,8 +166,6 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16ed), .driver_data = BCM57414_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ee), .driver_data = BCM57416_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ef), .driver_data = BCM57416_NPAR },
-	{ PCI_VDEVICE(BROADCOM, 0x16f1), .driver_data = BCM57452 },
-	{ PCI_VDEVICE(BROADCOM, 0x1614), .driver_data = BCM57454 },
 #ifdef CONFIG_BNXT_SRIOV
 	{ PCI_VDEVICE(BROADCOM, 0x16c1), .driver_data = NETXTREME_E_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = NETXTREME_C_VF },
@@ -428,12 +422,6 @@ normal_tx:
 	}
 
 	length >>= 9;
-	if (unlikely(length >= ARRAY_SIZE(bnxt_lhint_arr))) {
-		dev_warn_ratelimited(&pdev->dev, "Dropped oversize %d bytes TX packet.\n",
-				     skb->len);
-		i = 0;
-		goto tx_dma_error;
-	}
 	flags |= bnxt_lhint_arr[length];
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
 
@@ -959,8 +947,6 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	tpa_info = &rxr->rx_tpa[agg_id];
 
 	if (unlikely(cons != rxr->rx_next_cons)) {
-		netdev_warn(bp->dev, "TPA cons %x != expected cons %x\n",
-			    cons, rxr->rx_next_cons);
 		bnxt_sched_reset(bp, rxr);
 		return;
 	}
@@ -1111,7 +1097,7 @@ static struct sk_buff *bnxt_gro_func_5730x(struct bnxt_tpa_info *tpa_info,
 {
 #ifdef CONFIG_INET
 	struct tcphdr *th;
-	int len, nw_off, tcp_opt_len = 0;
+	int len, nw_off, tcp_opt_len;
 
 	if (tcp_ts)
 		tcp_opt_len = 12;
@@ -1379,16 +1365,14 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	}
 
 	cons = rxcmp->rx_cmp_opaque;
+	rx_buf = &rxr->rx_buf_ring[cons];
+	data = rx_buf->data;
 	if (unlikely(cons != rxr->rx_next_cons)) {
 		int rc1 = bnxt_discard_rx(bp, bnapi, raw_cons, rxcmp);
 
-		netdev_warn(bp->dev, "RX cons %x != expected cons %x\n",
-			    cons, rxr->rx_next_cons);
 		bnxt_sched_reset(bp, rxr);
 		return rc1;
 	}
-	rx_buf = &rxr->rx_buf_ring[cons];
-	data = rx_buf->data;
 	prefetch(data);
 
 	agg_bufs = (le32_to_cpu(rxcmp->rx_cmp_misc_v1) & RX_CMP_AGG_BUFS) >>
@@ -1404,17 +1388,11 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 
 	rx_buf->data = NULL;
 	if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L2_ERRORS) {
-		u32 rx_err = le32_to_cpu(rxcmp1->rx_cmp_cfa_code_errors_v2);
-
 		bnxt_reuse_rx_data(rxr, cons, data);
 		if (agg_bufs)
 			bnxt_reuse_rx_agg_bufs(bnapi, cp_cons, agg_bufs);
 
 		rc = -EIO;
-		if (rx_err & RX_CMPL_ERRORS_BUFFER_ERROR_MASK) {
-			netdev_warn(bp->dev, "RX buffer error %x\n", rx_err);
-			bnxt_sched_reset(bp, rxr);
-		}
 		goto next_rx;
 	}
 
@@ -1425,8 +1403,6 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 		skb = bnxt_copy_skb(bnapi, data, len, dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
 		if (!skb) {
-			if (agg_bufs)
-				bnxt_reuse_rx_agg_bufs(bnapi, cp_cons, agg_bufs);
 			rc = -ENOMEM;
 			goto next_rx;
 		}
@@ -1516,16 +1492,12 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 		if (BNXT_VF(bp))
 			goto async_event_process_exit;
-
-		/* print unsupported speed warning in forced speed mode only */
-		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED) &&
-		    (data1 & 0x20000)) {
+		if (data1 & 0x20000) {
 			u16 fw_speed = link_info->force_link_speed;
 			u32 speed = bnxt_fw_to_ethtool_speed(fw_speed);
 
-			if (speed != SPEED_UNKNOWN)
-				netdev_warn(bp->dev, "Link speed %d no longer supported\n",
-					    speed);
+			netdev_warn(bp->dev, "Link speed %d no longer supported\n",
+				    speed);
 		}
 		set_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT, &bp->sp_event);
 		/* fall thru */
@@ -1684,11 +1656,8 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
 			tx_pkts++;
 			/* return full budget so NAPI will complete. */
-			if (unlikely(tx_pkts > bp->tx_wake_thresh)) {
+			if (unlikely(tx_pkts > bp->tx_wake_thresh))
 				rx_pkts = budget;
-				raw_cons = NEXT_RAW_CMP(raw_cons);
-				break;
-			}
 		} else if ((TX_CMP_TYPE(txcmp) & 0x30) == 0x10) {
 			rc = bnxt_rx_pkt(bp, bnapi, &raw_cons, &agg_event);
 			if (likely(rc >= 0))
@@ -1706,7 +1675,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
 
-		if (rx_pkts && rx_pkts == budget)
+		if (rx_pkts == budget)
 			break;
 	}
 
@@ -1818,12 +1787,8 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 	while (1) {
 		work_done += bnxt_poll_work(bp, bnapi, budget - work_done);
 
-		if (work_done >= budget) {
-			if (!budget)
-				BNXT_CP_DB_REARM(cpr->cp_doorbell,
-						 cpr->cp_raw_cons);
+		if (work_done >= budget)
 			break;
-		}
 
 		if (!bnxt_has_work(bp, cpr)) {
 			napi_complete(napi);
@@ -1845,9 +1810,6 @@ static int bnxt_busy_poll(struct napi_struct *napi)
 	int rx_work, budget = 4;
 
 	if (atomic_read(&bp->intr_sem) != 0)
-		return LL_FLUSH_FAILED;
-
-	if (!bp->link_info.link_up)
 		return LL_FLUSH_FAILED;
 
 	if (!bnxt_lock_poll(bnapi))
@@ -2410,18 +2372,6 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 	return 0;
 }
 
-static void bnxt_init_cp_rings(struct bnxt *bp)
-{
-	int i;
-
-	for (i = 0; i < bp->cp_nr_rings; i++) {
-		struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
-		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
-
-		ring->fw_ring_id = INVALID_HW_RING_ID;
-	}
-}
-
 static int bnxt_init_rx_rings(struct bnxt *bp)
 {
 	int i, rc = 0;
@@ -2915,8 +2865,7 @@ static int bnxt_alloc_ntp_fltrs(struct bnxt *bp)
 		INIT_HLIST_HEAD(&bp->ntp_fltr_hash_tbl[i]);
 
 	bp->ntp_fltr_count = 0;
-	bp->ntp_fltr_bmap = kcalloc(BITS_TO_LONGS(BNXT_NTP_FLTR_MAX_FLTR),
-				    sizeof(long),
+	bp->ntp_fltr_bmap = kzalloc(BITS_TO_LONGS(BNXT_NTP_FLTR_MAX_FLTR),
 				    GFP_KERNEL);
 
 	if (!bp->ntp_fltr_bmap)
@@ -3262,17 +3211,11 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 		goto err_out;
 	}
 
-	switch (tunnel_type) {
-	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN:
+	if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN)
 		bp->vxlan_fw_dst_port_id = resp->tunnel_dst_port_id;
-		break;
-	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE:
-		bp->nge_fw_dst_port_id = resp->tunnel_dst_port_id;
-		break;
-	default:
-		break;
-	}
 
+	else if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE)
+		bp->nge_fw_dst_port_id = resp->tunnel_dst_port_id;
 err_out:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -3425,9 +3368,6 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_tpa_cfg_input req = {0};
-
-	if (vnic->fw_vnic_id == INVALID_HW_RING_ID)
-		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_TPA_CFG, -1, -1);
 
@@ -3844,30 +3784,6 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_hwrm_set_async_event_cr(struct bnxt *bp, int idx)
-{
-	int rc;
-
-	if (BNXT_PF(bp)) {
-		struct hwrm_func_cfg_input req = {0};
-
-		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
-		req.fid = cpu_to_le16(0xffff);
-		req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = cpu_to_le16(idx);
-		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	} else {
-		struct hwrm_func_vf_cfg_input req = {0};
-
-		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_CFG, -1, -1);
-		req.enables =
-			cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = cpu_to_le16(idx);
-		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	}
-	return rc;
-}
-
 static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 {
 	int i, rc = 0;
@@ -3884,12 +3800,6 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 			goto err_out;
 		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
 		bp->grp_info[i].cp_fw_ring_id = ring->fw_ring_id;
-
-		if (!i) {
-			rc = bnxt_hwrm_set_async_event_cr(bp, ring->fw_ring_id);
-			if (rc)
-				netdev_warn(bp->dev, "Failed to set async event completion ring.\n");
-		}
 	}
 
 	for (i = 0; i < bp->tx_nr_rings; i++) {
@@ -4202,7 +4112,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 		bp->grp_info[i].fw_stats_ctx = cpr->hw_stats_ctx_id;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-	return rc;
+	return 0;
 }
 
 static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
@@ -4262,6 +4172,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 
 		pf->fw_fid = le16_to_cpu(resp->fid);
 		pf->port_id = le16_to_cpu(resp->port_id);
+		bp->dev->dev_port = pf->port_id;
 		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
 		memcpy(bp->dev->dev_addr, pf->mac_addr, ETH_ALEN);
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
@@ -4743,7 +4654,6 @@ static int bnxt_shutdown_nic(struct bnxt *bp, bool irq_re_init)
 
 static int bnxt_init_nic(struct bnxt *bp, bool irq_re_init)
 {
-	bnxt_init_cp_rings(bp);
 	bnxt_init_rx_rings(bp);
 	bnxt_init_tx_rings(bp);
 	bnxt_init_ring_grps(bp, irq_re_init);
@@ -5025,10 +4935,6 @@ static void bnxt_del_napi(struct bnxt *bp)
 		napi_hash_del(&bnapi->napi);
 		netif_napi_del(&bnapi->napi);
 	}
-	/* We called napi_hash_del() before netif_napi_del(), we need
-	 * to respect an RCU grace period before freeing napi structures.
-	 */
-	synchronize_net();
 }
 
 static void bnxt_init_napi(struct bnxt *bp)
@@ -5093,10 +4999,9 @@ static void bnxt_tx_disable(struct bnxt *bp)
 			txr->dev_state = BNXT_DEV_STATE_CLOSING;
 		}
 	}
-	/* Drop carrier first to prevent TX timeout */
-	netif_carrier_off(bp->dev);
 	/* Stop all TX queues */
 	netif_tx_disable(bp->dev);
+	netif_carrier_off(bp->dev);
 }
 
 static void bnxt_tx_enable(struct bnxt *bp)
@@ -5176,9 +5081,8 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
 	}
-	if (resp->supported_speeds_auto_mode)
-		link_info->support_auto_speeds =
-			le16_to_cpu(resp->supported_speeds_auto_mode);
+	link_info->support_auto_speeds =
+		le16_to_cpu(resp->supported_speeds_auto_mode);
 
 hwrm_phy_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -5281,19 +5185,21 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	if (!BNXT_SINGLE_PF(bp))
-		return 0;
-
 	diff = link_info->support_auto_speeds ^ link_info->advertising;
 	if ((link_info->support_auto_speeds | diff) !=
 	    link_info->support_auto_speeds) {
 		/* An advertised speed is no longer supported, so we need to
-		 * update the advertisement settings.  Caller holds RTNL
-		 * so we can modify link settings.
+		 * update the advertisement settings.  See bnxt_reset() for
+		 * comments about the rtnl_lock() sequence below.
 		 */
+		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		rtnl_lock();
 		link_info->advertising = link_info->support_auto_speeds;
-		if (link_info->autoneg & BNXT_AUTONEG_SPEED)
+		if (test_bit(BNXT_STATE_OPEN, &bp->state) &&
+		    (link_info->autoneg & BNXT_AUTONEG_SPEED))
 			bnxt_hwrm_set_link_setting(bp, true, false);
+		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		rtnl_unlock();
 	}
 	return 0;
 }
@@ -5590,22 +5496,20 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		rc = bnxt_request_irq(bp);
 		if (rc) {
 			netdev_err(bp->dev, "bnxt_request_irq err: %x\n", rc);
-			goto open_err_irq;
+			goto open_err;
 		}
-	}
-
-	rc = bnxt_init_nic(bp, irq_re_init);
-	if (rc) {
-		netdev_err(bp->dev, "bnxt_init_nic err: %x\n", rc);
-		goto open_err_irq;
 	}
 
 	bnxt_enable_napi(bp);
 
+	rc = bnxt_init_nic(bp, irq_re_init);
+	if (rc) {
+		netdev_err(bp->dev, "bnxt_init_nic err: %x\n", rc);
+		goto open_err;
+	}
+
 	if (link_re_init) {
-		mutex_lock(&bp->link_lock);
 		rc = bnxt_update_phy_setting(bp);
-		mutex_unlock(&bp->link_lock);
 		if (rc)
 			netdev_warn(bp->dev, "failed to update phy settings\n");
 	}
@@ -5623,7 +5527,8 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 
 	return 0;
 
-open_err_irq:
+open_err:
+	bnxt_disable_napi(bp);
 	bnxt_del_napi(bp);
 
 open_err_free_mem:
@@ -5958,15 +5863,8 @@ static int bnxt_cfg_rx_mode(struct bnxt *bp)
 
 skip_uc:
 	rc = bnxt_hwrm_cfa_l2_set_rx_mask(bp, 0);
-	if (rc && vnic->mc_list_count) {
-		netdev_info(bp->dev, "Failed setting MC filters rc: %d, turning on ALL_MCAST mode\n",
-			    rc);
-		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST;
-		vnic->mc_list_count = 0;
-		rc = bnxt_hwrm_cfa_l2_set_rx_mask(bp, 0);
-	}
 	if (rc)
-		netdev_err(bp->dev, "HWRM cfa l2 rx mask failure rc: %d\n",
+		netdev_err(bp->dev, "HWRM cfa l2 rx mask failure rc: %x\n",
 			   rc);
 
 	return rc;
@@ -5999,7 +5897,6 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 					   netdev_features_t features)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	netdev_features_t vlan_features;
 
 	if ((features & NETIF_F_NTUPLE) && !bnxt_rfs_capable(bp))
 		features &= ~NETIF_F_NTUPLE;
@@ -6007,14 +5904,12 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 	/* Both CTAG and STAG VLAN accelaration on the RX side have to be
 	 * turned on or off together.
 	 */
-	vlan_features = features & (NETIF_F_HW_VLAN_CTAG_RX |
-				    NETIF_F_HW_VLAN_STAG_RX);
-	if (vlan_features != (NETIF_F_HW_VLAN_CTAG_RX |
-			      NETIF_F_HW_VLAN_STAG_RX)) {
+	if ((features & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) !=
+	    (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) {
 		if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
 			features &= ~(NETIF_F_HW_VLAN_CTAG_RX |
 				      NETIF_F_HW_VLAN_STAG_RX);
-		else if (vlan_features)
+		else
 			features |= NETIF_F_HW_VLAN_CTAG_RX |
 				    NETIF_F_HW_VLAN_STAG_RX;
 	}
@@ -6195,30 +6090,21 @@ bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
-static void bnxt_rtnl_lock_sp(struct bnxt *bp)
+/* Only called from bnxt_sp_task() */
+static void bnxt_reset(struct bnxt *bp, bool silent)
 {
-	/* We are called from bnxt_sp_task which has BNXT_STATE_IN_SP_TASK
-	 * set.  If the device is being closed, bnxt_close() may be holding
+	/* bnxt_reset_task() calls bnxt_close_nic() which waits
+	 * for BNXT_STATE_IN_SP_TASK to clear.
+	 * If there is a parallel dev_close(), bnxt_close() may be holding
 	 * rtnl() and waiting for BNXT_STATE_IN_SP_TASK to clear.  So we
 	 * must clear BNXT_STATE_IN_SP_TASK before holding rtnl().
 	 */
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 	rtnl_lock();
-}
-
-static void bnxt_rtnl_unlock_sp(struct bnxt *bp)
-{
-	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
-	rtnl_unlock();
-}
-
-/* Only called from bnxt_sp_task() */
-static void bnxt_reset(struct bnxt *bp, bool silent)
-{
-	bnxt_rtnl_lock_sp(bp);
 	if (test_bit(BNXT_STATE_OPEN, &bp->state))
 		bnxt_reset_task(bp, silent);
-	bnxt_rtnl_unlock_sp(bp);
+	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	rtnl_unlock();
 }
 
 static void bnxt_cfg_ntp_filters(struct bnxt *);
@@ -6226,6 +6112,7 @@ static void bnxt_cfg_ntp_filters(struct bnxt *);
 static void bnxt_sp_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
+	int rc;
 
 	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 	smp_mb__after_atomic();
@@ -6239,6 +6126,16 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_RX_NTP_FLTR_SP_EVENT, &bp->sp_event))
 		bnxt_cfg_ntp_filters(bp);
+	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
+		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
+				       &bp->sp_event))
+			bnxt_hwrm_phy_qcaps(bp);
+
+		rc = bnxt_update_link(bp, true);
+		if (rc)
+			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
+				   rc);
+	}
 	if (test_and_clear_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_exec_fwd_req(bp);
 	if (test_and_clear_bit(BNXT_VXLAN_ADD_PORT_SP_EVENT, &bp->sp_event)) {
@@ -6259,36 +6156,17 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
 	}
-	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
-		bnxt_hwrm_port_qstats(bp);
-
-	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
-		int rc;
-
-		mutex_lock(&bp->link_lock);
-		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
-				       &bp->sp_event))
-			bnxt_hwrm_phy_qcaps(bp);
-
-		rc = bnxt_update_link(bp, true);
-		mutex_unlock(&bp->link_lock);
-		if (rc)
-			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
-				   rc);
-	}
-	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event)) {
-		mutex_lock(&bp->link_lock);
-		bnxt_get_port_module_status(bp);
-		mutex_unlock(&bp->link_lock);
-	}
-	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
-	 * must be the last functions to be called before exiting.
-	 */
 	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
 		bnxt_reset(bp, false);
 
 	if (test_and_clear_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event))
 		bnxt_reset(bp, true);
+
+	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event))
+		bnxt_get_port_module_status(bp);
+
+	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
+		bnxt_hwrm_port_qstats(bp);
 
 	smp_mb__before_atomic();
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
@@ -6324,8 +6202,7 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) != 0 &&
 	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
 		dev_err(&pdev->dev, "System does not support DMA, aborting\n");
-		rc = -EIO;
-		goto init_err_release;
+		goto init_err_disable;
 	}
 
 	pci_set_master(pdev);
@@ -6442,13 +6319,13 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	struct bnxt *bp = netdev_priv(dev);
 
 	if (netif_running(dev))
-		bnxt_close_nic(bp, true, false);
+		bnxt_close_nic(bp, false, false);
 
 	dev->mtu = new_mtu;
 	bnxt_set_ring_params(bp);
 
 	if (netif_running(dev))
-		return bnxt_open_nic(bp, true, false);
+		return bnxt_open_nic(bp, false, false);
 
 	return 0;
 }
@@ -6816,7 +6693,6 @@ static int bnxt_probe_phy(struct bnxt *bp)
 			   rc);
 		return rc;
 	}
-	mutex_init(&bp->link_lock);
 
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
@@ -6900,11 +6776,11 @@ int bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx, bool shared)
 	int rx, tx, cp;
 
 	_bnxt_get_max_rings(bp, &rx, &tx, &cp);
-	*max_rx = rx;
-	*max_tx = tx;
 	if (!rx || !tx || !cp)
 		return -ENOMEM;
 
+	*max_rx = rx;
+	*max_tx = tx;
 	return bnxt_trim_rings(bp, max_rx, max_tx, cp, shared);
 }
 
@@ -7089,7 +6965,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bnxt_parse_log_pcie_link(bp);
 
-	pci_save_state(pdev);
 	return 0;
 
 init_err:
@@ -7163,8 +7038,6 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 			"Cannot re-enable PCI device after reset.\n");
 	} else {
 		pci_set_master(pdev);
-		pci_restore_state(pdev);
-		pci_save_state(pdev);
 
 		if (netif_running(netdev))
 			err = bnxt_open(netdev);
@@ -7173,11 +7046,8 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 			result = PCI_ERS_RESULT_RECOVERED;
 	}
 
-	if (result != PCI_ERS_RESULT_RECOVERED) {
-		if (netif_running(netdev))
-			dev_close(netdev);
-		pci_disable_device(pdev);
-	}
+	if (result != PCI_ERS_RESULT_RECOVERED && netif_running(netdev))
+		dev_close(netdev);
 
 	rtnl_unlock();
 
@@ -7188,7 +7058,7 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 			 err); /* non-fatal, continue */
 	}
 
-	return result;
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 /**
