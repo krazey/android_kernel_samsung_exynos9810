@@ -188,7 +188,7 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	u32 dpfc_ctl;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane) | DPFC_SR_EN;
-	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
+	if (params->fb.format->cpp[0] == 2)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
@@ -235,7 +235,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	int threshold = dev_priv->fbc.threshold;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane);
-	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
+	if (params->fb.format->cpp[0] == 2)
 		threshold++;
 
 	switch (threshold) {
@@ -305,7 +305,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	if (IS_IVYBRIDGE(dev_priv))
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.plane);
 
-	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
+	if (params->fb.format->cpp[0] == 2)
 		threshold++;
 
 	switch (threshold) {
@@ -584,7 +584,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 	WARN_ON(drm_mm_node_allocated(&fbc->compressed_fb));
 
 	size = intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache);
-	fb_cpp = drm_format_plane_cpp(fbc->state_cache.fb.pixel_format, 0);
+	fb_cpp = fbc->state_cache.fb.format->cpp[0];
 
 	ret = find_compression_threshold(dev_priv, &fbc->compressed_fb,
 					 size, fb_cpp);
@@ -754,7 +754,13 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	if (!cache->plane.visible)
 		return;
 
-	cache->fb.pixel_format = fb->pixel_format;
+	obj = intel_fb_obj(fb);
+
+	/* FIXME: We lack the proper locking here, so only run this on the
+	 * platforms that need. */
+	if (IS_GEN(dev_priv, 5, 6))
+		cache->fb.ilk_ggtt_offset = i915_gem_object_ggtt_offset(obj, NULL);
+	cache->fb.format = fb->format;
 	cache->fb.stride = fb->pitches[0];
 
 	cache->vma = plane_state->vma;
@@ -812,7 +818,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if (!pixel_format_is_valid(dev_priv, cache->fb.pixel_format)) {
+	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
 		fbc->no_fbc_reason = "pixel format is invalid";
 		return false;
 	}
@@ -883,7 +889,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->crtc.plane = crtc->plane;
 	params->crtc.fence_y_offset = get_crtc_fence_y_offset(crtc);
 
-	params->fb.pixel_format = cache->fb.pixel_format;
+	params->fb.format = cache->fb.format;
 	params->fb.stride = cache->fb.stride;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
