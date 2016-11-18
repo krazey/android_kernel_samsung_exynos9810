@@ -68,10 +68,6 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct tss_struct, cpu_tss) 
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
-#ifdef CONFIG_X86_64
-static DEFINE_PER_CPU(unsigned char, is_idle);
-#endif
-
 /*
  * this gets called so that we can store lazy state into memory and copy the
  * current task into the new thread.
@@ -438,14 +434,11 @@ static inline void play_dead(void)
 #ifdef CONFIG_X86_64
 void enter_idle(void)
 {
-	this_cpu_write(is_idle, 1);
 	idle_notifier_call_chain(IDLE_START);
 }
 
 static void __exit_idle(void)
 {
-	if (x86_test_and_clear_bit_percpu(0, is_idle) == 0)
-		return;
 	idle_notifier_call_chain(IDLE_END);
 }
 
