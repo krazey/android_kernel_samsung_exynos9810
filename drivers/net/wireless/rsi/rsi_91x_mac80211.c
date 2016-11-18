@@ -276,6 +276,8 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 	common->iface_down = false;
 	mutex_unlock(&common->mutex);
 
+	rsi_send_rx_filter_frame(common, 0);
+
 	return 0;
 }
 
@@ -472,11 +474,19 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	u16 rx_filter_word = 0;
 
 	mutex_lock(&common->mutex);
 	if (changed & BSS_CHANGED_ASSOC) {
 		rsi_dbg(INFO_ZONE, "%s: Changed Association status: %d\n",
 			__func__, bss_conf->assoc);
+		if (bss_conf->assoc) {
+			/* Send the RX filter frame */
+			rx_filter_word = (ALLOW_DATA_ASSOC_PEER |
+					  ALLOW_CTRL_ASSOC_PEER |
+					  ALLOW_MGMT_ASSOC_PEER);
+			rsi_send_rx_filter_frame(common, rx_filter_word);
+		}
 		rsi_inform_bss_status(common,
 				      bss_conf->assoc,
 				      bss_conf->bssid,
@@ -1014,6 +1024,7 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 
 	mutex_lock(&common->mutex);
+
 	/* Resetting all the fields to default values */
 	common->bitrate_mask[NL80211_BAND_2GHZ] = 0;
 	common->bitrate_mask[NL80211_BAND_5GHZ] = 0;
@@ -1023,8 +1034,11 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	common->vif_info[0].seq_start = 0;
 	common->secinfo.ptk_cipher = 0;
 	common->secinfo.gtk_cipher = 0;
-	mutex_unlock(&common->mutex);
 
+	rsi_send_rx_filter_frame(common, 0);
+	
+	mutex_unlock(&common->mutex);
+	
 	return 0;
 }
 
