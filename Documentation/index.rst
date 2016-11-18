@@ -42,7 +42,6 @@ merged much easier.
    driver-api/index
    media/index
    gpu/index
-   80211/index
    security/index
    sound/index
 
