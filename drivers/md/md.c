@@ -1170,6 +1170,8 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *rdev)
 		}
 		if (desc->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
+		if (desc->state & (1<<MD_DISK_FAILFAST))
+			set_bit(FailFast, &rdev->flags);
 	} else /* MULTIPATH are always insync */
 		set_bit(In_sync, &rdev->flags);
 	return 0;
@@ -1295,6 +1297,8 @@ static void super_90_sync(struct mddev *mddev, struct md_rdev *rdev)
 		}
 		if (test_bit(WriteMostly, &rdev2->flags))
 			d->state |= (1<<MD_DISK_WRITEMOSTLY);
+		if (test_bit(FailFast, &rdev2->flags))
+			d->state |= (1<<MD_DISK_FAILFAST);
 	}
 	/* now set the "removed" and "faulty" bits on any missing devices */
 	for (i=0 ; i < mddev->raid_disks ; i++) {
@@ -1686,6 +1690,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		}
 		if (sb->devflags & WriteMostly1)
 			set_bit(WriteMostly, &rdev->flags);
+		if (sb->devflags & FailFast1)
+			set_bit(FailFast, &rdev->flags);
 		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_REPLACEMENT)
 			set_bit(Replacement, &rdev->flags);
 	} else /* MULTIPATH are always insync */
@@ -1724,6 +1730,10 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 	sb->chunksize = cpu_to_le32(mddev->chunk_sectors);
 	sb->level = cpu_to_le32(mddev->level);
 	sb->layout = cpu_to_le32(mddev->layout);
+	if (test_bit(FailFast, &rdev->flags))
+		sb->devflags |= FailFast1;
+	else
+		sb->devflags &= ~FailFast1;
 
 	if (test_bit(WriteMostly, &rdev->flags))
 		sb->devflags |= WriteMostly1;
@@ -2570,6 +2580,8 @@ state_show(struct md_rdev *rdev, char *page)
 		len += sprintf(page+len, "replacement%s", sep);
 	if (test_bit(ExternalBbl, &flags))
 		len += sprintf(page+len, "external_bbl%s", sep);
+	if (test_bit(FailFast, &flags))
+		len += sprintf(page+len, "failfast%s", sep);
 
 	if (len)
 		len -= strlen(sep);
@@ -2592,6 +2604,7 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 	 *            so that it gets rebuilt based on bitmap
 	 *  write_error - sets WriteErrorSeen
 	 *  -write_error - clears WriteErrorSeen
+	 *  {,-}failfast - set/clear FailFast
 	 */
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
@@ -2649,6 +2662,12 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		err = 0;
 	} else if (cmd_match(buf, "insync") && rdev->raid_disk == -1) {
 		set_bit(In_sync, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "failfast")) {
+		set_bit(FailFast, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "-failfast")) {
+		clear_bit(FailFast, &rdev->flags);
 		err = 0;
 	} else if (cmd_match(buf, "-insync") && rdev->raid_disk >= 0 &&
 		   !test_bit(Journal, &rdev->flags)) {
@@ -5960,6 +5979,8 @@ static int get_disk_info(struct mddev *mddev, void __user * arg)
 			info.state |= (1<<MD_DISK_JOURNAL);
 		if (test_bit(WriteMostly, &rdev->flags))
 			info.state |= (1<<MD_DISK_WRITEMOSTLY);
+		if (test_bit(FailFast, &rdev->flags))
+			info.state |= (1<<MD_DISK_FAILFAST);
 	} else {
 		info.major = info.minor = 0;
 		info.raid_disk = -1;
@@ -6067,6 +6088,10 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 			set_bit(WriteMostly, &rdev->flags);
 		else
 			clear_bit(WriteMostly, &rdev->flags);
+		if (info->state & (1<<MD_DISK_FAILFAST))
+			set_bit(FailFast, &rdev->flags);
+		else
+			clear_bit(FailFast, &rdev->flags);
 
 		if (info->state & (1<<MD_DISK_JOURNAL)) {
 			struct md_rdev *rdev2;
@@ -6156,6 +6181,8 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
+		if (info->state & (1<<MD_DISK_FAILFAST))
+			set_bit(FailFast, &rdev->flags);
 
 		if (!mddev->persistent) {
 			pr_debug("md: nonpersistent superblock ...\n");
