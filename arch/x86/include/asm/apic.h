@@ -638,7 +638,6 @@ extern void irq_exit(void);
 static inline void entering_irq(void)
 {
 	irq_enter();
-	exit_idle();
 	kvm_set_cpu_l1tf_flush_l1d();
 }
 
