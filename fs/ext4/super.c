@@ -3945,6 +3945,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				 "block size (%d)", clustersize, blocksize);
 			goto failed_mount;
 		}
+		if (le32_to_cpu(es->s_log_cluster_size) >
+		    (EXT4_MAX_CLUSTER_LOG_SIZE - EXT4_MIN_BLOCK_LOG_SIZE)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Invalid log cluster size: %u",
+				 le32_to_cpu(es->s_log_cluster_size));
+			goto failed_mount;
+		}
 		sbi->s_cluster_bits = le32_to_cpu(es->s_log_cluster_size) -
 			le32_to_cpu(es->s_log_block_size);
 		sbi->s_clusters_per_group =
