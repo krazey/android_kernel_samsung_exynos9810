@@ -51,9 +51,3 @@
 &sata {
 	status = "okay";
 };
-
-/* S905X Only has access to its internal PHY */
-&ethmac {
-	phy-mode = "rmii";
-	phy-handle = <&internal_phy>;
-};
