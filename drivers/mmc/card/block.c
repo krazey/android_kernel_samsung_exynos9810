@@ -1766,7 +1766,7 @@ static inline void mmc_blk_reset_success(struct mmc_blk_data *md, int type)
 
 int mmc_access_rpmb(struct mmc_queue *mq)
 {
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	/*
 	 * If this is a RPMB partition access, return ture
 	 */
@@ -1778,7 +1778,7 @@ int mmc_access_rpmb(struct mmc_queue *mq)
 
 static int mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 {
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	unsigned int from, nr, arg;
 	int err = 0, type = MMC_BLK_DISCARD;
@@ -1822,7 +1822,7 @@ out:
 static int mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
 				       struct request *req)
 {
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	unsigned int from, nr, arg;
 	int err = 0, type = MMC_BLK_SECDISCARD;
@@ -1888,7 +1888,7 @@ out:
 
 static int mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 {
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	int ret = 0;
 
@@ -2107,7 +2107,7 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 	u32 readcmd, writecmd;
 	struct mmc_blk_request *brq = &mqrq->brq;
 	struct request *req = mqrq->req;
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	bool do_data_tag;
 
 	/*
@@ -2280,7 +2280,7 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
 	struct request_queue *q = mq->queue;
 	struct mmc_card *card = mq->card;
 	struct request *cur = req, *next = NULL;
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_queue_req *mqrq = mq->mqrq_cur;
 	bool en_rel_wr = card->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN;
 	unsigned int req_sectors = 0, phys_segments = 0;
@@ -2401,7 +2401,7 @@ static void mmc_blk_packed_hdr_wrq_prep(struct mmc_queue_req *mqrq,
 	struct mmc_blk_request *brq = &mqrq->brq;
 	struct request *req = mqrq->req;
 	struct request *prq;
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_packed *packed = mqrq->packed;
 	bool do_rel_wr, do_data_tag;
 	__le32 *packed_cmd_hdr;
@@ -2572,7 +2572,7 @@ static void mmc_blk_revert_packed_req(struct mmc_queue *mq,
 
 static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 {
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request *brq = &mq->mqrq_cur->brq;
 	int ret = 1, disable_multi = 0, retry = 0, type, retune_retry_done = 0;
@@ -2770,7 +2770,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	int ret;
-	struct mmc_blk_data *md = mq->data;
+	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_host *host = card->host;
 	unsigned long flags;
@@ -2893,7 +2893,7 @@ again:
 	if (ret)
 		goto err_putdisk;
 
-	md->queue.data = md;
+	md->queue.blkdata = md;
 
 	md->disk->major	= MMC_BLOCK_MAJOR;
 	md->disk->first_minor = devidx * perdev_minors;
