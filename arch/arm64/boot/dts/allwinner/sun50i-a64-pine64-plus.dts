@@ -40,6 +40,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+<<<<<<< HEAD
 <<<<<<< HEAD:arch/arm64/boot/dts/allwinner/sun50i-a64-pine64-plus.dts
 #include "sun50i-a64-pine64.dts"
 =======
@@ -47,6 +48,9 @@
 #include <dt-bindings/clock/gxbb-clkc.h>
 #include <dt-bindings/gpio/meson-gxbb-gpio.h>
 >>>>>>> fb0fe92294a9 (ARM64: dts: meson-gxl: Add pinctrl nodes):arch/arm64/boot/dts/amlogic/meson-gxl.dtsi
+=======
+#include "sun50i-a64-pine64.dts"
+>>>>>>> 4f23683cedfd (Merge tag 'sunxi-dt64-for-4.10' of https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux into next/dt64)
 
 / {
 	model = "Pine64+";
@@ -54,6 +58,7 @@
 
 	/* TODO: Camera, Ethernet PHY, touchscreen, etc. */
 };
+<<<<<<< HEAD
 
 &ethmac {
 	reg = <0x0 0xc9410000 0x0 0x10000
@@ -305,3 +310,5 @@
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
 };
+=======
+>>>>>>> 4f23683cedfd (Merge tag 'sunxi-dt64-for-4.10' of https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux into next/dt64)
