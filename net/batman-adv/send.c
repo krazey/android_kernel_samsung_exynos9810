@@ -895,7 +895,7 @@ out:
 	/* do we get something for free()? */
 	if (batadv_forw_packet_steal(forw_packet,
 				     &bat_priv->forw_bcast_list_lock))
-	batadv_forw_packet_free(forw_packet, dropped);
+		batadv_forw_packet_free(forw_packet, dropped);
 }
 
 /**
