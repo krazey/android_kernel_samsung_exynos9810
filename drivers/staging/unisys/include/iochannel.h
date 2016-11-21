@@ -117,10 +117,12 @@ enum net_types {
 
 };
 
-#define		ETH_MIN_DATA_SIZE 46	/* minimum eth data size */
-#define		ETH_MIN_PACKET_SIZE (ETH_HLEN + ETH_MIN_DATA_SIZE)
+#define ETH_HEADER_SIZE 14	/* size of ethernet header */
 
-#define		VISOR_ETH_MAX_MTU 16384	/* maximum data size */
+#define ETH_MIN_DATA_SIZE 46	/* minimum eth data size */
+#define ETH_MIN_PACKET_SIZE (ETH_HEADER_SIZE + ETH_MIN_DATA_SIZE)
+
+#define ETH_MAX_MTU 16384	/* maximum data size */
 
 #ifndef MAX_MACADDR_LEN
 #define MAX_MACADDR_LEN 6	/* number of bytes in MAC address */
@@ -302,7 +304,7 @@ struct net_pkt_xmt {
 	int len;	/* full length of data in the packet */
 	int num_frags;	/* number of fragments in frags containing data */
 	struct phys_info frags[MAX_PHYS_INFO];	/* physical page information */
-	char ethhdr[ETH_HLEN];	/* the ethernet header  */
+	char ethhdr[ETH_HEADER_SIZE];	/* the ethernet header  */
 	struct {
 		/* These are needed for csum at uisnic end */
 		u8 valid;	/* 1 = struct is valid - else ignore */
@@ -339,7 +341,7 @@ struct net_pkt_xmtdone {
  */
 #define RCVPOST_BUF_SIZE 4032
 #define MAX_NET_RCV_CHAIN \
-	((VISOR_ETH_MAX_MTU + ETH_HLEN + RCVPOST_BUF_SIZE - 1) \
+	((ETH_MAX_MTU + ETH_HEADER_SIZE + RCVPOST_BUF_SIZE - 1) \
 	/ RCVPOST_BUF_SIZE)
 
 /*
@@ -489,8 +491,6 @@ struct uiscmdrsp_vdiskmgmt {
 
 	/* Result of taskmgmt command - set by IOPart - values are: */
 	char result;
-
-#define VDISK_MGMT_FAILED  0
 } __packed;
 
 /* Keeping cmd and rsp info in one structure for now cmd rsp packet for SCSI */
@@ -547,11 +547,7 @@ struct spar_io_channel_protocol {
 } __packed;
 
 /* INLINE functions for initializing and accessing I/O data channels. */
-#define SIZEOF_PROTOCOL (COVER(sizeof(struct spar_io_channel_protocol), 64))
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
-
-#define MIN_IO_CHANNEL_SIZE COVER(SIZEOF_PROTOCOL + \
-				  2 * MIN_NUMSIGNALS * SIZEOF_CMDRSP, 4096)
 
 /* Use 4K page sizes when passing page info between Guest and IOPartition. */
 #define PI_PAGE_SIZE  0x1000
