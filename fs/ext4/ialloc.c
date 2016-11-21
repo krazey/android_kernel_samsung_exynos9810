@@ -1137,6 +1137,12 @@ got:
 		ei->i_datasync_tid = handle->h_transaction->t_tid;
 	}
 
+	if (encrypt) {
+		err = fscrypt_inherit_context(dir, inode, handle, true);
+		if (err)
+			goto fail_free_drop;
+	}
+
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (err) {
 		ext4_std_error(sb, err);
