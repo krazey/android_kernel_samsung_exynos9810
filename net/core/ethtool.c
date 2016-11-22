@@ -2492,7 +2492,9 @@ static int get_phy_tunable(struct net_device *dev, void __user *useraddr)
 	data = kmalloc(tuna.len, GFP_USER);
 	if (!data)
 		return -ENOMEM;
+	mutex_lock(&phydev->lock);
 	ret = phydev->drv->get_tunable(phydev, &tuna, data);
+	mutex_unlock(&phydev->lock);
 	if (ret)
 		goto out;
 	useraddr += sizeof(tuna);
@@ -2527,7 +2529,9 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 	ret = -EFAULT;
 	if (copy_from_user(data, useraddr, tuna.len))
 		goto out;
+	mutex_lock(&phydev->lock);
 	ret = phydev->drv->set_tunable(phydev, &tuna, data);
+	mutex_unlock(&phydev->lock);
 
 out:
 	kfree(data);
