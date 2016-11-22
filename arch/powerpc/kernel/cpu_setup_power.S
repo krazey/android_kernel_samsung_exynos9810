@@ -100,6 +100,7 @@ _GLOBAL(__setup_cpu_power9)
 	mtlr	r11
 	beqlr
 	li	r0,0
+	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
 	mtspr	SPRN_PID,r0
 	mtspr	SPRN_PCR,r0
@@ -124,6 +125,7 @@ _GLOBAL(__restore_cpu_power9)
 	mtlr	r11
 	beqlr
 	li	r0,0
+	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
 	mtspr	SPRN_PID,r0
 	mtspr	SPRN_PCR,r0
