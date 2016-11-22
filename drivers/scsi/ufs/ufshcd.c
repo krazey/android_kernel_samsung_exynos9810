@@ -1709,7 +1709,6 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		return sg_segments;
 
 	if (sg_segments) {
-
 		if (hba->quirks & UFSHCD_QUIRK_PRDT_BYTE_GRAN)
 			lrbp->utr_descriptor_ptr->prd_table_length =
 				cpu_to_le16((u16)(sg_segments *
@@ -3330,6 +3329,7 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 			utrdlp[i].response_upiu_length =
 				cpu_to_le16(ALIGNED_UPIU_SIZE >> 2);
 		}
+
 		hba->lrb[i].utr_descriptor_ptr = (utrdlp + i);
 		hba->lrb[i].ucd_req_ptr =
 			(struct utp_upiu_req *)(cmd_descp + i);
