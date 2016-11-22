@@ -217,14 +217,11 @@ struct caam_ctx {
 	dma_addr_t sh_desc_enc_dma;
 	dma_addr_t sh_desc_dec_dma;
 	dma_addr_t sh_desc_givenc_dma;
-	u32 class1_alg_type;
-	u32 class2_alg_type;
 	u32 alg_op;
 	u8 key[CAAM_MAX_KEY_SIZE];
 	dma_addr_t key_dma;
-	unsigned int enckeylen;
-	unsigned int split_key_len;
-	unsigned int split_key_pad_len;
+	struct alginfo adata;
+	struct alginfo cdata;
 	unsigned int authsize;
 };
 
@@ -232,7 +229,7 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 				  int keys_fit_inline, bool is_rfc3686)
 {
 	u32 *key_jump_cmd;
-	unsigned int enckeylen = ctx->enckeylen;
+	unsigned int enckeylen = ctx->cdata.keylen;
 
 	/* Note: Context registers are saved. */
 	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
@@ -250,24 +247,23 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 		enckeylen -= CTR_RFC3686_NONCE_SIZE;
 
 	if (keys_fit_inline) {
-		append_key_as_imm(desc, ctx->key, ctx->split_key_pad_len,
-				  ctx->split_key_len, CLASS_2 |
-				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
-		append_key_as_imm(desc, (void *)ctx->key +
-				  ctx->split_key_pad_len, enckeylen,
+		append_key_as_imm(desc, (void *)ctx->adata.key,
+				  ctx->adata.keylen_pad, ctx->adata.keylen,
+				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
+		append_key_as_imm(desc, (void *)ctx->cdata.key, enckeylen,
 				  enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	} else {
-		append_key(desc, ctx->key_dma, ctx->split_key_len, CLASS_2 |
+		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
-		append_key(desc, ctx->key_dma + ctx->split_key_pad_len,
-			   enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, enckeylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	}
 
 	/* Load Counter into CONTEXT1 reg */
 	if (is_rfc3686) {
 		u32 *nonce;
 
-		nonce = (u32 *)((void *)ctx->key + ctx->split_key_pad_len +
+		nonce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
 			       enckeylen);
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -286,7 +282,6 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = false;
 	u32 *key_jump_cmd, *jump_cmd, *read_move_cmd, *write_move_cmd;
 	u32 *desc;
 
@@ -295,8 +290,13 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
 	if (DESC_AEAD_NULL_ENC_LEN + AEAD_DESC_JOB_IO_LEN +
-	    ctx->split_key_pad_len <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->adata.keylen_pad <= CAAM_DESC_BYTES_MAX) {
+		ctx->adata.key_inline = true;
+		ctx->adata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->adata.key_inline = false;
+		ctx->adata.key = ctx->key_dma;
+	}
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -306,12 +306,12 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, ctx->key, ctx->split_key_pad_len,
-				  ctx->split_key_len, CLASS_2 |
-				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	if (ctx->adata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->adata.key,
+				  ctx->adata.keylen_pad, ctx->adata.keylen,
+				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	else
-		append_key(desc, ctx->key_dma, ctx->split_key_len, CLASS_2 |
+		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -336,8 +336,8 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 				     (0x8 << MOVE_LEN_SHIFT));
 
 	/* Class 2 operation */
-	append_operation(desc, ctx->class2_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Read and write cryptlen bytes */
 	aead_append_src_dst(desc, FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
@@ -370,10 +370,14 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_AEAD_NULL_DEC_LEN + DESC_JOB_IO_LEN +
-	    ctx->split_key_pad_len <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->adata.keylen_pad <= CAAM_DESC_BYTES_MAX) {
+		ctx->adata.key_inline = true;
+		ctx->adata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->adata.key_inline = false;
+		ctx->adata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_dec;
 
@@ -383,18 +387,18 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, ctx->key, ctx->split_key_pad_len,
-				  ctx->split_key_len, CLASS_2 |
-				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	if (ctx->adata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->adata.key,
+				  ctx->adata.keylen_pad, ctx->adata.keylen,
+				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	else
-		append_key(desc, ctx->key_dma, ctx->split_key_len, CLASS_2 |
+		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Class 2 operation */
-	append_operation(desc, ctx->class2_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
 	/* assoclen + cryptlen = seqoutlen */
 	append_math_sub(desc, REG2, SEQOUTLEN, REG0, CAAM_CMD_SZ);
@@ -466,7 +470,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	u32 ctx1_iv_off = 0;
 	u32 *desc;
 	u32 *wait_cmd;
-	const bool ctr_mode = ((ctx->class1_alg_type & OP_ALG_AAI_MASK) ==
+	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
 			       OP_ALG_AAI_CTR_MOD128);
 	const bool is_rfc3686 = alg->caam.rfc3686;
 
@@ -474,7 +478,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 		return 0;
 
 	/* NULL encryption / decryption */
-	if (!ctx->enckeylen)
+	if (!ctx->cdata.keylen)
 		return aead_null_set_sh_desc(aead);
 
 	/*
@@ -499,12 +503,18 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_AEAD_ENC_LEN + AUTHENC_DESC_JOB_IO_LEN +
-	    ctx->split_key_pad_len + ctx->enckeylen +
+	    ctx->adata.keylen_pad + ctx->cdata.keylen +
 	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
-	    CAAM_DESC_BYTES_MAX)
+	    CAAM_DESC_BYTES_MAX) {
 		keys_fit_inline = true;
+		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+	} else {
+		keys_fit_inline = false;
+		ctx->adata.key = ctx->key_dma;
+		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
+	}
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -513,8 +523,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	init_sh_desc_key_aead(desc, ctx, keys_fit_inline, is_rfc3686);
 
 	/* Class 2 operation */
-	append_operation(desc, ctx->class2_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Read and write assoclen bytes */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -535,8 +545,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 				      LDST_OFFSET_SHIFT));
 
 	/* Class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Read and write cryptlen bytes */
 	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -565,12 +575,18 @@ skip_enc:
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_AEAD_DEC_LEN + AUTHENC_DESC_JOB_IO_LEN +
-	    ctx->split_key_pad_len + ctx->enckeylen +
+	    ctx->adata.keylen_pad + ctx->cdata.keylen +
 	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
-	    CAAM_DESC_BYTES_MAX)
+	    CAAM_DESC_BYTES_MAX) {
 		keys_fit_inline = true;
+		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+	} else {
+		keys_fit_inline = false;
+		ctx->adata.key = ctx->key_dma;
+		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
+	}
 
 	/* aead_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
@@ -579,8 +595,8 @@ skip_enc:
 	init_sh_desc_key_aead(desc, ctx, keys_fit_inline, is_rfc3686);
 
 	/* Class 2 operation */
-	append_operation(desc, ctx->class2_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
 	/* Read and write assoclen bytes */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -613,10 +629,10 @@ skip_enc:
 
 	/* Choose operation */
 	if (ctr_mode)
-		append_operation(desc, ctx->class1_alg_type |
+		append_operation(desc, ctx->cdata.algtype |
 				 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT);
 	else
-		append_dec_op1(desc, ctx->class1_alg_type);
+		append_dec_op1(desc, ctx->cdata.algtype);
 
 	/* Read and write cryptlen bytes */
 	append_math_add(desc, VARSEQINLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
@@ -647,12 +663,18 @@ skip_enc:
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_AEAD_GIVENC_LEN + AUTHENC_DESC_JOB_IO_LEN +
-	    ctx->split_key_pad_len + ctx->enckeylen +
+	    ctx->adata.keylen_pad + ctx->cdata.keylen +
 	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
-	    CAAM_DESC_BYTES_MAX)
+	    CAAM_DESC_BYTES_MAX) {
 		keys_fit_inline = true;
+		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+	} else {
+		keys_fit_inline = false;
+		ctx->adata.key = ctx->key_dma;
+		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
+	}
 
 	/* aead_givencrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -683,8 +705,8 @@ copy_iv:
 		    (ivsize << MOVE_LEN_SHIFT));
 
 	/* Return to encryption */
-	append_operation(desc, ctx->class2_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Read and write assoclen bytes */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -713,8 +735,8 @@ copy_iv:
 				      LDST_OFFSET_SHIFT));
 
 	/* Class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Will write ivsize + cryptlen */
 	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -773,12 +795,11 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = false;
 	u32 *key_jump_cmd, *zero_payload_jump_cmd,
 	    *zero_assoc_jump_cmd1, *zero_assoc_jump_cmd2;
 	u32 *desc;
 
-	if (!ctx->enckeylen || !ctx->authsize)
+	if (!ctx->cdata.keylen || !ctx->authsize)
 		return 0;
 
 	/*
@@ -787,8 +808,13 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	 * must fit into the 64-word Descriptor h/w Buffer
 	 */
 	if (DESC_GCM_ENC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->enckeylen <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+		ctx->cdata.key_inline = true;
+		ctx->cdata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->cdata.key_inline = false;
+		ctx->cdata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_enc;
 
@@ -797,17 +823,18 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	/* skip key loading if they are loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD | JUMP_COND_SELF);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key,
+				  ctx->cdata.keylen, ctx->cdata.keylen,
+				  CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, ctx->key_dma, ctx->enckeylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* if assoclen + cryptlen is ZERO, skip to ICV write */
 	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -879,10 +906,14 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_GCM_DEC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->enckeylen <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+		ctx->cdata.key_inline = true;
+		ctx->cdata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->cdata.key_inline = false;
+		ctx->cdata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_dec;
 
@@ -892,17 +923,18 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	key_jump_cmd = append_jump(desc, JUMP_JSL |
 				   JUMP_TEST_ALL | JUMP_COND_SHRD |
 				   JUMP_COND_SELF);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key,
+				  ctx->cdata.keylen, ctx->cdata.keylen,
+				  CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, ctx->key_dma, ctx->enckeylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
 	/* if assoclen is ZERO, skip reading the assoc data */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -973,11 +1005,10 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = false;
 	u32 *key_jump_cmd;
 	u32 *desc;
 
-	if (!ctx->enckeylen || !ctx->authsize)
+	if (!ctx->cdata.keylen || !ctx->authsize)
 		return 0;
 
 	/*
@@ -986,8 +1017,13 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	 * must fit into the 64-word Descriptor h/w Buffer
 	 */
 	if (DESC_RFC4106_ENC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->enckeylen <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+		ctx->cdata.key_inline = true;
+		ctx->cdata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->cdata.key_inline = false;
+		ctx->cdata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_enc;
 
@@ -996,17 +1032,18 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	/* Skip key loading if it is loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key,
+				  ctx->cdata.keylen, ctx->cdata.keylen,
+				  CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, ctx->key_dma, ctx->enckeylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -1058,10 +1095,14 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_RFC4106_DEC_LEN + DESC_JOB_IO_LEN +
-	    ctx->enckeylen <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+		ctx->cdata.key_inline = true;
+		ctx->cdata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->cdata.key_inline = false;
+		ctx->cdata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_dec;
 
@@ -1070,17 +1111,18 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	/* Skip key loading if it is loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL |
 				   JUMP_TEST_ALL | JUMP_COND_SHRD);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key,
+				  ctx->cdata.keylen, ctx->cdata.keylen,
+				  CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, ctx->key_dma, ctx->enckeylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
 	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -1146,12 +1188,11 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = false;
 	u32 *key_jump_cmd;
 	u32 *read_move_cmd, *write_move_cmd;
 	u32 *desc;
 
-	if (!ctx->enckeylen || !ctx->authsize)
+	if (!ctx->cdata.keylen || !ctx->authsize)
 		return 0;
 
 	/*
@@ -1160,8 +1201,13 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	 * must fit into the 64-word Descriptor h/w Buffer
 	 */
 	if (DESC_RFC4543_ENC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->enckeylen <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+		ctx->cdata.key_inline = true;
+		ctx->cdata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->cdata.key_inline = false;
+		ctx->cdata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_enc;
 
@@ -1170,17 +1216,18 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	/* Skip key loading if it is loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key,
+				  ctx->cdata.keylen, ctx->cdata.keylen,
+				  CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, ctx->key_dma, ctx->enckeylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* assoclen + cryptlen = seqinlen */
 	append_math_sub(desc, REG3, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -1231,10 +1278,14 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	keys_fit_inline = false;
 	if (DESC_RFC4543_DEC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->enckeylen <= CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = true;
+	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+		ctx->cdata.key_inline = true;
+		ctx->cdata.key = (uintptr_t)ctx->key;
+	} else {
+		ctx->cdata.key_inline = false;
+		ctx->cdata.key = ctx->key_dma;
+	}
 
 	desc = ctx->sh_desc_dec;
 
@@ -1243,17 +1294,18 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	/* Skip key loading if it is loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL |
 				   JUMP_TEST_ALL | JUMP_COND_SHRD);
-	if (keys_fit_inline)
-		append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key,
+				  ctx->cdata.keylen, ctx->cdata.keylen,
+				  CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, ctx->key_dma, ctx->enckeylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG);
+		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
+			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Class 1 operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
 	/* assoclen + cryptlen = seqoutlen */
 	append_math_sub(desc, REG3, SEQOUTLEN, REG0, CAAM_CMD_SZ);
@@ -1322,9 +1374,8 @@ static int rfc4543_setauthsize(struct crypto_aead *authenc,
 static u32 gen_split_aead_key(struct caam_ctx *ctx, const u8 *key_in,
 			      u32 authkeylen)
 {
-	return gen_split_key(ctx->jrdev, ctx->key, ctx->split_key_len,
-			       ctx->split_key_pad_len, key_in, authkeylen,
-			       ctx->alg_op);
+	return gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key_in,
+			     authkeylen, ctx->alg_op);
 }
 
 static int aead_setkey(struct crypto_aead *aead,
@@ -1341,11 +1392,11 @@ static int aead_setkey(struct crypto_aead *aead,
 		goto badkey;
 
 	/* Pick class 2 key length from algorithm submask */
-	ctx->split_key_len = mdpadlen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
-				      OP_ALG_ALGSEL_SHIFT] * 2;
-	ctx->split_key_pad_len = ALIGN(ctx->split_key_len, 16);
+	ctx->adata.keylen = mdpadlen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
+				     OP_ALG_ALGSEL_SHIFT] * 2;
+	ctx->adata.keylen_pad = ALIGN(ctx->adata.keylen, 16);
 
-	if (ctx->split_key_pad_len + keys.enckeylen > CAAM_MAX_KEY_SIZE)
+	if (ctx->adata.keylen_pad + keys.enckeylen > CAAM_MAX_KEY_SIZE)
 		goto badkey;
 
 #ifdef DEBUG
@@ -1353,7 +1404,7 @@ static int aead_setkey(struct crypto_aead *aead,
 	       keys.authkeylen + keys.enckeylen, keys.enckeylen,
 	       keys.authkeylen);
 	printk(KERN_ERR "split_key_len %d split_key_pad_len %d\n",
-	       ctx->split_key_len, ctx->split_key_pad_len);
+	       ctx->adata.keylen, ctx->adata.keylen_pad);
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
@@ -1364,9 +1415,9 @@ static int aead_setkey(struct crypto_aead *aead,
 	}
 
 	/* postpend encryption key to auth split key */
-	memcpy(ctx->key + ctx->split_key_pad_len, keys.enckey, keys.enckeylen);
+	memcpy(ctx->key + ctx->adata.keylen_pad, keys.enckey, keys.enckeylen);
 
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->split_key_pad_len +
+	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->adata.keylen_pad +
 				      keys.enckeylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
@@ -1375,14 +1426,14 @@ static int aead_setkey(struct crypto_aead *aead,
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
-		       ctx->split_key_pad_len + keys.enckeylen, 1);
+		       ctx->adata.keylen_pad + keys.enckeylen, 1);
 #endif
 
-	ctx->enckeylen = keys.enckeylen;
+	ctx->cdata.keylen = keys.enckeylen;
 
 	ret = aead_set_sh_desc(aead);
 	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->split_key_pad_len +
+		dma_unmap_single(jrdev, ctx->key_dma, ctx->adata.keylen_pad +
 				 keys.enckeylen, DMA_TO_DEVICE);
 	}
 
@@ -1411,11 +1462,11 @@ static int gcm_setkey(struct crypto_aead *aead,
 		dev_err(jrdev, "unable to map key i/o memory\n");
 		return -ENOMEM;
 	}
-	ctx->enckeylen = keylen;
+	ctx->cdata.keylen = keylen;
 
 	ret = gcm_set_sh_desc(aead);
 	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->enckeylen,
+		dma_unmap_single(jrdev, ctx->key_dma, ctx->cdata.keylen,
 				 DMA_TO_DEVICE);
 	}
 
@@ -1443,9 +1494,9 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	 * The last four bytes of the key material are used as the salt value
 	 * in the nonce. Update the AES key length.
 	 */
-	ctx->enckeylen = keylen - 4;
+	ctx->cdata.keylen = keylen - 4;
 
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->enckeylen,
+	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->cdata.keylen,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
@@ -1454,7 +1505,7 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 
 	ret = rfc4106_set_sh_desc(aead);
 	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->enckeylen,
+		dma_unmap_single(jrdev, ctx->key_dma, ctx->cdata.keylen,
 				 DMA_TO_DEVICE);
 	}
 
@@ -1482,9 +1533,9 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	 * The last four bytes of the key material are used as the salt value
 	 * in the nonce. Update the AES key length.
 	 */
-	ctx->enckeylen = keylen - 4;
+	ctx->cdata.keylen = keylen - 4;
 
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->enckeylen,
+	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->cdata.keylen,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
@@ -1493,7 +1544,7 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 
 	ret = rfc4543_set_sh_desc(aead);
 	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->enckeylen,
+		dma_unmap_single(jrdev, ctx->key_dma, ctx->cdata.keylen,
 				 DMA_TO_DEVICE);
 	}
 
@@ -1514,7 +1565,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	u8 *nonce;
 	u32 geniv;
 	u32 ctx1_iv_off = 0;
-	const bool ctr_mode = ((ctx->class1_alg_type & OP_ALG_AAI_MASK) ==
+	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
 			       OP_ALG_AAI_CTR_MOD128);
 	const bool is_rfc3686 = (ctr_mode &&
 				 (strstr(alg_name, "rfc3686") != NULL));
@@ -1548,7 +1599,9 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		dev_err(jrdev, "unable to map key i/o memory\n");
 		return -ENOMEM;
 	}
-	ctx->enckeylen = keylen;
+	ctx->cdata.keylen = keylen;
+	ctx->cdata.key = (uintptr_t)ctx->key;
+	ctx->cdata.key_inline = true;
 
 	/* ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -1558,9 +1611,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-			  ctx->enckeylen, CLASS_1 |
-			  KEY_DEST_CLASS_REG);
+	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
+			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
@@ -1589,8 +1641,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 				      LDST_OFFSET_SHIFT));
 
 	/* Load operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Perform operation */
 	ablkcipher_append_src_dst(desc);
@@ -1617,9 +1669,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-			  ctx->enckeylen, CLASS_1 |
-			  KEY_DEST_CLASS_REG);
+	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
+			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
@@ -1649,10 +1700,10 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* Choose operation */
 	if (ctr_mode)
-		append_operation(desc, ctx->class1_alg_type |
+		append_operation(desc, ctx->cdata.algtype |
 				 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT);
 	else
-		append_dec_op1(desc, ctx->class1_alg_type);
+		append_dec_op1(desc, ctx->cdata.algtype);
 
 	/* Perform operation */
 	ablkcipher_append_src_dst(desc);
@@ -1680,9 +1731,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-			  ctx->enckeylen, CLASS_1 |
-			  KEY_DEST_CLASS_REG);
+	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
+			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load Nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
@@ -1729,8 +1779,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			    (1 << JUMP_OFFSET_SHIFT));
 
 	/* Load operation */
-	append_operation(desc, ctx->class1_alg_type |
-			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
+			 OP_ALG_ENCRYPT);
 
 	/* Perform operation */
 	ablkcipher_append_src_dst(desc);
@@ -1773,7 +1823,9 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		dev_err(jrdev, "unable to map key i/o memory\n");
 		return -ENOMEM;
 	}
-	ctx->enckeylen = keylen;
+	ctx->cdata.keylen = keylen;
+	ctx->cdata.key = (uintptr_t)ctx->key;
+	ctx->cdata.key_inline = true;
 
 	/* xts_ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -1783,8 +1835,8 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 keys only */
-	append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-			  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
+			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load sector size with index 40 bytes (0x28) */
 	append_cmd(desc, CMD_LOAD | IMMEDIATE | LDST_SRCDST_BYTE_CONTEXT |
@@ -1803,7 +1855,7 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
 
 	/* Load operation */
-	append_operation(desc, ctx->class1_alg_type | OP_ALG_AS_INITFINAL |
+	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_ENCRYPT);
 
 	/* Perform operation */
@@ -1830,8 +1882,8 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->key, ctx->enckeylen,
-			  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
+			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load sector size with index 40 bytes (0x28) */
 	append_cmd(desc, CMD_LOAD | IMMEDIATE | LDST_SRCDST_BYTE_CONTEXT |
@@ -1850,7 +1902,7 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
 
 	/* Load operation */
-	append_dec_op1(desc, ctx->class1_alg_type);
+	append_dec_op1(desc, ctx->cdata.algtype);
 
 	/* Perform operation */
 	ablkcipher_append_src_dst(desc);
@@ -2171,7 +2223,7 @@ static void init_gcm_job(struct aead_request *req,
 			 FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1 | 12 | last);
 	/* Append Salt */
 	if (!generic_gcm)
-		append_data(desc, ctx->key + ctx->enckeylen, 4);
+		append_data(desc, ctx->key + ctx->cdata.keylen, 4);
 	/* Append IV */
 	append_data(desc, req->iv, ivsize);
 	/* End of blank commands */
@@ -2186,7 +2238,7 @@ static void init_authenc_job(struct aead_request *req,
 						 struct caam_aead_alg, aead);
 	unsigned int ivsize = crypto_aead_ivsize(aead);
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
-	const bool ctr_mode = ((ctx->class1_alg_type & OP_ALG_AAI_MASK) ==
+	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
 			       OP_ALG_AAI_CTR_MOD128);
 	const bool is_rfc3686 = alg->caam.rfc3686;
 	u32 *desc = edesc->hw_desc;
@@ -4424,8 +4476,8 @@ static int caam_init_common(struct caam_ctx *ctx, struct caam_alg_entry *caam)
 	}
 
 	/* copy descriptor header template value */
-	ctx->class1_alg_type = OP_TYPE_CLASS1_ALG | caam->class1_alg_type;
-	ctx->class2_alg_type = OP_TYPE_CLASS2_ALG | caam->class2_alg_type;
+	ctx->cdata.algtype = OP_TYPE_CLASS1_ALG | caam->class1_alg_type;
+	ctx->adata.algtype = OP_TYPE_CLASS2_ALG | caam->class2_alg_type;
 	ctx->alg_op = OP_TYPE_CLASS2_ALG | caam->alg_op;
 
 	return 0;
@@ -4469,7 +4521,7 @@ static void caam_exit_common(struct caam_ctx *ctx)
 	if (ctx->key_dma &&
 	    !dma_mapping_error(ctx->jrdev, ctx->key_dma))
 		dma_unmap_single(ctx->jrdev, ctx->key_dma,
-				 ctx->enckeylen + ctx->split_key_pad_len,
+				 ctx->cdata.keylen + ctx->adata.keylen_pad,
 				 DMA_TO_DEVICE);
 
 	caam_jr_free(ctx->jrdev);
