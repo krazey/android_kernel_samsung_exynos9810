@@ -299,12 +299,13 @@ drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 libs-y				:= arch/arm/lib/ $(libs-y)
 
 # Default target when executing plain make
+boot := arch/arm/boot
 ifeq ($(CONFIG_XIP_KERNEL),y)
-KBUILD_IMAGE := xipImage
+KBUILD_IMAGE := $(boot)/xipImage
 else ifeq ($(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE),y)
 KBUILD_IMAGE := zImage-dtb
 else
-KBUILD_IMAGE := zImage
+KBUILD_IMAGE := $(boot)/zImage
 endif
 
 # Build the DT binary blobs if we have OF configured
@@ -312,9 +313,8 @@ ifeq ($(CONFIG_USE_OF),y)
 KBUILD_DTBS := dtbs
 endif
 
-all:	$(KBUILD_IMAGE) $(KBUILD_DTBS)
+all:	$(notdir $(KBUILD_IMAGE)) $(KBUILD_DTBS)
 
-boot := arch/arm/boot
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/arm/tools uapi
