@@ -596,10 +596,11 @@ cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 }
 
 static inline int
-send_cancel(struct TCP_Server_Info *server, void *buf, struct mid_q_entry *mid)
+send_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
+	    struct mid_q_entry *mid)
 {
 	return server->ops->send_cancel ?
-				server->ops->send_cancel(server, buf, mid) : 0;
+				server->ops->send_cancel(server, rqst, mid) : 0;
 }
 
 int
@@ -720,7 +721,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
 		cifs_dbg(FYI, "Cancelling wait for mid %llu\n",	midQ->mid);
-		send_cancel(ses->server, buf, midQ);
+		send_cancel(ses->server, &rqst, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 			midQ->mid_flags |= MID_WAIT_CANCELLED;
@@ -774,6 +775,9 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 {
 	int rc = 0;
 	struct mid_q_entry *midQ;
+	unsigned int len = be32_to_cpu(in_buf->smb_buf_length);
+	struct kvec iov = { .iov_base = in_buf, .iov_len = len };
+	struct smb_rqst rqst = { .rq_iov = &iov, .rq_nvec = 1 };
 
 	if (ses == NULL) {
 		cifs_dbg(VFS, "Null smb session\n");
@@ -791,10 +795,9 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
 
-	if (be32_to_cpu(in_buf->smb_buf_length) > CIFSMaxBufSize +
-			MAX_CIFS_HDR_SIZE - 4) {
+	if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
 		cifs_dbg(VFS, "Illegal length, greater than maximum frame, %d\n",
-			 be32_to_cpu(in_buf->smb_buf_length));
+			 len);
 		return -EIO;
 	}
 
@@ -825,7 +828,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	midQ->mid_state = MID_REQUEST_SUBMITTED;
 
 	cifs_in_send_inc(ses->server);
-	rc = smb_send(ses->server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	rc = smb_send(ses->server, in_buf, len);
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
 
@@ -842,7 +845,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
-		send_cancel(ses->server, in_buf, midQ);
+		send_cancel(ses->server, &rqst, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 			/* no longer considered to be "in-flight" */
@@ -911,6 +914,9 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	int rstart = 0;
 	struct mid_q_entry *midQ;
 	struct cifs_ses *ses;
+	unsigned int len = be32_to_cpu(in_buf->smb_buf_length);
+	struct kvec iov = { .iov_base = in_buf, .iov_len = len };
+	struct smb_rqst rqst = { .rq_iov = &iov, .rq_nvec = 1 };
 
 	if (tcon == NULL || tcon->ses == NULL) {
 		cifs_dbg(VFS, "Null smb session\n");
@@ -930,10 +936,9 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
 
-	if (be32_to_cpu(in_buf->smb_buf_length) > CIFSMaxBufSize +
-			MAX_CIFS_HDR_SIZE - 4) {
+	if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
 		cifs_dbg(VFS, "Illegal length, greater than maximum frame, %d\n",
-			 be32_to_cpu(in_buf->smb_buf_length));
+			 len);
 		return -EIO;
 	}
 
@@ -962,7 +967,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 
 	midQ->mid_state = MID_REQUEST_SUBMITTED;
 	cifs_in_send_inc(ses->server);
-	rc = smb_send(ses->server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	rc = smb_send(ses->server, in_buf, len);
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
 
@@ -991,7 +996,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 		if (in_buf->Command == SMB_COM_TRANSACTION2) {
 			/* POSIX lock. We send a NT_CANCEL SMB to cause the
 			   blocking lock to return. */
-			rc = send_cancel(ses->server, in_buf, midQ);
+			rc = send_cancel(ses->server, &rqst, midQ);
 			if (rc) {
 				cifs_delete_mid(midQ);
 				return rc;
@@ -1012,7 +1017,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 
 		rc = wait_for_response(ses->server, midQ);
 		if (rc) {
-			send_cancel(ses->server, in_buf, midQ);
+			send_cancel(ses->server, &rqst, midQ);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 				/* no longer considered to be "in-flight" */
