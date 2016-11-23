@@ -1580,7 +1580,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_pps_unlock_regs_wa(dev_priv);
 	intel_opregion_setup(dev_priv);
 
-	intel_init_pch_refclk(dev);
+	intel_init_pch_refclk(dev_priv);
 	drm_mode_config_reset(dev);
 
 	/*
@@ -2419,7 +2419,7 @@ static int intel_runtime_resume(struct device *kdev)
 	intel_guc_resume(dev);
 
 	if (IS_GEN6(dev_priv))
-		intel_init_pch_refclk(dev);
+		intel_init_pch_refclk(dev_priv);
 
 	if (IS_BROXTON(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
