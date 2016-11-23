@@ -22,7 +22,7 @@ int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
 int bpf_obj_pin(int fd, const char *pathname);
 int bpf_obj_get(const char *pathname);
 
-#define LOG_BUF_SIZE 65536
+#define LOG_BUF_SIZE (256 * 1024)
 extern char bpf_log_buf[LOG_BUF_SIZE];
 
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
