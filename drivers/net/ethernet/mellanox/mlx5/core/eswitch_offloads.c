@@ -666,6 +666,14 @@ static int esw_offloads_start(struct mlx5_eswitch *esw)
 			esw_warn(esw->dev, "Inline mode is different between vports\n");
 		}
 	}
+	if (esw->offloads.inline_mode == MLX5_INLINE_MODE_NONE) {
+		if (mlx5_eswitch_inline_mode_get(esw,
+						 num_vfs,
+						 &esw->offloads.inline_mode)) {
+			esw->offloads.inline_mode = MLX5_INLINE_MODE_L2;
+			esw_warn(esw->dev, "Inline mode is different between vports\n");
+		}
+	}
 	return err;
 }
 
