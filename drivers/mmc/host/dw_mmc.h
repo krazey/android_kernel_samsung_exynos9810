@@ -334,6 +334,7 @@ struct dw_mci_slot {
 #define DW_MMC_CARD_NEED_INIT	1
 #define DW_MMC_CARD_NO_LOW_PWR	2
 #define DW_MMC_CARD_NO_USE_HOLD 3
+#define DW_MMC_CARD_NEEDS_POLL	4
 	int			id;
 	int			sdio_id;
 	int			last_detect_state;
