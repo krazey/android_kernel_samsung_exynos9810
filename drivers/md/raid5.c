@@ -879,6 +879,8 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 
 	if (!test_bit(STRIPE_R5C_CACHING, &sh->state)) {
 		/* writing out phase */
+		if (s->waiting_extra_page)
+			return;
 		if (r5l_write_stripe(conf->log, sh) == 0)
 			return;
 	} else {  /* caching phase */
@@ -2013,6 +2015,7 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 		INIT_LIST_HEAD(&sh->batch_list);
 		INIT_LIST_HEAD(&sh->lru);
 		INIT_LIST_HEAD(&sh->r5c);
+		INIT_LIST_HEAD(&sh->log_list);
 		atomic_set(&sh->count, 1);
 		sh->log_start = MaxSector;
 		for (i = 0; i < disks; i++) {
@@ -2255,10 +2258,24 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	 */
 	ndisks = kzalloc(newsize * sizeof(struct disk_info), GFP_NOIO);
 	if (ndisks) {
-		for (i=0; i<conf->raid_disks; i++)
+		for (i = 0; i < conf->pool_size; i++)
 			ndisks[i] = conf->disks[i];
-		kfree(conf->disks);
-		conf->disks = ndisks;
+
+		for (i = conf->pool_size; i < newsize; i++) {
+			ndisks[i].extra_page = alloc_page(GFP_NOIO);
+			if (!ndisks[i].extra_page)
+				err = -ENOMEM;
+		}
+
+		if (err) {
+			for (i = conf->pool_size; i < newsize; i++)
+				if (ndisks[i].extra_page)
+					put_page(ndisks[i].extra_page);
+			kfree(ndisks);
+		} else {
+			kfree(conf->disks);
+			conf->disks = ndisks;
+		}
 	} else
 		err = -ENOMEM;
 
@@ -3598,10 +3615,10 @@ unhash:
 		break_stripe_batch_list(head_sh, STRIPE_EXPAND_SYNC_FLAGS);
 }
 
-static void handle_stripe_dirtying(struct r5conf *conf,
-				   struct stripe_head *sh,
-				   struct stripe_head_state *s,
-				   int disks)
+static int handle_stripe_dirtying(struct r5conf *conf,
+				  struct stripe_head *sh,
+				  struct stripe_head_state *s,
+				  int disks)
 {
 	int rmw = 0, rcw = 0, i;
 	sector_t recovery_cp = conf->mddev->recovery_cp;
@@ -3667,12 +3684,32 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 			    dev->page == dev->orig_page &&
 			    !test_bit(R5_LOCKED, &sh->dev[sh->pd_idx].flags)) {
 				/* alloc page for prexor */
-				dev->orig_page = alloc_page(GFP_NOIO);
+				struct page *p = alloc_page(GFP_NOIO);
 
-				/* will handle failure in a later patch*/
-				BUG_ON(!dev->orig_page);
+				if (p) {
+					dev->orig_page = p;
+					continue;
+				}
+
+				/*
+				 * alloc_page() failed, try use
+				 * disk_info->extra_page
+				 */
+				if (!test_and_set_bit(R5C_EXTRA_PAGE_IN_USE,
+						      &conf->cache_state)) {
+					r5c_use_extra_page(sh);
+					break;
+				}
+
+				/* extra_page in use, add to delayed_list */
+				set_bit(STRIPE_DELAYED, &sh->state);
+				s->waiting_extra_page = 1;
+				return -EAGAIN;
 			}
+		}
 
+		for (i = disks; i--; ) {
+			struct r5dev *dev = &sh->dev[i];
 			if ((dev->towrite ||
 			     i == sh->pd_idx || i == sh->qd_idx ||
 			     test_bit(R5_InJournal, &dev->flags)) &&
@@ -3748,6 +3785,7 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 	    (s->locked == 0 && (rcw == 0 || rmw == 0) &&
 	     !test_bit(STRIPE_BIT_DELAY, &sh->state)))
 		schedule_reconstruction(sh, s, rcw == 0, 0);
+	return 0;
 }
 
 static void handle_parity_checks5(struct r5conf *conf, struct stripe_head *sh,
@@ -4578,8 +4616,12 @@ static void handle_stripe(struct stripe_head *sh)
 			if (ret == -EAGAIN ||
 			    /* stripe under reclaim: !caching && injournal */
 			    (!test_bit(STRIPE_R5C_CACHING, &sh->state) &&
-			     s.injournal > 0))
-				handle_stripe_dirtying(conf, sh, &s, disks);
+			     s.injournal > 0)) {
+				ret = handle_stripe_dirtying(conf, sh, &s,
+							     disks);
+				if (ret == -EAGAIN)
+					goto finish;
+			}
 		}
 	}
 
@@ -6498,6 +6540,8 @@ static void raid5_free_percpu(struct r5conf *conf)
 
 static void free_conf(struct r5conf *conf)
 {
+	int i;
+
 	if (conf->log)
 		r5l_exit_log(conf->log);
 	if (conf->shrinker.nr_deferred)
@@ -6506,6 +6550,9 @@ static void free_conf(struct r5conf *conf)
 	free_thread_groups(conf);
 	shrink_stripes(conf);
 	raid5_free_percpu(conf);
+	for (i = 0; i < conf->pool_size; i++)
+		if (conf->disks[i].extra_page)
+			put_page(conf->disks[i].extra_page);
 	kfree(conf->disks);
 	kfree(conf->stripe_hashtbl);
 	kfree(conf);
@@ -6652,8 +6699,15 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 
 	conf->disks = kzalloc(max_disks * sizeof(struct disk_info),
 			      GFP_KERNEL);
+
 	if (!conf->disks)
 		goto abort;
+
+	for (i = 0; i < max_disks; i++) {
+		conf->disks[i].extra_page = alloc_page(GFP_KERNEL);
+		if (!conf->disks[i].extra_page)
+			goto abort;
+	}
 
 	conf->mddev = mddev;
 
