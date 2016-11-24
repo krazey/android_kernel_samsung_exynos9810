@@ -448,6 +448,8 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	gpiochip_set_nested_irqchip(&wg->chip, &wcove_irqchip, virq);
+
 	return 0;
 }
 
