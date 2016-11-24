@@ -886,6 +886,11 @@ int f2fs_get_valid_checkpoint(struct f2fs_sb_info *sbi)
 	if (f2fs_sanity_check_ckpt(sbi))
 		goto free_fail_no_cp;
 
+	if (cur_page == cp1)
+		sbi->cur_cp_pack = 1;
+	else
+		sbi->cur_cp_pack = 2;
+
 	if (cp_blks <= 1)
 		goto done;
 
