@@ -706,6 +706,7 @@ nfs4_ff_layout_stat_io_start_read(struct inode *inode,
 	spin_lock(&mirror->lock);
 	report = nfs4_ff_layoutstat_start_io(mirror, &mirror->read_stat, now);
 	nfs4_ff_layout_stat_io_update_requested(&mirror->read_stat, requested);
+	set_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags);
 	spin_unlock(&mirror->lock);
 
 	if (report)
@@ -722,6 +723,7 @@ nfs4_ff_layout_stat_io_end_read(struct rpc_task *task,
 	nfs4_ff_layout_stat_io_update_completed(&mirror->read_stat,
 			requested, completed,
 			ktime_get(), task->tk_start);
+	set_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags);
 	spin_unlock(&mirror->lock);
 }
 
@@ -735,6 +737,7 @@ nfs4_ff_layout_stat_io_start_write(struct inode *inode,
 	spin_lock(&mirror->lock);
 	report = nfs4_ff_layoutstat_start_io(mirror , &mirror->write_stat, now);
 	nfs4_ff_layout_stat_io_update_requested(&mirror->write_stat, requested);
+	set_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags);
 	spin_unlock(&mirror->lock);
 
 	if (report)
@@ -754,6 +757,7 @@ nfs4_ff_layout_stat_io_end_write(struct rpc_task *task,
 	spin_lock(&mirror->lock);
 	nfs4_ff_layout_stat_io_update_completed(&mirror->write_stat,
 			requested, completed, ktime_get(), task->tk_start);
+	set_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags);
 	spin_unlock(&mirror->lock);
 }
 
@@ -2205,6 +2209,8 @@ ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 		if (i >= dev_limit)
 			break;
 		if (!mirror->mirror_ds)
+			continue;
+		if (!test_and_clear_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags))
 			continue;
 		/* mirror refcount put in cleanup_layoutstats */
 		if (!atomic_inc_not_zero(&mirror->ref))
