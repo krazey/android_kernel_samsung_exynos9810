@@ -74,7 +74,7 @@ static const char *dma_mode_name(unsigned int mode)
 
 static int tw686x_dma_mode_get(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, dma_mode_name(dma_mode));
+	return sprintf(buffer, "%s", dma_mode_name(dma_mode));
 }
 
 static int tw686x_dma_mode_set(const char *val, const struct kernel_param *kp)
