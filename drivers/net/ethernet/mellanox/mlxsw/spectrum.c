@@ -249,14 +249,15 @@ static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 }
 
 static struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+mlxsw_sp_span_entry_find(struct mlxsw_sp_port *port)
 {
+	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
 	int i;
 
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
 
-		if (curr->used && curr->local_port == local_port)
+		if (curr->used && curr->local_port == port->local_port)
 			return curr;
 	}
 	return NULL;
@@ -267,8 +268,7 @@ static struct mlxsw_sp_span_entry
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(port->mlxsw_sp,
-					      port->local_port);
+	span_entry = mlxsw_sp_span_entry_find(port);
 	if (span_entry) {
 		/* Already exists, just take a reference */
 		span_entry->ref_count++;
@@ -453,13 +453,12 @@ err_port_bind:
 }
 
 static void mlxsw_sp_span_mirror_remove(struct mlxsw_sp_port *from,
-					u8 destination_port,
+					struct mlxsw_sp_port *to,
 					enum mlxsw_sp_span_type type)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(from->mlxsw_sp,
-					      destination_port);
+	span_entry = mlxsw_sp_span_entry_find(to);
 	if (!span_entry) {
 		netdev_err(from->dev, "no span entry found\n");
 		return;
@@ -685,7 +684,6 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 			dev_kfree_skb_any(skb_orig);
 			return NETDEV_TX_OK;
 		}
-		dev_consume_skb_any(skb_orig);
 	}
 
 	if (eth_skb_pad(skb)) {
@@ -1258,8 +1256,10 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					   struct tc_cls_matchall_offload *cls)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
 	enum mlxsw_sp_span_type span_type;
+	struct mlxsw_sp_port *to_port;
 
 	mall_tc_entry = mlxsw_sp_port_mirror_entry_find(mlxsw_sp_port,
 							cls->cookie);
@@ -1270,12 +1270,11 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	switch (mall_tc_entry->type) {
 	case MLXSW_SP_PORT_MALL_MIRROR:
+		to_port = mlxsw_sp->ports[mall_tc_entry->mirror.to_local_port];
 		span_type = mall_tc_entry->mirror.ingress ?
 				MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
 
-		mlxsw_sp_span_mirror_remove(mlxsw_sp_port,
-					    mall_tc_entry->mirror.to_local_port,
-					    span_type);
+		mlxsw_sp_span_mirror_remove(mlxsw_sp_port, to_port, span_type);
 		break;
 	default:
 		WARN_ON(1);
@@ -1567,7 +1566,7 @@ static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
 	int i;
 
 	for (i = 0; i < MLXSW_SP_PORT_HW_PRIO_STATS_LEN; i++) {
-		snprintf(*p, ETH_GSTRING_LEN, "%.29s_%.1d",
+		snprintf(*p, ETH_GSTRING_LEN, "%s_%d",
 			 mlxsw_sp_port_hw_prio_stats[i].str, prio);
 		*p += ETH_GSTRING_LEN;
 	}
@@ -1578,7 +1577,7 @@ static void mlxsw_sp_port_get_tc_strings(u8 **p, int tc)
 	int i;
 
 	for (i = 0; i < MLXSW_SP_PORT_HW_TC_STATS_LEN; i++) {
-		snprintf(*p, ETH_GSTRING_LEN, "%.29s_%.1d",
+		snprintf(*p, ETH_GSTRING_LEN, "%s_%d",
 			 mlxsw_sp_port_hw_tc_stats[i].str, tc);
 		*p += ETH_GSTRING_LEN;
 	}
@@ -2046,10 +2045,6 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
 
 	autoneg = cmd->base.autoneg == AUTONEG_ENABLE;
-	if (!autoneg && cmd->base.speed == SPEED_56000) {
-		netdev_err(dev, "56G not supported with autoneg off\n");
-		return -EINVAL;
-	}
 	eth_proto_new = autoneg ?
 		mlxsw_sp_to_ptys_advert_link(cmd) :
 		mlxsw_sp_to_ptys_speed(cmd->base.speed);
@@ -2066,10 +2061,10 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	if (err)
 		return err;
 
-	mlxsw_sp_port->link.autoneg = autoneg;
-
 	if (!netif_running(dev))
 		return 0;
+
+	mlxsw_sp_port->link.autoneg = autoneg;
 
 	mlxsw_sp_port_admin_status_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_admin_status_set(mlxsw_sp_port, true);
@@ -2191,13 +2186,6 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
 						    MLXSW_REG_QEEC_HIERARCY_TC,
 						    i, i,
-						    MLXSW_REG_QEEC_MAS_DIS);
-		if (err)
-			return err;
-
-		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
-						    MLXSW_REG_QEEC_HIERARCY_TC,
-						    i + 8, i,
 						    MLXSW_REG_QEEC_MAS_DIS);
 		if (err)
 			return err;
@@ -4287,8 +4275,6 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 			return -EINVAL;
 		if (!info->linking)
 			break;
-		if (netdev_has_any_upper_dev(upper_dev))
-			return -EINVAL;
 		/* HW limitation forbids to put ports to multiple bridges. */
 		if (netif_is_bridge_master(upper_dev) &&
 		    !mlxsw_sp_master_bridge_check(mlxsw_sp, upper_dev))
@@ -4677,8 +4663,6 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 			return -EINVAL;
 		if (!info->linking)
 			break;
-		if (netdev_has_any_upper_dev(upper_dev))
-			return -EINVAL;
 		/* We can't have multiple VLAN interfaces configured on
 		 * the same port and being members in the same bridge.
 		 */
