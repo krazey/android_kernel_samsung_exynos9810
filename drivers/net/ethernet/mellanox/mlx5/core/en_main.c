@@ -3492,8 +3492,8 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 				      MLX5E_INDIR_RQT_SIZE, profile->max_nch(mdev));
 
 	/* Initialize pflags */
-	MLX5E_SET_PRIV_FLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
-			    priv->params.rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
+			priv->params.rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
 
 	mutex_init(&priv->state_lock);
 
