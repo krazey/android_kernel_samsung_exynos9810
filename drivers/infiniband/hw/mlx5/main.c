@@ -2814,6 +2814,8 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	enum rdma_link_layer ll = mlx5_ib_port_link_layer(ibdev, port_num);
 	int err;
 
 	err = mlx5_ib_query_port(ibdev, port_num, &attr);
@@ -2823,7 +2825,8 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 	immutable->core_cap_flags = get_core_cap_flags(ibdev);
-	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+	if ((ll == IB_LINK_LAYER_INFINIBAND) || MLX5_CAP_GEN(dev->mdev, roce))
+		immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
 }
@@ -2908,9 +2911,11 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 	if (err)
 		return err;
 
-	err = mlx5_nic_vport_enable_roce(dev->mdev);
-	if (err)
-		goto err_unregister_netdevice_notifier;
+	if (MLX5_CAP_GEN(dev->mdev, roce)) {
+		err = mlx5_nic_vport_enable_roce(dev->mdev);
+		if (err)
+			goto err_unregister_netdevice_notifier;
+	}
 
 	err = mlx5_eth_lag_init(dev);
 	if (err)
@@ -2919,7 +2924,8 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 	return 0;
 
 err_disable_roce:
-	mlx5_nic_vport_disable_roce(dev->mdev);
+	if (MLX5_CAP_GEN(dev->mdev, roce))
+		mlx5_nic_vport_disable_roce(dev->mdev);
 
 err_unregister_netdevice_notifier:
 	mlx5_remove_netdev_notifier(dev);
@@ -2929,7 +2935,8 @@ err_unregister_netdevice_notifier:
 static void mlx5_disable_eth(struct mlx5_ib_dev *dev)
 {
 	mlx5_eth_lag_cleanup(dev);
-	mlx5_nic_vport_disable_roce(dev->mdev);
+	if (MLX5_CAP_GEN(dev->mdev, roce))
+		mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
 static void mlx5_ib_dealloc_q_counters(struct mlx5_ib_dev *dev)
@@ -3050,9 +3057,6 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
 	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
-
-	if ((ll == IB_LINK_LAYER_ETHERNET) && !MLX5_CAP_GEN(mdev, roce))
-		return NULL;
 
 	printk_once(KERN_INFO "%s", mlx5_version);
 
