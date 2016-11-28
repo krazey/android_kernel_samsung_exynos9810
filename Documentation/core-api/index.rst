@@ -11,6 +11,7 @@ Core utilities
 .. toctree::
    :maxdepth: 1
 
+   assoc_array
    workqueue
 
 Interfaces for kernel debugging
