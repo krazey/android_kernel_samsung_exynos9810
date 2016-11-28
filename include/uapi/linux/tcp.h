@@ -287,6 +287,15 @@ struct mptcp_info {
 	struct mptcp_sub_info	*subflow_info;
 };
 #endif
+
+/* netlink attributes types for SCM_TIMESTAMPING_OPT_STATS */
+enum {
+	TCP_NLA_PAD,
+	TCP_NLA_BUSY,		/* Time (usec) busy sending data */
+	TCP_NLA_RWND_LIMITED,	/* Time (usec) limited by receive window */
+	TCP_NLA_SNDBUF_LIMITED,	/* Time (usec) limited by send buffer */
+};
+
 /* for TCP_MD5SIG socket option */
 #define TCP_MD5SIG_MAXKEYLEN	80
 
