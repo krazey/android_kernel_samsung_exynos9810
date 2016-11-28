@@ -5786,6 +5786,7 @@ static void serial8250_io_resume(struct pci_dev *dev)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
 	struct serial_private *new;
+	const struct pciserial_board *board;
 
 	if (!priv)
 		return;
@@ -5794,6 +5795,13 @@ static void serial8250_io_resume(struct pci_dev *dev)
 	if (!IS_ERR(new)) {
 		pci_set_drvdata(dev, new);
 		kfree(priv);
+
+	board = priv->board;
+	kfree(priv);
+	priv = pciserial_init_ports(dev, board);
+
+	if (!IS_ERR(priv)) {
+		pci_set_drvdata(dev, priv);
 	}
 }
 
