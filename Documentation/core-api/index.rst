@@ -12,6 +12,7 @@ Core utilities
    :maxdepth: 1
 
    assoc_array
+   atomic_ops
    local_ops
    workqueue
 
