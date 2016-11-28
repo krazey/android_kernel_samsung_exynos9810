@@ -607,6 +607,9 @@ static void intel_th_gth_unassign(struct intel_th_device *thdev,
 	if (thdev->host_mode)
 		return;
 
+	if (thdev->host_mode)
+		return;
+
 	spin_lock(&gth->gth_lock);
 	othdev->output.port = -1;
 	othdev->output.active = false;
