@@ -12,6 +12,7 @@ Core utilities
    :maxdepth: 1
 
    assoc_array
+   local_ops
    workqueue
 
 Interfaces for kernel debugging
