@@ -41,9 +41,10 @@ struct mmc_queue {
 	bool			asleep;
 	void			*data;
 	struct request_queue	*queue;
-	struct mmc_queue_req	mqrq[2];
+	struct mmc_queue_req	*mqrq;
 	struct mmc_queue_req	*mqrq_cur;
 	struct mmc_queue_req	*mqrq_prev;
+	int			qdepth;
 #ifdef CONFIG_MMC_SIMULATE_MAX_SPEED
 	atomic_t max_write_speed;
 	atomic_t max_read_speed;
