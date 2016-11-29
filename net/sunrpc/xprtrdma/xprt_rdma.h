@@ -77,6 +77,7 @@ struct rpcrdma_ia {
 	unsigned int		ri_max_send_sges;
 	bool			ri_reminv_expected;
 	bool			ri_implicit_roundup;
+	enum ib_mr_type		ri_mrtype;
 	struct ib_qp_attr	ri_qp_attr;
 	struct ib_qp_init_attr	ri_qp_init_attr;
 };
