@@ -480,6 +480,10 @@ static int kauditd_send_unicast_skb(struct sk_buff *skb)
 {
 	int rc;
 
+	/* if we know nothing is connected, don't even try the netlink call */
+	if (!audit_pid)
+		return -ECONNREFUSED;
+
 	/* get an extra skb reference in case we fail to send */
 	skb_get(skb);
 		/* drop the extra reference if sent ok */
@@ -1040,6 +1044,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_pid = new_pid;
 			audit_nlk_portid = NETLINK_CB(skb).portid;
 			audit_sock = skb->sk;
+			if (!new_pid)
+				auditd_reset();
 			wake_up_interruptible(&kauditd_wait);
 		}
 		if (s.mask & AUDIT_STATUS_RATE_LIMIT) {
