@@ -2375,8 +2375,6 @@ int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	int ret;
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
-	struct mmc_host *host = card->host;
-	unsigned long flags;
 	bool req_is_special = mmc_req_is_special(req);
 
 	if (req && !mq->mqrq_prev->req) {
@@ -2414,11 +2412,6 @@ int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			mmc_blk_issue_rw_rq(mq, NULL);
 		ret = mmc_blk_issue_flush(mq, req);
 	} else {
-		if (!req && host->areq) {
-			spin_lock_irqsave(&host->context_info.lock, flags);
-			host->context_info.is_waiting_last_req = true;
-			spin_unlock_irqrestore(&host->context_info.lock, flags);
-		}
 		ret = mmc_blk_issue_rw_rq(mq, req);
 	}
 

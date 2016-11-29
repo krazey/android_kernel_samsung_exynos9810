@@ -38,6 +38,7 @@ struct mmc_queue {
 	unsigned int		flags;
 #define MMC_QUEUE_SUSPENDED	(1 << 0)
 #define MMC_QUEUE_NEW_REQUEST	(1 << 1)
+	bool			asleep;
 	void			*data;
 	struct request_queue	*queue;
 	struct mmc_queue_req	mqrq[2];

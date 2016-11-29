@@ -434,12 +434,9 @@ EXPORT_SYMBOL(mmc_start_bkops);
 static void mmc_wait_data_done(struct mmc_request *mrq)
 {
 	struct mmc_context_info *context_info = &mrq->host->context_info;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mrq->host->context_info.lock, flags);
 	context_info->is_done_rcv = true;
 	wake_up_interruptible(&context_info->wait);
-	spin_unlock_irqrestore(&mrq->host->context_info.lock, flags);
 }
 
 static void mmc_wait_done(struct mmc_request *mrq)
@@ -529,18 +526,15 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 	struct mmc_command *cmd;
 	struct mmc_context_info *context_info = &host->context_info;
 	int err;
-	unsigned long flags;
 
 	while (1) {
 		wait_event_interruptible(context_info->wait,
 				(context_info->is_done_rcv ||
 				 context_info->is_new_req));
-		spin_lock_irqsave(&context_info->lock, flags);
 		context_info->is_waiting_last_req = false;
 		if (context_info->is_done_rcv) {
 			context_info->is_done_rcv = false;
 			context_info->is_new_req = false;
-			spin_unlock_irqrestore(&context_info->lock, flags);
 			cmd = mrq->cmd;
 
 			if (!cmd->error || !cmd->retries ||
@@ -561,13 +555,10 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 		} else if (context_info->is_new_req) {
 			context_info->is_new_req = false;
 			if (!next_req) {
-				spin_unlock_irqrestore(&context_info->lock,
-							flags);
 				err = MMC_BLK_NEW_REQUEST;
 				break; /* return err */
 			}
 		}
-		spin_unlock_irqrestore(&context_info->lock, flags);
 	} /* while */
 	if (err != MMC_BLK_NEW_REQUEST)
 		mmc_retune_release(host);
@@ -3176,7 +3167,6 @@ void mmc_unregister_pm_notifier(struct mmc_host *host)
  */
 void mmc_init_context_info(struct mmc_host *host)
 {
-	spin_lock_init(&host->context_info.lock);
 	host->context_info.is_new_req = false;
 	host->context_info.is_done_rcv = false;
 	host->context_info.is_waiting_last_req = false;
