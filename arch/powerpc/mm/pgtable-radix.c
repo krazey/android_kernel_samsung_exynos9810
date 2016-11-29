@@ -65,7 +65,7 @@ int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 		if (!pmdp)
 			return -ENOMEM;
 		if (map_page_size == PMD_SIZE) {
-			ptep = pmdp_ptep(pmdp);
+			ptep = (pte_t *)pudp;
 			goto set_the_pte;
 		}
 		ptep = pte_alloc_kernel(pmdp, ea);
@@ -90,7 +90,7 @@ int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 		}
 		pmdp = pmd_offset(pudp, ea);
 		if (map_page_size == PMD_SIZE) {
-			ptep = pmdp_ptep(pmdp);
+			ptep = (pte_t *)pudp;
 			goto set_the_pte;
 		}
 		if (!pmd_present(*pmdp)) {
@@ -159,7 +159,7 @@ redo:
 	 * Allocate Partition table and process table for the
 	 * host.
 	 */
-	BUILD_BUG_ON_MSG((PRTB_SIZE_SHIFT > 36), "Process table size too large.");
+	BUILD_BUG_ON_MSG((PRTB_SIZE_SHIFT > 23), "Process table size too large.");
 	process_tb = early_alloc_pgtable(1UL << PRTB_SIZE_SHIFT);
 	/*
 	 * Fill in the process table.
@@ -173,10 +173,6 @@ redo:
 	 */
 	register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
 	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
-	asm volatile("ptesync" : : : "memory");
-	asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
-		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
-	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 }
 
 static void __init radix_init_partition_table(void)
@@ -244,7 +240,7 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 		/* top 3 bit is AP encoding */
 		shift = be32_to_cpu(prop[0]) & ~(0xe << 28);
 		ap = be32_to_cpu(prop[0]) >> 29;
-		pr_info("Page size shift = %d AP=0x%x\n", shift, ap);
+		pr_info("Page size sift = %d AP=0x%x\n", shift, ap);
 
 		idx = get_idx_from_shift(shift);
 		if (idx < 0)
@@ -279,6 +275,14 @@ void __init radix__early_init_devtree(void)
 	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
 	mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
 found:
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
+		/*
+		 * map vmemmap using 2M if available
+		 */
+		mmu_vmemmap_psize = MMU_PAGE_2M;
+	}
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 	return;
 }
 
@@ -308,38 +312,6 @@ static void update_hid_for_radix(void)
 		cpu_relax();
 }
 
-static void radix_init_amor(void)
-{
-	/*
-	* In HV mode, we init AMOR (Authority Mask Override Register) so that
-	* the hypervisor and guest can setup IAMR (Instruction Authority Mask
-	* Register), enable key 0 and set it to 1.
-	*
-	* AMOR = 0b1100 .... 0000 (Mask for key 0 is 11)
-	*/
-	mtspr(SPRN_AMOR, (3ul << 62));
-}
-
-static void radix_init_iamr(void)
-{
-	unsigned long iamr;
-
-	/*
-	 * The IAMR should set to 0 on DD1.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-		iamr = 0;
-	else
-		iamr = (1ul << 62);
-
-	/*
-	 * Radix always uses key0 of the IAMR to determine if an access is
-	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
-	 * fetch.
-	 */
-	mtspr(SPRN_IAMR, iamr);
-}
-
 void __init radix__early_init_mmu(void)
 {
 	unsigned long lpcr;
@@ -353,13 +325,7 @@ void __init radix__early_init_mmu(void)
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* vmemmap mapping */
-	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
-		/*
-		 * map vmemmap using 2M if available
-		 */
-		mmu_vmemmap_psize = MMU_PAGE_2M;
-	} else
-		mmu_vmemmap_psize = mmu_virtual_psize;
+	mmu_vmemmap_psize = mmu_virtual_psize;
 #endif
 	/*
 	 * initialize page table size
@@ -402,12 +368,10 @@ void __init radix__early_init_mmu(void)
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
-		radix_init_amor();
 	}
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 
-	radix_init_iamr();
 	radix_init_pgtable();
 }
 
@@ -418,18 +382,12 @@ void radix__early_init_mmu_secondary(void)
 	 * update partition table control register and UPRT
 	 */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			update_hid_for_radix();
-
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 
 		mtspr(SPRN_PTCR,
 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
-		radix_init_amor();
 	}
-	radix_init_iamr();
 }
 
 void radix__mmu_cleanup_all(void)

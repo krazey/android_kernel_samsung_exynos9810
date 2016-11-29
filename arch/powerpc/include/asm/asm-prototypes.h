@@ -13,6 +13,7 @@
  */
 
 #include <linux/threads.h>
+#include <linux/kprobes.h>
 #ifdef CONFIG_KVM
 #include <linux/kvm_host.h>
 #endif
