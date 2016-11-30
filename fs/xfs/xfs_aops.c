@@ -1599,7 +1599,6 @@ xfs_vm_bmap(
 	struct xfs_inode	*ip = XFS_I(inode);
 
 	trace_xfs_vm_bmap(XFS_I(inode));
-	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	/*
 	 * The swap code (ab-)uses ->bmap to get a block mapping and then
@@ -1610,12 +1609,10 @@ xfs_vm_bmap(
 	 * Since we don't pass back blockdev info, we can't return bmap
 	 * information for rt files either.
 	 */
-	if (xfs_is_reflink_inode(ip) || XFS_IS_REALTIME_INODE(ip)) {
-		xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+	if (xfs_is_reflink_inode(ip))
 		return 0;
-	}
+
 	filemap_write_and_wait(mapping);
-	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }
 
