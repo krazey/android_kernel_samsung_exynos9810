@@ -7437,7 +7437,7 @@ static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason,
 
 		if (vmptr == vmx->nested.vmxon_ptr) {
 			nested_vmx_failValid(vcpu,
-					     VMXERR_VMCLEAR_VMXON_POINTER);
+					     VMXERR_VMPTRLD_VMXON_POINTER);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		}
