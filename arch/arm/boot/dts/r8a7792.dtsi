@@ -60,8 +60,9 @@
 			next-level-cache = <&L2_CA15>;
 		};
 
-		L2_CA15: cache-controller-0 {
+		L2_CA15: cache-controller@0 {
 			compatible = "cache";
+			reg = <0>;
 			cache-unified;
 			cache-level = <2>;
 			power-domains = <&sysc R8A7792_PD_CA15_SCU>;
@@ -117,11 +118,6 @@
 				      IRQ_TYPE_LEVEL_LOW)>,
 				     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) |
 				      IRQ_TYPE_LEVEL_LOW)>;
-		};
-
-		rst: reset-controller@e6160000 {
-			compatible = "renesas,r8a7792-rst";
-			reg = <0 0xe6160000 0 0x0100>;
 		};
 
 		prr: chipid@ff000044 {
