@@ -938,7 +938,9 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	case BPF_CGROUP_INET_EGRESS:
 		ptype = BPF_PROG_TYPE_CGROUP_SKB;
 		break;
-
+	case BPF_CGROUP_INET_SOCK_CREATE:
+		ptype = BPF_PROG_TYPE_CGROUP_SOCK;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -981,6 +983,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	switch (attr->attach_type) {
 	case BPF_CGROUP_INET_INGRESS:
 	case BPF_CGROUP_INET_EGRESS:
+	case BPF_CGROUP_INET_SOCK_CREATE:
 		ptype = BPF_PROG_TYPE_CGROUP_SKB;
 		break;
 
