@@ -1364,7 +1364,13 @@ drop:
 		goto drop;
 	}
 
+#ifndef CONFIG_4KSTACKS
+	local_bh_disable();
+	netif_receive_skb(skb);
+	local_bh_enable();
+#else
 	netif_rx_ni(skb);
+#endif
 	rcu_read_unlock();
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
