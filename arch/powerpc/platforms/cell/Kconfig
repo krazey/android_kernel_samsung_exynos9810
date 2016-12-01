@@ -47,7 +47,6 @@ config SPU_FS
 	depends on PPC_CELL
 	depends on COREDUMP
 	select SPU_BASE
-	select MEMORY_HOTPLUG
 	help
 	  The SPU file system is used to access Synergistic Processing
 	  Units on machines implementing the Broadband Processor
