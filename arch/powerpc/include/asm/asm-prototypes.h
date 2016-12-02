@@ -14,6 +14,8 @@
 
 #include <linux/threads.h>
 #include <linux/kprobes.h>
+#include <asm/dcr.h>
+#include <asm/mmu_context.h>
 
 #include <uapi/asm/ucontext.h>
 
