@@ -398,6 +398,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 		goto out_au;
 	}
 
+	WARN_ON(p > end);
 	dout(" built authorizer nonce %llx len %d\n", au->nonce,
 	     (int)au->buf->vec.iov_len);
 	return 0;
