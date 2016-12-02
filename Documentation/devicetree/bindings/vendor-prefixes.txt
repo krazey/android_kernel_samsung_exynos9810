@@ -202,6 +202,7 @@ netxeon		Shenzhen Netxeon Technology CO., LTD
 nexbox	Nexbox
 newhaven	Newhaven Display International
 nvd	New Vision Display
+ni	National Instruments
 nintendo	Nintendo
 nokia	Nokia
 nuvoton	Nuvoton Technology Corporation
