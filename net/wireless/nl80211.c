@@ -443,6 +443,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 				    .len = FILS_MAX_KEK_LEN },
 	[NL80211_ATTR_FILS_NONCES] = { .len = 2 * FILS_NONCE_LEN },
 	[NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED] = { .type = NLA_FLAG, },
+	[NL80211_ATTR_BSSID] = { .len = ETH_ALEN },
 };
 
 /* policy for the key attributes */
