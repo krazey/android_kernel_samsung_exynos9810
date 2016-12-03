@@ -19,6 +19,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
+#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -668,14 +669,12 @@ int smp_cpu_get_polarization(int cpu)
 	return pcpu_devices[cpu].polarization;
 }
 
-static struct sclp_core_info *smp_get_core_info(void)
+static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 {
 	static int use_sigp_detection;
-	struct sclp_core_info *info;
 	int address;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info && (use_sigp_detection || sclp_get_core_info(info))) {
+	if (use_sigp_detection || sclp_get_core_info(info, early)) {
 		use_sigp_detection = 1;
 		for (address = 0;
 		     address < (SCLP_MAX_CORES << smp_cpu_mt_shift);
@@ -689,7 +688,6 @@ static struct sclp_core_info *smp_get_core_info(void)
 		}
 		info->combined = info->configured;
 	}
-	return info;
 }
 
 static int smp_add_present_cpu(int cpu);
@@ -758,17 +756,15 @@ static int __smp_rescan_cpus(struct sclp_core_info *info, bool early)
 	return nr;
 }
 
-static void __init smp_detect_cpus(void)
+void __init smp_detect_cpus(void)
 {
 	unsigned int cpu, mtid, c_cpus, s_cpus;
 	struct sclp_core_info *info;
 	u16 address;
 
 	/* Get CPU information */
-	info = smp_get_core_info();
-	if (!info)
-		panic("smp_detect_cpus failed to allocate memory\n");
-
+	info = memblock_virt_alloc(sizeof(*info), 8);
+	smp_get_core_info(info, 1);
 	/* Find boot CPU type */
 	if (sclp.has_core_type) {
 		address = stap();
@@ -804,7 +800,7 @@ static void __init smp_detect_cpus(void)
 	get_online_cpus();
 	__smp_rescan_cpus(info, true);
 	put_online_cpus();
-	kfree(info);
+	memblock_free_early((unsigned long)info, sizeof(*info));
 }
 
 /*
@@ -942,7 +938,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1202 external call external interrupt */
 	if (register_external_irq(EXT_IRQ_EXTERNAL_CALL, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1202");
-	smp_detect_cpus();
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -1141,9 +1136,10 @@ int __ref smp_rescan_cpus(void)
 	struct sclp_core_info *info;
 	int nr;
 
-	info = smp_get_core_info();
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+	smp_get_core_info(info, 0);
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
 	nr = __smp_rescan_cpus(info, false);
