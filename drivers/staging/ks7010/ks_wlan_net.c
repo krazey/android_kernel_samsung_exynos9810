@@ -217,6 +217,7 @@ static int ks_wlan_set_freq(struct net_device *dev,
 	    (fwrq->m >= (int)2.412e8) && (fwrq->m <= (int)2.487e8)) {
 		int f = fwrq->m / 100000;
 		int c = 0;
+
 		while ((c < 14) && (f != frequency_list[c]))
 			c++;
 		/* Hack to fall through... */
@@ -1391,6 +1392,7 @@ static int ks_wlan_set_scan(struct net_device *dev,
 	    (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_scan_req *req = NULL;
 	int len;
+
 	DPRINTK(2, "\n");
 
 	if (priv->sleep_mode == SLP_SLEEP)
@@ -1585,6 +1587,7 @@ static int ks_wlan_get_scan(struct net_device *dev,
 	    (struct ks_wlan_private *)netdev_priv(dev);
 	int i;
 	char *current_ev = extra;
+
 	DPRINTK(2, "\n");
 
 	if (priv->sleep_mode == SLP_SLEEP)
@@ -1814,6 +1817,7 @@ static int ks_wlan_get_auth_mode(struct net_device *dev,
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
 	int index = (vwrq->flags & IW_AUTH_INDEX);
+
 	DPRINTK(2, "index=%d\n", index);
 
 	if (priv->sleep_mode == SLP_SLEEP)
@@ -2797,6 +2801,7 @@ static int ks_wlan_get_wps_probe_req(struct net_device *dev,
 				     __u32 *uwrq, char *extra)
 {
 	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
+
 	DPRINTK(2, "\n");
 
 	if (priv->sleep_mode == SLP_SLEEP)
@@ -3248,6 +3253,7 @@ static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq,
 {
 	int rc = 0;
 	struct iwreq *wrq = (struct iwreq *)rq;
+
 	switch (cmd) {
 	case SIOCIWFIRSTPRIV + 20:	/* KS_WLAN_SET_STOP_REQ */
 		rc = ks_wlan_set_stop_request(dev, NULL, &(wrq->u.mode), NULL);
@@ -3277,6 +3283,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct sockaddr *mac_addr = (struct sockaddr *)addr;
+
 	if (netif_running(dev))
 		return -EBUSY;
 	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
