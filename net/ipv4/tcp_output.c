@@ -853,19 +853,19 @@ static void tcp_tasklet_func(unsigned long data)
 	list_for_each_safe(q, n, &list) {
 		tp = list_entry(q, struct tcp_sock, tsq_node);
 		list_del(&tp->tsq_node);
-		clear_bit(TSQ_QUEUED, &tp->tsq_flags);
 
 		sk = (struct sock *)tp;
+		clear_bit(TSQ_QUEUED, &sk->sk_tsq_flags);
 #ifdef CONFIG_MPTCP
 		meta_sk = mptcp(tp) ? mptcp_meta_sk(sk) : sk;
 		if (!sk->sk_lock.owned &&
-		    test_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags)) {
+		    test_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags)) {
 			bh_lock_sock(meta_sk);
 			if (!sock_owned_by_user(sk)) {
 				if (mptcp(tp) && sk->sk_state == TCP_CLOSE
 					goto exit;
 
-				clear_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
+				clear_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags);
 				tcp_tsq_handler(sk);
 				if (mptcp(tp))
 					tcp_tsq_handler(meta_sk);
@@ -878,10 +878,10 @@ static void tcp_tasklet_func(unsigned long data)
 		}
 #else
 		if (!sk->sk_lock.owned &&
-		    test_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags)) {
+		    test_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags)) {
 			bh_lock_sock(sk);
 			if (!sock_owned_by_user(sk)) {
-				clear_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
+				clear_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags);
 				tcp_tsq_handler(sk);
 			}
 			bh_unlock_sock(sk);
@@ -914,16 +914,15 @@ static void tcp_tasklet_func(unsigned long data)
  */
 void tcp_release_cb(struct sock *sk)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned long flags, nflags;
 
 	/* perform an atomic operation only if at least one flag is set */
 	do {
-		flags = tp->tsq_flags;
+		flags = sk->sk_tsq_flags;
 		if (!(flags & TCP_DEFERRED_ALL))
 			return;
 		nflags = flags & ~TCP_DEFERRED_ALL;
-	} while (cmpxchg(&tp->tsq_flags, flags, nflags) != flags);
+	} while (cmpxchg(&sk->sk_tsq_flags, flags, nflags) != flags);
 
 	if (flags & TCPF_TSQ_DEFERRED)
 		tcp_tsq_handler(sk);
@@ -1004,7 +1003,7 @@ void tcp_wfree(struct sk_buff *skb)
 	if (wmem >= SKB_TRUESIZE(1) && this_cpu_ksoftirqd() == current)
 		goto out;
 
-	for (oval = READ_ONCE(tp->tsq_flags);; oval = nval) {
+	for (oval = READ_ONCE(sk->sk_tsq_flags);; oval = nval) {
 		struct tsq_tasklet *tsq;
 		bool empty;
 
@@ -1012,7 +1011,7 @@ void tcp_wfree(struct sk_buff *skb)
 			goto out;
 
 		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED | TCPF_TSQ_DEFERRED;
-		nval = cmpxchg(&tp->tsq_flags, oval, nval);
+		nval = cmpxchg(&sk->sk_tsq_flags, oval, nval);
 		if (nval != oval)
 			continue;
 
@@ -2351,7 +2350,7 @@ static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 		    skb->prev == sk->sk_write_queue.next)
 			return false;
 
-		set_bit(TSQ_THROTTLED, &tcp_sk(sk)->tsq_flags);
+		set_bit(TSQ_THROTTLED, &sk->sk_tsq_flags);
 		/* It is possible TX completion already happened
 		 * before we set TSQ_THROTTLED, so we must
 		 * test again the condition.
@@ -2503,8 +2502,8 @@ bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
 
-		if (test_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags))
-			clear_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
+		if (test_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags))
+			clear_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags);
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;
 
@@ -3889,8 +3888,6 @@ void __tcp_send_ack(struct sock *sk, u32 rcv_nxt)
 	/* We do not want pure acks influencing TCP Small Queues or fq/pacing
 	 * too much.
 	 * SKB_TRUESIZE(max(1 .. 66, MAX_TCP_HEADER)) is unfortunately ~784
-	 * We also avoid tcp_wfree() overhead (cache line miss accessing
-	 * tp->tsq_flags) by using regular sock_wfree()
 	 */
 	skb_set_tcp_pure_ack(buff);
 
