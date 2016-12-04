@@ -510,7 +510,8 @@ static inline unsigned int regulator_get_mode(struct regulator *regulator)
 	return REGULATOR_MODE_NORMAL;
 }
 
-static inline int regulator_get_error_flags(struct regulator *regulator)
+static inline int regulator_get_error_flags(struct regulator *regulator,
+					    unsigned int *flags)
 {
 	return -EINVAL;
 }
