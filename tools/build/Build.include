@@ -66,7 +66,7 @@ dep-cmd = $(if $(wildcard $(fixdep)),                                           
            printf '$(pound) cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
            printf '$(pound) using basic dep data\n\n' >> $(dot-target).cmd;           \
            cat $(depfile) >> $(dot-target).cmd;                                 \
-           printf '%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
+           printf '\n%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
 
 ###
 # if_changed_dep  - execute command if any prerequisite is newer than
