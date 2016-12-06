@@ -831,6 +831,7 @@ static void i40iw_terminate_timeout(unsigned long context)
 	struct i40iw_sc_qp *qp = (struct i40iw_sc_qp *)&iwqp->sc_qp;
 
 	i40iw_terminate_done(qp, 1);
+	i40iw_rem_ref(&iwqp->ibqp);
 }
 
 /**
@@ -842,6 +843,7 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 	struct i40iw_qp *iwqp;
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
+	i40iw_add_ref(&iwqp->ibqp);
 	init_timer(&iwqp->terminate_timer);
 	iwqp->terminate_timer.function = i40iw_terminate_timeout;
 	iwqp->terminate_timer.expires = jiffies + HZ;
@@ -858,7 +860,8 @@ void i40iw_terminate_del_timer(struct i40iw_sc_qp *qp)
 	struct i40iw_qp *iwqp;
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
-	del_timer(&iwqp->terminate_timer);
+	if (del_timer(&iwqp->terminate_timer))
+		i40iw_rem_ref(&iwqp->ibqp);
 }
 
 /**
