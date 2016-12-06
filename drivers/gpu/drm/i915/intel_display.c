@@ -13206,6 +13206,31 @@ intel_compare_link_m_n(const struct intel_link_m_n *m_n,
 	return false;
 }
 
+static void __printf(3, 4)
+pipe_config_err(bool adjust, const char *name, const char *format, ...)
+{
+	char *level;
+	unsigned int category;
+	struct va_format vaf;
+	va_list args;
+
+	if (adjust) {
+		level = KERN_DEBUG;
+		category = DRM_UT_KMS;
+	} else {
+		level = KERN_ERR;
+		category = DRM_UT_NONE;
+	}
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	drm_printk(level, category, "mismatch in %s %pV", name, &vaf);
+
+	va_end(args);
+}
+
 static bool
 intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 			  struct intel_crtc_state *current_config,
@@ -13214,17 +13239,9 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 {
 	bool ret = true;
 
-#define INTEL_ERR_OR_DBG_KMS(fmt, ...) \
-	do { \
-		if (!adjust) \
-			DRM_ERROR(fmt, ##__VA_ARGS__); \
-		else \
-			DRM_DEBUG_KMS(fmt, ##__VA_ARGS__); \
-	} while (0)
-
 #define PIPE_CONF_CHECK_X(name)	\
 	if (current_config->name != pipe_config->name) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+		pipe_config_err(adjust, __stringify(name), \
 			  "(expected 0x%08x, found 0x%08x)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
@@ -13233,7 +13250,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 #define PIPE_CONF_CHECK_I(name)	\
 	if (current_config->name != pipe_config->name) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+		pipe_config_err(adjust, __stringify(name), \
 			  "(expected %i, found %i)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
@@ -13242,7 +13259,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 #define PIPE_CONF_CHECK_P(name)	\
 	if (current_config->name != pipe_config->name) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+		pipe_config_err(adjust, __stringify(name), \
 			  "(expected %p, found %p)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
@@ -13253,7 +13270,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	if (!intel_compare_link_m_n(&current_config->name, \
 				    &pipe_config->name,\
 				    adjust)) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+		pipe_config_err(adjust, __stringify(name), \
 			  "(expected tu %i gmch %i/%i link %i/%i, " \
 			  "found tu %i, gmch %i/%i link %i/%i)\n", \
 			  current_config->name.tu, \
@@ -13279,7 +13296,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 				    &pipe_config->name, adjust) && \
 	    !intel_compare_link_m_n(&current_config->alt_name, \
 				    &pipe_config->name, adjust)) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+		pipe_config_err(adjust, __stringify(name), \
 			  "(expected tu %i gmch %i/%i link %i/%i, " \
 			  "or tu %i gmch %i/%i link %i/%i, " \
 			  "found tu %i, gmch %i/%i link %i/%i)\n", \
@@ -13303,8 +13320,9 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 #define PIPE_CONF_CHECK_FLAGS(name, mask)	\
 	if ((current_config->name ^ pipe_config->name) & (mask)) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name "(" #mask ") " \
-			  "(expected %i, found %i)\n", \
+		pipe_config_err(adjust, __stringify(name), \
+			  "(%x) (expected %i, found %i)\n", \
+			  (mask), \
 			  current_config->name & (mask), \
 			  pipe_config->name & (mask)); \
 		ret = false; \
@@ -13312,7 +13330,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 #define PIPE_CONF_CHECK_CLOCK_FUZZY(name) \
 	if (!intel_fuzzy_clock_check(current_config->name, pipe_config->name)) { \
-		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+		pipe_config_err(adjust, __stringify(name), \
 			  "(expected %i, found %i)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
@@ -13429,7 +13447,6 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_CLOCK_FUZZY
 #undef PIPE_CONF_QUIRK
-#undef INTEL_ERR_OR_DBG_KMS
 
 	return ret;
 }
