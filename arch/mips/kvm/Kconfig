@@ -19,6 +19,7 @@ config KVM
 	depends on HAVE_KVM
 	select EXPORT_UASM
 	select PREEMPT_NOTIFIERS
+	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_MMIO
 	select SRCU
 	---help---
