@@ -6,13 +6,13 @@
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #ifndef CONFIG_SUN3
 #define BUG() do { \
-	printk("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
+	pr_crit("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
 	barrier_before_unreachable(); \
 	__builtin_trap(); \
 } while (0)
 #else
 #define BUG() do { \
-	printk("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
+	pr_crit("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
 	barrier_before_unreachable(); \
 	panic("BUG!"); \
 } while (0)
