@@ -815,9 +815,6 @@ static inline unsigned long pte_index(unsigned long address)
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
-void pgtable_cache_init(void);
-
 static inline int map_kernel_page(unsigned long ea, unsigned long pa,
 				  unsigned long flags)
 {
