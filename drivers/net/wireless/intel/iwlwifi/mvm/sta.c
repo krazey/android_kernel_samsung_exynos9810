@@ -1527,8 +1527,17 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
 
 		/* If DQA is supported - the queues can be disabled now */
-		if (iwl_mvm_is_dqa_supported(mvm))
+		if (iwl_mvm_is_dqa_supported(mvm)) {
 			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
+			/*
+			 * If pending_frames is set at this point - it must be
+			 * driver internal logic error, since queues are empty
+			 * and removed successuly.
+			 * warn on it but set it to 0 anyway to avoid station
+			 * not being removed later in the function
+			 */
+			WARN_ON(atomic_xchg(&mvm->pending_frames[sta_id], 0));
+		}
 
 		/* If there is a TXQ still marked as reserved - free it */
 		if (iwl_mvm_is_dqa_supported(mvm) &&
