@@ -690,16 +690,19 @@ static bool update_scaling_factors(struct intel_overlay *overlay,
 static void update_colorkey(struct intel_overlay *overlay,
 			    struct overlay_registers __iomem *regs)
 {
-	const struct drm_framebuffer *fb =
-		overlay->crtc->base.primary->fb;
+	const struct intel_plane_state *state =
+		to_intel_plane_state(overlay->crtc->base.primary->state);
 	u32 key = overlay->color_key;
-	u32 flags;
+	u32 format = 0;
+	u32 flags = 0;
 
-	flags = 0;
 	if (overlay->color_key_enabled)
 		flags |= DST_KEY_ENABLE;
 
-	switch (fb->format->format) {
+	if (state->base.visible)
+		format = state->base.fb->pixel_format;
+
+	switch (format) {
 	case DRM_FORMAT_C8:
 		key = 0;
 		flags |= CLK_RGB8I_MASK;
