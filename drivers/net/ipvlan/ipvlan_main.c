@@ -148,7 +148,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	return 0;
 
 err:
-	kfree_rcu(port, rcu);
+	kfree(port);
 	return err;
 }
 
@@ -165,7 +165,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	netdev_rx_handler_unregister(dev);
 	cancel_work_sync(&port->wq);
 	__skb_queue_purge(&port->backlog);
-	kfree_rcu(port, rcu);
+	kfree(port);
 }
 
 #define IPVLAN_ALWAYS_ON_OFLOADS \
