@@ -351,7 +351,7 @@ normal:
 	qp->s_rdma_ack_cnt++;
 	qp->s_hdrwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
-	qp->s_cur_size = len;
+	ps->s_txreq->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
 	/* pbc */
 	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
@@ -803,7 +803,7 @@ no_flow_control:
 	qp->s_hdrwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
 	qp->s_cur_sge = ss;
-	qp->s_cur_size = len;
+	ps->s_txreq->s_cur_size = len;
 	hfi1_make_ruc_header(
 		qp,
 		ohdr,
