@@ -47,7 +47,7 @@
 
 #include "dw_mmc.h"
 #include "dw_mmc-exynos.h"
-#include "../card/queue.h"
+#include "../core/queue.h"
 
 /* Common flag combinations */
 #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \
