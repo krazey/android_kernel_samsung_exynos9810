@@ -798,7 +798,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		mr = rcu_dereference(dev->dma_mr);
 		if (!mr)
 			goto bail;
-		atomic_inc(&mr->refcount);
+		rvt_get_mr(mr);
 		rcu_read_unlock();
 
 		isge->mr = mr;
@@ -819,7 +819,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		     off + sge->length > mr->length ||
 		     (mr->access_flags & acc) != acc))
 		goto bail;
-	atomic_inc(&mr->refcount);
+	rvt_get_mr(mr);
 	rcu_read_unlock();
 
 	off += mr->offset;
@@ -897,7 +897,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		mr = rcu_dereference(rdi->dma_mr);
 		if (!mr)
 			goto bail;
-		atomic_inc(&mr->refcount);
+		rvt_get_mr(mr);
 		rcu_read_unlock();
 
 		sge->mr = mr;
@@ -918,7 +918,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 	if (unlikely(vaddr < mr->iova || off + len > mr->length ||
 		     (mr->access_flags & acc) == 0))
 		goto bail;
-	atomic_inc(&mr->refcount);
+	rvt_get_mr(mr);
 	rcu_read_unlock();
 
 	off += mr->offset;
