@@ -7845,6 +7845,7 @@ static void *raid45_takeover_raid0(struct mddev *mddev, int level)
 static void *raid5_takeover_raid1(struct mddev *mddev)
 {
 	int chunksect;
+	void *ret;
 
 	if (mddev->raid_disks != 2 ||
 	    mddev->degraded > 1)
@@ -7866,7 +7867,10 @@ static void *raid5_takeover_raid1(struct mddev *mddev)
 	mddev->new_layout = ALGORITHM_LEFT_SYMMETRIC;
 	mddev->new_chunk_sectors = chunksect;
 
-	return setup_conf(mddev);
+	ret = setup_conf(mddev);
+	if (!IS_ERR_VALUE(ret))
+		clear_bit(MD_FAILFAST_SUPPORTED, &mddev->flags);
+	return ret;
 }
 
 static void *raid5_takeover_raid6(struct mddev *mddev)
