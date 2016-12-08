@@ -1166,7 +1166,6 @@ struct hfi1_devdata {
 	/* Used to wait for outstanding user space clients before dev removal */
 	struct completion user_comp;
 
-	struct hfi1_affinity *affinity;
 	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
