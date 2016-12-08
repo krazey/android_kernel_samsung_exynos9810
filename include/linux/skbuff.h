@@ -657,8 +657,14 @@ struct sk_buff {
 		int			ip_defrag_offset;
 	};
 
-	struct net_device	*dev;
-
+	union {
+		struct net_device	*dev;
+		/* Some protocols might use this space to store information,
+		 * while device pointer would be NULL.
+		 * UDP receive path is one user.
+		 */
+		unsigned long		dev_scratch;
+	};
 	/*
 	 * This is the control buffer. It is free to use for every
 	 * layer. Please put your private variables there. If you
