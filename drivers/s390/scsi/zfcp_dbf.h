@@ -432,4 +432,15 @@ static inline void zfcp_dbf_scsi_nullcmnd(struct scsi_cmnd *scmnd,
 	_zfcp_dbf_scsi("scfc__1", 3, scmnd, fsf_req);
 }
 
+/**
+ * zfcp_dbf_scsi_nullcmnd() - trace NULLify of SCSI command in dev/tgt-reset.
+ * @scmnd: SCSI command that was NULLified.
+ * @fsf_req: request that owned @scmnd.
+ */
+static inline void zfcp_dbf_scsi_nullcmnd(struct scsi_cmnd *scmnd,
+					  struct zfcp_fsf_req *fsf_req)
+{
+	_zfcp_dbf_scsi("scfc__1", 3, scmnd, fsf_req);
+}
+
 #endif /* ZFCP_DBF_H */
