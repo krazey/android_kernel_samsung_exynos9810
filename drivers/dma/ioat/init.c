@@ -1087,7 +1087,6 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	struct dma_device *dma;
 	struct dma_chan *c;
 	struct ioatdma_chan *ioat_chan;
-	bool is_raid_device = false;
 	int err;
 	u16 val16;
 
@@ -1111,7 +1110,6 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 		ioat_dma->cap &= ~(IOAT_CAP_XOR|IOAT_CAP_PQ);
 
 	if (ioat_dma->cap & IOAT_CAP_XOR) {
-		is_raid_device = true;
 		dma->max_xor = 8;
 
 		dma_cap_set(DMA_XOR, dma->cap_mask);
@@ -1122,7 +1120,6 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	}
 
 	if (ioat_dma->cap & IOAT_CAP_PQ) {
-		is_raid_device = true;
 
 		dma->device_prep_dma_pq = ioat_prep_pq;
 		dma->device_prep_dma_pq_val = ioat_prep_pq_val;
