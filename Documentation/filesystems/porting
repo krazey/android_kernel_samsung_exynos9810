@@ -603,3 +603,7 @@ in your dentry operations instead.
 	nonwithstanding, failure exits in ->atomic_open() instances should
 	*NOT* fput() the file, no matter what.  Everything is handled by the
 	caller.
+--
+[recommended]
+	->readlink is optional for symlinks.  Don't set, unless filesystem needs
+	to fake something for readlink(2).
