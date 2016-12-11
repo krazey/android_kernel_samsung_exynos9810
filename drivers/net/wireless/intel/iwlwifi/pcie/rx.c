@@ -1635,6 +1635,9 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans->status);
+
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
@@ -1643,7 +1646,6 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,
@@ -1995,6 +1997,9 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans->status);
+
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
@@ -2003,7 +2008,6 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,
