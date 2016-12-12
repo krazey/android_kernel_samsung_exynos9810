@@ -743,7 +743,7 @@ static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 	int nid;
 
 	nid = acpi_get_node(handle);
-	if (nid != -1) {
+	if (nid != NUMA_NO_NODE) {
 		set_apicid_to_node(physid, nid);
 		numa_set_node(cpu, nid);
 	}
