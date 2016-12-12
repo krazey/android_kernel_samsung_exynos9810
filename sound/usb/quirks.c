@@ -1200,6 +1200,18 @@ static bool is_itf_usb_dsd_3alts_dac(unsigned int id)
 	return false;
 }
 
+/* TEAC UD-501/UD-503/NT-503 USB DACs need a vendor cmd to switch
+ * between PCM/DOP and native DSD mode
+ */
+static bool is_teac_50X_dac(unsigned int id)
+{
+	switch (id) {
+	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-503/NT-503 */
+		return true;
+	}
+	return false;
+}
+
 int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt)
 {
@@ -1400,6 +1412,12 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 
 	/* ITF-USB DSD based DACs (3 altsets version) */
 	if (is_itf_usb_dsd_3alts_dac(chip->usb_id)) {
+		if (fp->altsetting == 3)
+			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+	}
+
+	/* TEAC devices with USB DAC functionality */
+	if (is_teac_50X_dac(chip->usb_id)) {
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 	}
