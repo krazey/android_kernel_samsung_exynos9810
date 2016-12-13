@@ -85,6 +85,11 @@
 #define SPI_RSER_RFDFE		BIT(17)
 #define SPI_RSER_RFDFD		BIT(16)
 
+#define SPI_RSER_TFFFE		BIT(25)
+#define SPI_RSER_TFFFD		BIT(24)
+#define SPI_RSER_RFDFE		BIT(17)
+#define SPI_RSER_RFDFD		BIT(16)
+
 #define SPI_RSER		0x30
 #define SPI_RSER_EOQFE		0x10000000
 #define SPI_RSER_TCFQE		0x80000000
@@ -1033,6 +1038,13 @@ static int dspi_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unable to attach DSPI interrupt\n");
 		goto out_clk_put;
+	}
+
+	if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
+		if (dspi_request_dma(dspi, res->start)) {
+			dev_err(&pdev->dev, "can't get dma channels\n");
+			goto out_clk_put;
+		}
 	}
 
 	if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
