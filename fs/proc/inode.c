@@ -139,6 +139,16 @@ static void unuse_pde(struct proc_dir_entry *pde)
 /* pde is locked */
 static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 {
+	/*
+	 * close() (proc_reg_release()) can't delete an entry and proceed:
+	 * ->release hook needs to be available at the right moment.
+	 *
+	 * rmmod (remove_proc_entry() et al) can't delete an entry and proceed:
+	 * "struct file" needs to be available at the right moment.
+	 *
+	 * Therefore, first process to enter this function does ->release() and
+	 * signals its completion to the other process which does nothing.
+	 */
 	if (pdeo->closing) {
 		/* somebody else is doing that, just wait */
 		DECLARE_COMPLETION_ONSTACK(c);
@@ -153,6 +163,7 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		file = pdeo->file;
 		pde->proc_fops->release(file_inode(file), file);
 		spin_lock(&pde->pde_unload_lock);
+		/* After ->release. */
 		list_del(&pdeo->lh);
 		if (pdeo->c)
 			complete(pdeo->c);
@@ -167,6 +178,8 @@ void proc_entry_rundown(struct proc_dir_entry *de)
 	de->pde_unload_completion = &c;
 	if (atomic_add_return(BIAS, &de->in_use) != BIAS)
 		wait_for_completion(&c);
+
+	/* ->pde_openers list can't grow from now on. */
 
 	spin_lock(&de->pde_unload_lock);
 	while (!list_empty(&de->pde_openers)) {
@@ -313,14 +326,15 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	struct pde_opener *pdeo;
 
 	/*
-	 * What for, you ask? Well, we can have open, rmmod, remove_proc_entry
-	 * sequence. ->release won't be called because ->proc_fops will be
-	 * cleared. Depending on complexity of ->release, consequences vary.
+	 * Ensure that
+	 * 1) PDE's ->release hook will be called no matter what
+	 *    either normally by close()/->release, or forcefully by
+	 *    rmmod/remove_proc_entry.
 	 *
-	 * We can't wait for mercy when close will be done for real, it's
-	 * deadlockable: rmmod foo </proc/foo . So, we're going to do ->release
-	 * by hand in remove_proc_entry(). For this, save opener's credentials
-	 * for later.
+	 * 2) rmmod isn't blocked by opening file in /proc and sitting on
+	 *    the descriptor (including "rmmod foo </proc/foo" scenario).
+	 *
+	 * Save every "struct file" with custom ->release hook.
 	 */
 	pdeo = kmalloc(sizeof(struct pde_opener), GFP_KERNEL);
 	if (!pdeo)
@@ -341,7 +355,6 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 		pdeo->file = file;
 		pdeo->closing = false;
 		pdeo->c = NULL;
-		/* Strictly for "too late" ->release in proc_reg_release(). */
 		spin_lock(&pde->pde_unload_lock);
 		list_add(&pdeo->lh, &pde->pde_openers);
 		spin_unlock(&pde->pde_unload_lock);
