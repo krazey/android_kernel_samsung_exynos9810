@@ -255,10 +255,6 @@ static int amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 			       struct ttm_mem_reg *mem,
 			       uint64_t *addr)
 {
-	struct amdgpu_device *adev;
-	struct amdgpu_ring *ring;
-	uint64_t old_start, new_start;
-	struct dma_fence *fence;
 	int r;
 
 	switch (mem->mem_type) {
@@ -290,7 +286,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	struct drm_mm_node *old_mm, *new_mm;
 	uint64_t old_start, old_size, new_start, new_size;
 	unsigned long num_pages;
-	struct fence *fence = NULL;
+	struct dma_fence *fence = NULL;
 	int r;
 
 	BUILD_BUG_ON((PAGE_SIZE % AMDGPU_GPU_PAGE_SIZE) != 0);
@@ -316,7 +312,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	num_pages = new_mem->num_pages;
 	while (num_pages) {
 		unsigned long cur_pages = min(old_size, new_size);
-		struct fence *next;
+		struct dma_fence *next;
 
 		r = amdgpu_copy_buffer(ring, old_start, new_start,
 				       cur_pages * PAGE_SIZE,
@@ -324,7 +320,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 		if (r)
 			goto error;
 
-		fence_put(fence);
+		dma_fence_put(fence);
 		fence = next;
 
 		num_pages -= cur_pages;
@@ -361,8 +357,8 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 error:
 	if (fence)
-		fence_wait(fence, false);
-	fence_put(fence);
+		dma_fence_wait(fence, false);
+	dma_fence_put(fence);
 	return r;
 }
 
@@ -1389,9 +1385,9 @@ error_free:
 }
 
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-		uint32_t src_data,
-		struct reservation_object *resv,
-		struct dma_fence **fence)
+		       uint32_t src_data,
+		       struct reservation_object *resv,
+		       struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
@@ -1515,7 +1511,7 @@ static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
 static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = f->f_inode->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1559,7 +1555,7 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
 				   size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = f->f_inode->i_private;
 	ssize_t result = 0;
 	int r;
 

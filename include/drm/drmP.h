@@ -138,15 +138,6 @@ struct dma_buf_attachment;
 #define DRM_UT_VBL		0x20
 #define DRM_UT_STATE		0x40
 
-extern __printf(6, 7)
-void drm_dev_printk(const struct device *dev, const char *level,
-		    unsigned int category, const char *function_name,
-		    const char *prefix, const char *format, ...);
-
-extern __printf(3, 4)
-void drm_printk(const char *level, unsigned int category,
-		const char *format, ...);
-
 /***********************************************************************/
 /** \name DRM template customization defaults */
 /*@{*/
@@ -369,7 +360,6 @@ struct drm_ioctl_desc {
 /* Event queued up for userspace to read */
 struct drm_pending_event {
 	struct completion *completion;
-	void (*completion_release)(struct completion *completion);
 	struct drm_event *event;
 	struct dma_fence *fence;
 	struct list_head link;
@@ -527,7 +517,6 @@ struct drm_device {
 	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
-	bool registered;
 
 	/* currently active master for this device. Protected by master_mutex */
 	struct drm_master *master;
@@ -788,7 +777,6 @@ extern void drm_pci_free(struct drm_device *dev, struct drm_dma_handle * dmah);
 
 			       /* sysfs support (drm_sysfs.c) */
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
-
 
 
 /*@}*/

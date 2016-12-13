@@ -137,7 +137,7 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	void __iomem *hbsc = zplane->hbsc;
 	u32 src_x, src_y, src_w, src_h;
 	u32 dst_x, dst_y, dst_w, dst_h;
-	unsigned int depth, bpp;
+	unsigned int bpp;
 	uint32_t format;
 	dma_addr_t paddr;
 	u32 stride;
@@ -159,7 +159,7 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	dst_w = plane->state->crtc_w;
 	dst_h = plane->state->crtc_h;
 
-	drm_fb_get_bpp_depth(format, &depth, &bpp);
+	bpp = drm_format_plane_cpp(format, 0);
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	paddr = cma_obj->paddr + fb->offsets[0];

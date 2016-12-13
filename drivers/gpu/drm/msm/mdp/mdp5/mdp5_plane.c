@@ -173,6 +173,8 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(state);
 
+	drm_printf(p, "\thwpipe=%s\n", pstate->hwpipe ?
+			pstate->hwpipe->name : "(null)");
 	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->alpha);
@@ -214,10 +216,9 @@ mdp5_plane_duplicate_state(struct drm_plane *plane)
 
 	mdp5_state = kmemdup(to_mdp5_plane_state(plane->state),
 			sizeof(*mdp5_state), GFP_KERNEL);
-	if (!mdp5_state)
-		return NULL;
 
-	__drm_atomic_helper_plane_duplicate_state(plane, &mdp5_state->base);
+	if (mdp5_state && mdp5_state->base.fb)
+		drm_framebuffer_reference(mdp5_state->base.fb);
 
 	mdp5_state->pending = false;
 
@@ -881,7 +882,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary)
 	type = primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
 				 mdp5_plane->formats, mdp5_plane->nformats,
-				 type, "%s", mdp5_plane->name);
+				 type, NULL);
 	if (ret)
 		goto fail;
 

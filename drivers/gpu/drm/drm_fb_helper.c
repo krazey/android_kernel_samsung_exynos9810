@@ -856,9 +856,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!drm_fbdev_emulation)
 		return;
 
-	cancel_work_sync(&fb_helper->resume_work);
-	cancel_work_sync(&fb_helper->dirty_work);
-
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
@@ -1248,7 +1245,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (in_dbg_master())
+	if (var->pixclock != 0 || in_dbg_master())
 		return -EINVAL;
 
 	/*

@@ -158,7 +158,7 @@ nouveau_fence_wait_uevent_handler(struct nvif_notify *notify)
 
 		fence = list_entry(fctx->pending.next, typeof(*fence), head);
 		chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
-		if (nouveau_fence_update(chan, fctx))
+		if (nouveau_fence_update(fence->channel, fctx))
 			ret = NVIF_NOTIFY_DROP;
 	}
 	spin_unlock_irqrestore(&fctx->lock, flags);
@@ -586,5 +586,5 @@ static const struct dma_fence_ops nouveau_fence_ops_uevent = {
 	.enable_signaling = nouveau_fence_enable_signaling,
 	.signaled = nouveau_fence_is_signaled,
 	.wait = dma_fence_default_wait,
-	.release = NULL
+	.release = nouveau_fence_release
 };

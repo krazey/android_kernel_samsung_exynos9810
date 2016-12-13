@@ -26,7 +26,11 @@
 
 #include <linux/hashtable.h>
 
+<<<<<<< HEAD
 struct fence;
+=======
+struct dma_fence;
+>>>>>>> 9439b3710df6 (Merge tag 'drm-for-v4.10' of git://people.freedesktop.org/~airlied/linux)
 struct reservation_object;
 struct amdgpu_device;
 struct amdgpu_ring;
@@ -36,19 +40,33 @@ struct amdgpu_ring;
  */
 struct amdgpu_sync {
 	DECLARE_HASHTABLE(fences, 4);
+<<<<<<< HEAD
 	struct fence	*last_vm_update;
+=======
+	struct dma_fence	*last_vm_update;
+>>>>>>> 9439b3710df6 (Merge tag 'drm-for-v4.10' of git://people.freedesktop.org/~airlied/linux)
 };
 
 void amdgpu_sync_create(struct amdgpu_sync *sync);
 int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+<<<<<<< HEAD
 		      struct fence *f);
+=======
+		      struct dma_fence *f);
+>>>>>>> 9439b3710df6 (Merge tag 'drm-for-v4.10' of git://people.freedesktop.org/~airlied/linux)
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,
 		     void *owner);
+<<<<<<< HEAD
 struct fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 				     struct amdgpu_ring *ring);
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
+=======
+struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
+				     struct amdgpu_ring *ring);
+struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
+>>>>>>> 9439b3710df6 (Merge tag 'drm-for-v4.10' of git://people.freedesktop.org/~airlied/linux)
 void amdgpu_sync_free(struct amdgpu_sync *sync);
 int amdgpu_sync_init(void);
 void amdgpu_sync_fini(void);

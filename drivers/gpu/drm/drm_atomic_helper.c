@@ -362,7 +362,7 @@ mode_fixup(struct drm_atomic_state *state)
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	int i;
-	int ret;
+	bool ret;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!crtc_state->mode_changed &&
@@ -1014,6 +1014,13 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  * drm_atomic_helper_swap_state() so it uses the current plane state (and
  * just uses the atomic state to find the changed planes)
  *
+ * Note that @pre_swap is needed since the point where we block for fences moves
+ * around depending upon whether an atomic commit is blocking or
+ * non-blocking. For async commit all waiting needs to happen after
+ * drm_atomic_helper_swap_state() is called, but for synchronous commits we want
+ * to wait **before** we do anything that can't be easily rolled back. That is
+ * before we call drm_atomic_helper_swap_state().
+ *
  * Returns zero if success or < 0 if dma_fence_wait() fails.
  */
 int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
@@ -1252,10 +1259,8 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	if (!nonblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
-		if (ret) {
-			drm_atomic_helper_cleanup_planes(dev, state);
+		if (ret)
 			return ret;
-		}
 	}
 
 	/*
@@ -1382,15 +1387,6 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	return ret < 0 ? ret : 0;
 }
 
-void release_crtc_commit(struct completion *completion)
-{
-	struct drm_crtc_commit *commit = container_of(completion,
-						      typeof(*commit),
-						      flip_done);
-
-	drm_crtc_commit_put(commit);
-}
-
 /**
  * drm_atomic_helper_setup_commit - setup possibly nonblocking commit
  * @state: new modeset state to be committed
@@ -1483,8 +1479,6 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		}
 
 		crtc_state->event->base.completion = &commit->flip_done;
-		crtc_state->event->base.completion_release = release_crtc_commit;
-		drm_crtc_commit_get(commit);
 	}
 
 	return 0;

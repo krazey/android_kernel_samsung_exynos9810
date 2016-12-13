@@ -31,6 +31,7 @@
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
+#include <linux/sync_file.h>
 
 #include "drm_crtc_internal.h"
 
@@ -434,18 +435,21 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
 					 ssize_t expected_size,
 					 bool *replaced)
 {
-	struct drm_device *dev = crtc->dev;
 	struct drm_property_blob *new_blob = NULL;
 
 	if (blob_id != 0) {
-		new_blob = drm_property_lookup_blob(dev, blob_id);
+		new_blob = drm_property_lookup_blob(crtc->dev, blob_id);
 		if (new_blob == NULL)
 			return -EINVAL;
-		if (expected_size > 0 && expected_size != new_blob->length)
+
+		if (expected_size > 0 && expected_size != new_blob->length) {
+			drm_property_unreference_blob(new_blob);
 			return -EINVAL;
+		}
 	}
 
 	drm_atomic_replace_property_blob(blob, new_blob, replaced);
+	drm_property_unreference_blob(new_blob);
 
 	return 0;
 }
@@ -957,15 +961,16 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	if (state->fb) {
 		struct drm_framebuffer *fb = state->fb;
 		int i, n = drm_format_num_planes(fb->pixel_format);
+		struct drm_format_name_buf format_name;
 
 		drm_printf(p, "\t\tformat=%s\n",
-				drm_get_format_name(fb->pixel_format));
+		              drm_get_format_name(fb->pixel_format, &format_name));
+		drm_printf(p, "\t\t\tmodifier=0x%llx\n", fb->modifier);
 		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
 		drm_printf(p, "\t\tlayers:\n");
 		for (i = 0; i < n; i++) {
 			drm_printf(p, "\t\t\tpitch[%d]=%u\n", i, fb->pitches[i]);
 			drm_printf(p, "\t\t\toffset[%d]=%u\n", i, fb->offsets[i]);
-			drm_printf(p, "\t\t\tmodifier[%d]=0x%llx\n", i, fb->modifier[i]);
 		}
 	}
 	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
@@ -1082,12 +1087,38 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 * now?) atomic writes to DPMS property:
 		 */
 		return -EINVAL;
+	} else if (property == config->tv_select_subconnector_property) {
+		state->tv.subconnector = val;
+	} else if (property == config->tv_left_margin_property) {
+		state->tv.margins.left = val;
+	} else if (property == config->tv_right_margin_property) {
+		state->tv.margins.right = val;
+	} else if (property == config->tv_top_margin_property) {
+		state->tv.margins.top = val;
+	} else if (property == config->tv_bottom_margin_property) {
+		state->tv.margins.bottom = val;
+	} else if (property == config->tv_mode_property) {
+		state->tv.mode = val;
+	} else if (property == config->tv_brightness_property) {
+		state->tv.brightness = val;
+	} else if (property == config->tv_contrast_property) {
+		state->tv.contrast = val;
+	} else if (property == config->tv_flicker_reduction_property) {
+		state->tv.flicker_reduction = val;
+	} else if (property == config->tv_overscan_property) {
+		state->tv.overscan = val;
+	} else if (property == config->tv_saturation_property) {
+		state->tv.saturation = val;
+	} else if (property == config->tv_hue_property) {
+		state->tv.hue = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
 	} else {
 		return -EINVAL;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_connector_set_property);
 
@@ -1130,6 +1161,30 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = (state->crtc) ? state->crtc->base.id : 0;
 	} else if (property == config->dpms_property) {
 		*val = connector->dpms;
+	} else if (property == config->tv_select_subconnector_property) {
+		*val = state->tv.subconnector;
+	} else if (property == config->tv_left_margin_property) {
+		*val = state->tv.margins.left;
+	} else if (property == config->tv_right_margin_property) {
+		*val = state->tv.margins.right;
+	} else if (property == config->tv_top_margin_property) {
+		*val = state->tv.margins.top;
+	} else if (property == config->tv_bottom_margin_property) {
+		*val = state->tv.margins.bottom;
+	} else if (property == config->tv_mode_property) {
+		*val = state->tv.mode;
+	} else if (property == config->tv_brightness_property) {
+		*val = state->tv.brightness;
+	} else if (property == config->tv_contrast_property) {
+		*val = state->tv.contrast;
+	} else if (property == config->tv_flicker_reduction_property) {
+		*val = state->tv.flicker_reduction;
+	} else if (property == config->tv_overscan_property) {
+		*val = state->tv.overscan;
+	} else if (property == config->tv_saturation_property) {
+		*val = state->tv.saturation;
+	} else if (property == config->tv_hue_property) {
+		*val = state->tv.hue;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
@@ -1241,18 +1296,14 @@ void
 drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 			    struct drm_framebuffer *fb)
 {
-	if (plane_state->fb)
-		drm_framebuffer_unreference(plane_state->fb);
-	if (fb)
-		drm_framebuffer_reference(fb);
-	plane_state->fb = fb;
-
 	if (fb)
 		DRM_DEBUG_ATOMIC("Set [FB:%d] for plane state %p\n",
 				 fb->base.id, plane_state);
 	else
 		DRM_DEBUG_ATOMIC("Set [NOFB] for plane state %p\n",
 				 plane_state);
+
+	drm_framebuffer_assign(&plane_state->fb, fb);
 }
 EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
 
@@ -1681,6 +1732,13 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
 			ARRAY_SIZE(drm_atomic_debugfs_list),
 			minor->debugfs_root, minor);
 }
+
+int drm_atomic_debugfs_cleanup(struct drm_minor *minor)
+{
+	return drm_debugfs_remove_files(drm_atomic_debugfs_list,
+					ARRAY_SIZE(drm_atomic_debugfs_list),
+					minor);
+}
 #endif
 
 /*
@@ -1804,19 +1862,57 @@ void drm_atomic_clean_old_fb(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_atomic_clean_old_fb);
 
-static struct dma_fence *get_crtc_fence(struct drm_crtc *crtc)
-{
-	struct dma_fence *fence;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (!fence)
-		return NULL;
-
-	dma_fence_init(fence, &drm_crtc_fence_ops, &crtc->fence_lock,
-		       crtc->fence_context, ++crtc->fence_seqno);
-
-	return fence;
-}
+/**
+ * DOC: explicit fencing properties
+ *
+ * Explicit fencing allows userspace to control the buffer synchronization
+ * between devices. A Fence or a group of fences are transfered to/from
+ * userspace using Sync File fds and there are two DRM properties for that.
+ * IN_FENCE_FD on each DRM Plane to send fences to the kernel and
+ * OUT_FENCE_PTR on each DRM CRTC to receive fences from the kernel.
+ *
+ * As a contrast, with implicit fencing the kernel keeps track of any
+ * ongoing rendering, and automatically ensures that the atomic update waits
+ * for any pending rendering to complete. For shared buffers represented with
+ * a struct &dma_buf this is tracked in &reservation_object structures.
+ * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
+ * whereas explicit fencing is what Android wants.
+ *
+ * "IN_FENCE_FD”:
+ *	Use this property to pass a fence that DRM should wait on before
+ *	proceeding with the Atomic Commit request and show the framebuffer for
+ *	the plane on the screen. The fence can be either a normal fence or a
+ *	merged one, the sync_file framework will handle both cases and use a
+ *	fence_array if a merged fence is received. Passing -1 here means no
+ *	fences to wait on.
+ *
+ *	If the Atomic Commit request has the DRM_MODE_ATOMIC_TEST_ONLY flag
+ *	it will only check if the Sync File is a valid one.
+ *
+ *	On the driver side the fence is stored on the @fence parameter of
+ *	struct &drm_plane_state. Drivers which also support implicit fencing
+ *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
+ *	to make sure there's consistent behaviour between drivers in precedence
+ *	of implicit vs. explicit fencing.
+ *
+ * "OUT_FENCE_PTR”:
+ *	Use this property to pass a file descriptor pointer to DRM. Once the
+ *	Atomic Commit request call returns OUT_FENCE_PTR will be filled with
+ *	the file descriptor number of a Sync File. This Sync File contains the
+ *	CRTC fence that will be signaled when all framebuffers present on the
+ *	Atomic Commit * request for that given CRTC are scanned out on the
+ *	screen.
+ *
+ *	The Atomic Commit request fails if a invalid pointer is passed. If the
+ *	Atomic Commit request fails for any other reason the out fence fd
+ *	returned will be -1. On a Atomic Commit with the
+ *	DRM_MODE_ATOMIC_TEST_ONLY flag the out fence will also be set to -1.
+ *
+ *	Note that out-fences don't have a special interface to drivers and are
+ *	internally represented by a struct &drm_pending_vblank_event in struct
+ *	&drm_crtc_state, which is also used by the nonblocking atomic commit
+ *	helpers and for the DRM event handling for existing userspace.
+ */
 
 struct drm_out_fence_state {
 	s64 __user *out_fence_ptr;
@@ -1899,7 +1995,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 			f[*num_fences].out_fence_ptr = fence_ptr;
 			*fence_state = f;
 
-			fence = get_crtc_fence(crtc);
+			fence = drm_crtc_create_fence(crtc);
 			if (!fence)
 				return -ENOMEM;
 
