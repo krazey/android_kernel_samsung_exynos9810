@@ -1265,6 +1265,7 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 	struct mm_struct *mm;
 	unsigned long addr;
 	pmd_t *pmd, _pmd;
+	bool deposited = false;
 
 	i_mmap_lock_write(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
@@ -1291,6 +1292,20 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 				spinlock_t *ptl = pmd_lock(mm, pmd);
 				/* assume page table is clear */
 				_pmd = pmdp_collapse_flush(vma, addr, pmd);
+				/*
+				 * now deposit the pgtable for arch that need it
+				 * otherwise free it.
+				 */
+				if (arch_needs_pgtable_deposit()) {
+					/*
+					 * The deposit should be visibile only after
+					 * collapse is seen by others.
+					 */
+					smp_wmb();
+					pgtable_trans_huge_deposit(vma->vm_mm, pmd,
+								   pmd_pgtable(_pmd));
+					deposited = true;
+				}
 				spin_unlock(ptl);
 				atomic_long_dec(&mm->nr_ptes);
 				pte_free(mm, pmd_pgtable(_pmd));
