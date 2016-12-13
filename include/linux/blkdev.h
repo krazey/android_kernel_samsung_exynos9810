@@ -426,7 +426,7 @@ struct request_queue {
 	init_rq_fn		*init_rq_fn;
 	exit_rq_fn		*exit_rq_fn;
 
-	struct blk_mq_ops	*mq_ops;
+	const struct blk_mq_ops	*mq_ops;
 
 	unsigned int		*mq_map;
 
