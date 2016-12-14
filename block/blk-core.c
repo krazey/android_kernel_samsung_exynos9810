@@ -1122,22 +1122,6 @@ int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
 }
 
 /**
- * rq_ioc - determine io_context for request allocation
- * @bio: request being allocated is for this bio (can be %NULL)
- *
- * Determine io_context to use for request allocation for @bio.  May return
- * %NULL if %current->io_context doesn't exist.
- */
-static struct io_context *rq_ioc(struct bio *bio)
-{
-#ifdef CONFIG_BLK_CGROUP
-	if (bio && bio->bi_ioc)
-		return bio->bi_ioc;
-#endif
-	return current->io_context;
-}
-
-/**
  * __get_request - get a free request
  * @rl: request list to allocate from
  * @op: operation and flags
