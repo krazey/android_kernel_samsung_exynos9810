@@ -422,7 +422,7 @@ void vmalloc_sync_mappings(void)
 	 * 64-bit mappings might allocate new p4d/pud pages
 	 * that need to be propagated to all tasks' PGDs.
 	 */
-	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END, 0);
+	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
 }
 
 void vmalloc_sync_unmappings(void)
