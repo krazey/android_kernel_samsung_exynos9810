@@ -2047,7 +2047,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
 	struct vm_fault vmf;
 	int ret;
 
-	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
+	vmf.address = address & PAGE_MASK;
 	vmf.pgoff = page->index;
 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
 	vmf.gfp_mask = __get_fault_gfp_mask(vma);
@@ -2283,8 +2283,7 @@ static int wp_pfn_shared(struct vm_fault *vmf, pte_t orig_pte)
 		struct vm_fault vmf2 = {
 			.page = NULL,
 			.pgoff = linear_page_index(vma, vmf->address),
-			.virtual_address =
-				(void __user *)(vmf->address & PAGE_MASK),
+			.address = vmf->address,
 			.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
 		};
 		int ret;
@@ -2843,7 +2842,7 @@ static int __do_fault(struct vm_fault *vmf, pgoff_t pgoff,
 		smp_wmb(); /* See comment in __pte_alloc() */
 	}
 
-	vmf2.virtual_address = (void __user *)(vmf->address & PAGE_MASK);
+	vmf2.address = vmf->address;
 	vmf2.pgoff = pgoff;
 	vmf2.flags = vmf->flags;
 	vmf2.page = NULL;
@@ -3632,7 +3631,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 {
 	struct vm_fault vmf = {
 		.vma = vma,
-		.address = address,
+		.address = address & PAGE_MASK,
 		.flags = flags,
 	};
 	struct mm_struct *mm = vma->vm_mm;
