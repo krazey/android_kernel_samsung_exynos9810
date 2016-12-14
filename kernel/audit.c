@@ -551,11 +551,13 @@ static int kauditd_wake_condition(void)
 	int rc;
 	int pid = audit_pid;
 // [ SEC_SELINUX_PORTING_COMMON
+
 	/* wake on new messages or a change in the connected auditd */
 	rc = skb_queue_len(&audit_queue) || (pid && pid != pid_last);
 	if (rc)
 		pid_last = pid;
 // ] SEC_SELINUX_PORTING_COMMON
+
 	return rc;
 }
 
@@ -1367,6 +1369,8 @@ static int __init audit_init(void)
 	skb_queue_head_init(&audit_retry_queue);
 	skb_queue_head_init(&audit_hold_queue);
 	audit_initialized = AUDIT_INITIALIZED;
+	audit_enabled = audit_default;
+	audit_ever_enabled |= !!audit_default;
 
 	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
 		INIT_LIST_HEAD(&audit_inode_hash[i]);
