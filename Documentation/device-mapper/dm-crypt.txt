@@ -127,6 +127,12 @@ dmsetup create crypt2 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha
 
 [[
 #!/bin/sh
+# Create a crypt device using dmsetup when encryption key is stored in keyring service
+dmsetup create crypt2 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 :32:logon:my_prefix:my_key 0 $1 0"
+]]
+
+[[
+#!/bin/sh
 # Create a crypt device using cryptsetup and LUKS header with default cipher
 cryptsetup luksFormat $1
 cryptsetup luksOpen $1 crypt1
