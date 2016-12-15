@@ -5171,6 +5171,12 @@ S:	Maintained
 F:	drivers/soc/fsl/
 F:	include/linux/fsl/
 
+FREESCALE QORIQ DPAA ETHERNET DRIVER
+M:	Madalin Bucur <madalin.bucur@nxp.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/freescale/dpaa
+
 FREESCALE QUICC ENGINE LIBRARY
 M:	Qiang Zhao <qiang.zhao@nxp.com>
 L:	linuxppc-dev@lists.ozlabs.org
