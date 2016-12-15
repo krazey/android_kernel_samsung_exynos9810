@@ -93,6 +93,7 @@ enum {
 	Opt_multiuser, Opt_sloppy, Opt_nosharesock,
 	Opt_persistent, Opt_nopersistent,
 	Opt_resilient, Opt_noresilient,
+	Opt_domainauto,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -182,6 +183,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_nopersistent, "nopersistenthandles"},
 	{ Opt_resilient, "resilienthandles"},
 	{ Opt_noresilient, "noresilienthandles"},
+	{ Opt_domainauto, "domainauto"},
 
 	{ Opt_backupuid, "backupuid=%s" },
 	{ Opt_backupgid, "backupgid=%s" },
@@ -1585,6 +1587,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_noresilient:
 			vol->resilient = false; /* already the default */
 			break;
+		case Opt_domainauto:
+			vol->domainauto = true;
+			break;
 
 		/* Numeric Values */
 		case Opt_backupuid:
@@ -2681,6 +2686,8 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		if (!ses->domainName)
 			goto get_ses_fail;
 	}
+	if (volume_info->domainauto)
+		ses->domainAuto = volume_info->domainauto;
 	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
 
