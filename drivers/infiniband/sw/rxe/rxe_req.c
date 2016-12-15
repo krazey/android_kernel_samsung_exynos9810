@@ -708,6 +708,7 @@ next_wqe:
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 			__rxe_do_task(&qp->comp.task);
+			rxe_drop_ref(qp);
 			return 0;
 		}
 		payload = mtu;
@@ -767,8 +768,6 @@ err:
 	 */
 	wqe->wr.send_flags |= IB_SEND_SIGNALED;
 	__rxe_do_task(&qp->comp.task);
-	return -EAGAIN;
-
 exit:
 	rxe_drop_ref(qp);
 	return -EAGAIN;
