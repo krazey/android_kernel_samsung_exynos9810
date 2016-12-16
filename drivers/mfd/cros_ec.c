@@ -169,6 +169,7 @@ int cros_ec_suspend(struct cros_ec_device *ec_dev)
 
 	disable_irq(ec_dev->irq);
 	ec_dev->was_wake_device = ec_dev->wake_enabled;
+	ec_dev->suspended = true;
 
 	return 0;
 }
@@ -183,6 +184,7 @@ static void cros_ec_drain_events(struct cros_ec_device *ec_dev)
 
 int cros_ec_resume(struct cros_ec_device *ec_dev)
 {
+	ec_dev->suspended = false;
 	enable_irq(ec_dev->irq);
 
 	/*
