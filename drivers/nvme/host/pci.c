@@ -1916,10 +1916,10 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	if (!dev->bar)
 		goto release;
 
-       return 0;
+	return 0;
   release:
-       pci_release_mem_regions(pdev);
-       return -ENODEV;
+	pci_release_mem_regions(pdev);
+	return -ENODEV;
 }
 
 static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
