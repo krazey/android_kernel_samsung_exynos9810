@@ -291,11 +291,14 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 			goto out_err;
 		}
 
+		if (sctp_bind_addr_state(bp, &addr) != -1)
+			goto next;
 		retval = sctp_add_bind_addr(bp, &addr, sizeof(addr),
 					    SCTP_ADDR_SRC, gfp);
 		if (retval)
 			goto out_err;
 
+next:
 		len = ntohs(param->length);
 		addrs_len -= len;
 		raw_addr_list += len;
