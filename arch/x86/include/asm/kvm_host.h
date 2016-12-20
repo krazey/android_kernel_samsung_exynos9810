@@ -833,6 +833,7 @@ struct kvm_vm_stat {
 	ulong remote_tlb_flush;
 	ulong lpages;
 	ulong nx_lpage_splits;
+	ulong max_mmu_page_hash_collisions;
 };
 
 struct kvm_vcpu_stat {
