@@ -2194,6 +2194,7 @@ static int validate_set(const struct nlattr *a,
 	case OVS_KEY_ATTR_ETHERNET:
 		if (mac_proto != MAC_PROTO_ETHERNET)
 			return -EINVAL;
+		break;
 
 	case OVS_KEY_ATTR_TUNNEL:
 		if (masked)
