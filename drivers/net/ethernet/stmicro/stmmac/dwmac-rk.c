@@ -862,6 +862,10 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	int ret;
 	struct device *dev = &bsp_priv->pdev->dev;
 
+	ret = gmac_clk_enable(bsp_priv, true);
+	if (ret)
+		return ret;
+
 	/*rmii or rgmii*/
 	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII) {
 		dev_info(dev, "init for RGMII\n");
@@ -879,10 +883,6 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 		gmac_clk_enable(bsp_priv, false);
 		return ret;
 	}
-
-	ret = gmac_clk_enable(bsp_priv, true);
-	if (ret)
-		return ret;
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
