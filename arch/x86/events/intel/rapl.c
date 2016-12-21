@@ -793,7 +793,7 @@ static int __init rapl_pmu_init(void)
 	 */
 
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_RAPL_ONLINE,
-				"AP_PERF_X86_RAPL_ONLINE",
+				"perf/x86/rapl:online",
 				rapl_cpu_online, rapl_cpu_offline);
 	if (ret)
 		goto out;
