@@ -1345,9 +1345,16 @@ EXPORT_SYMBOL_GPL(gether_set_dev_addr);
 int gether_get_dev_addr(struct net_device *net, char *dev_addr, int len)
 {
 	struct eth_dev *dev;
+	int ret;
 
 	dev = netdev_priv(net);
-	return get_ether_addr_str(dev->dev_mac, dev_addr, len);
+	ret = get_ether_addr_str(dev->dev_mac, dev_addr, len);
+	if (ret + 1 < len) {
+		dev_addr[ret++] = '\n';
+		dev_addr[ret] = '\0';
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gether_get_dev_addr);
 
@@ -1367,9 +1374,16 @@ EXPORT_SYMBOL_GPL(gether_set_host_addr);
 int gether_get_host_addr(struct net_device *net, char *host_addr, int len)
 {
 	struct eth_dev *dev;
+	int ret;
 
 	dev = netdev_priv(net);
-	return get_ether_addr_str(dev->host_mac, host_addr, len);
+	ret = get_ether_addr_str(dev->host_mac, host_addr, len);
+	if (ret + 1 < len) {
+		host_addr[ret++] = '\n';
+		host_addr[ret] = '\0';
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gether_get_host_addr);
 
@@ -1416,10 +1430,12 @@ EXPORT_SYMBOL_GPL(gether_get_qmult);
 
 int gether_get_ifname(struct net_device *net, char *name, int len)
 {
+	int ret;
+
 	rtnl_lock();
-	strlcpy(name, netdev_name(net), len);
+	ret = snprintf(name, len, "%s\n", netdev_name(net));
 	rtnl_unlock();
-	return strlen(name);
+	return ret < len ? ret : len;
 }
 EXPORT_SYMBOL_GPL(gether_get_ifname);
 
