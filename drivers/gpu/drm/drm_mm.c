@@ -93,12 +93,12 @@
 
 static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 						u64 size,
-						unsigned alignment,
+						u64 alignment,
 						unsigned long color,
 						enum drm_mm_search_flags flags);
 static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
 						u64 size,
-						unsigned alignment,
+						u64 alignment,
 						unsigned long color,
 						u64 start,
 						u64 end,
@@ -227,7 +227,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 
 static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 				 struct drm_mm_node *node,
-				 u64 size, unsigned alignment,
+				 u64 size, u64 alignment,
 				 unsigned long color,
 				 enum drm_mm_allocator_flags flags)
 {
@@ -246,10 +246,9 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 		adj_start = adj_end - size;
 
 	if (alignment) {
-		u64 tmp = adj_start;
-		unsigned rem;
+		u64 rem;
 
-		rem = do_div(tmp, alignment);
+		div64_u64_rem(adj_start, alignment, &rem);
 		if (rem) {
 			if (flags & DRM_MM_CREATE_TOP)
 				adj_start -= rem;
@@ -376,7 +375,7 @@ EXPORT_SYMBOL(drm_mm_reserve_node);
  * 0 on success, -ENOSPC if there's no suitable hole.
  */
 int drm_mm_insert_node_generic(struct drm_mm *mm, struct drm_mm_node *node,
-			       u64 size, unsigned alignment,
+			       u64 size, u64 alignment,
 			       unsigned long color,
 			       enum drm_mm_search_flags sflags,
 			       enum drm_mm_allocator_flags aflags)
@@ -398,7 +397,7 @@ EXPORT_SYMBOL(drm_mm_insert_node_generic);
 
 static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 				       struct drm_mm_node *node,
-				       u64 size, unsigned alignment,
+				       u64 size, u64 alignment,
 				       unsigned long color,
 				       u64 start, u64 end,
 				       enum drm_mm_allocator_flags flags)
@@ -421,10 +420,9 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 		adj_start = adj_end - size;
 
 	if (alignment) {
-		u64 tmp = adj_start;
-		unsigned rem;
+		u64 rem;
 
-		rem = do_div(tmp, alignment);
+		div64_u64_rem(adj_start, alignment, &rem);
 		if (rem) {
 			if (flags & DRM_MM_CREATE_TOP)
 				adj_start -= rem;
@@ -480,7 +478,7 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
  * 0 on success, -ENOSPC if there's no suitable hole.
  */
 int drm_mm_insert_node_in_range_generic(struct drm_mm *mm, struct drm_mm_node *node,
-					u64 size, unsigned alignment,
+					u64 size, u64 alignment,
 					unsigned long color,
 					u64 start, u64 end,
 					enum drm_mm_search_flags sflags,
@@ -546,16 +544,15 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 }
 EXPORT_SYMBOL(drm_mm_remove_node);
 
-static int check_free_hole(u64 start, u64 end, u64 size, unsigned alignment)
+static int check_free_hole(u64 start, u64 end, u64 size, u64 alignment)
 {
 	if (end - start < size)
 		return 0;
 
 	if (alignment) {
-		u64 tmp = start;
-		unsigned rem;
+		u64 rem;
 
-		rem = do_div(tmp, alignment);
+		div64_u64_rem(start, alignment, &rem);
 		if (rem)
 			start += alignment - rem;
 	}
@@ -565,7 +562,7 @@ static int check_free_hole(u64 start, u64 end, u64 size, unsigned alignment)
 
 static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 						      u64 size,
-						      unsigned alignment,
+						      u64 alignment,
 						      unsigned long color,
 						      enum drm_mm_search_flags flags)
 {
@@ -607,7 +604,7 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 
 static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
 							u64 size,
-							unsigned alignment,
+							u64 alignment,
 							unsigned long color,
 							u64 start,
 							u64 end,
@@ -725,7 +722,7 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  */
 void drm_mm_init_scan(struct drm_mm *mm,
 		      u64 size,
-		      unsigned alignment,
+		      u64 alignment,
 		      unsigned long color)
 {
 	mm->scan_color = color;
@@ -758,7 +755,7 @@ EXPORT_SYMBOL(drm_mm_init_scan);
  */
 void drm_mm_init_scan_with_range(struct drm_mm *mm,
 				 u64 size,
-				 unsigned alignment,
+				 u64 alignment,
 				 unsigned long color,
 				 u64 start,
 				 u64 end)
