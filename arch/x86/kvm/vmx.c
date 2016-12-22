@@ -7497,9 +7497,6 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMON, NULL))
-		return 1;
-
 	if (vmx->nested.vmxon) {
 		nested_vmx_failValid(vcpu, VMXERR_VMXON_IN_VMX_ROOT_OPERATION);
 		skip_emulated_instruction(vcpu);
@@ -7515,6 +7512,9 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	r = alloc_loaded_vmcs(&vmx->nested.vmcs02);
 	if (r < 0)
 		goto out_vmcs02;
+
+	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMON, NULL))
+		return 1;
 
 	vmx->nested.cached_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
 	if (!vmx->nested.cached_vmcs12)
