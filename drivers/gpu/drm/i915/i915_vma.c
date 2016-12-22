@@ -332,12 +332,12 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
 	GEM_BUG_ON(!drm_mm_node_allocated(node));
 	GEM_BUG_ON(list_empty(&node->node_list));
 
-	other = list_prev_entry(node, node_list);
-	if (color_differs(other, cache_level) && !other->hole_follows)
+	other = list_entry(gtt_space->node_list.prev, struct drm_mm_node, node_list);
+	if (other->allocated && !drm_mm_hole_follows(other) && other->color != cache_level)
 		return false;
 
-	other = list_next_entry(node, node_list);
-	if (color_differs(other, cache_level) && !node->hole_follows)
+	other = list_entry(gtt_space->node_list.next, struct drm_mm_node, node_list);
+	if (other->allocated && !drm_mm_hole_follows(gtt_space) && other->color != cache_level)
 		return false;
 
 	return true;
