@@ -454,8 +454,7 @@ int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt, struct sk_buff *skb)
 		return -EAGAIN;
 	}
 
-	if (pkt->qp)
-		atomic_inc(&pkt->qp->skb_out);
+	atomic_inc(&pkt->qp->skb_out);
 	kfree_skb(skb);
 
 	return 0;
