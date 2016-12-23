@@ -1200,6 +1200,28 @@ static inline int ufshcd_is_hba_active(struct ufs_hba *hba)
 	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & 0x1) ? 0 : 1;
 }
 
+static const char *ufschd_uic_link_state_to_string(
+			enum uic_link_state state)
+{
+	switch (state) {
+	case UIC_LINK_OFF_STATE:	return "OFF";
+	case UIC_LINK_ACTIVE_STATE:	return "ACTIVE";
+	case UIC_LINK_HIBERN8_STATE:	return "HIBERN8";
+	default:			return "UNKNOWN";
+	}
+}
+
+static const char *ufschd_ufs_dev_pwr_mode_to_string(
+			enum ufs_dev_pwr_mode state)
+{
+	switch (state) {
+	case UFS_ACTIVE_PWR_MODE:	return "ACTIVE";
+	case UFS_SLEEP_PWR_MODE:	return "SLEEP";
+	case UFS_POWERDOWN_PWR_MODE:	return "POWERDOWN";
+	default:			return "UNKNOWN";
+	}
+}
+
 u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba)
 {
 	/* HCI version 1.0 and 1.1 supports UniPro 1.41 */
@@ -8850,6 +8872,127 @@ int ufshcd_runtime_idle(struct ufs_hba *hba)
 }
 EXPORT_SYMBOL(ufshcd_runtime_idle);
 
+static inline ssize_t ufshcd_pm_lvl_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count,
+					   bool rpm)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	unsigned long flags, value;
+
+	if (kstrtoul(buf, 0, &value))
+		return -EINVAL;
+
+	if ((value < UFS_PM_LVL_0) || (value >= UFS_PM_LVL_MAX))
+		return -EINVAL;
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	if (rpm)
+		hba->rpm_lvl = value;
+	else
+		hba->spm_lvl = value;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	return count;
+}
+
+static ssize_t ufshcd_rpm_lvl_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	int curr_len;
+	u8 lvl;
+
+	curr_len = snprintf(buf, PAGE_SIZE,
+			    "\nCurrent Runtime PM level [%d] => dev_state [%s] link_state [%s]\n",
+			    hba->rpm_lvl,
+			    ufschd_ufs_dev_pwr_mode_to_string(
+				ufs_pm_lvl_states[hba->rpm_lvl].dev_state),
+			    ufschd_uic_link_state_to_string(
+				ufs_pm_lvl_states[hba->rpm_lvl].link_state));
+
+	curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
+			     "\nAll available Runtime PM levels info:\n");
+	for (lvl = UFS_PM_LVL_0; lvl < UFS_PM_LVL_MAX; lvl++)
+		curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
+				     "\tRuntime PM level [%d] => dev_state [%s] link_state [%s]\n",
+				    lvl,
+				    ufschd_ufs_dev_pwr_mode_to_string(
+					ufs_pm_lvl_states[lvl].dev_state),
+				    ufschd_uic_link_state_to_string(
+					ufs_pm_lvl_states[lvl].link_state));
+
+	return curr_len;
+}
+
+static ssize_t ufshcd_rpm_lvl_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	return ufshcd_pm_lvl_store(dev, attr, buf, count, true);
+}
+
+static void ufshcd_add_rpm_lvl_sysfs_nodes(struct ufs_hba *hba)
+{
+	hba->rpm_lvl_attr.show = ufshcd_rpm_lvl_show;
+	hba->rpm_lvl_attr.store = ufshcd_rpm_lvl_store;
+	sysfs_attr_init(&hba->rpm_lvl_attr.attr);
+	hba->rpm_lvl_attr.attr.name = "rpm_lvl";
+	hba->rpm_lvl_attr.attr.mode = 0644;
+	if (device_create_file(hba->dev, &hba->rpm_lvl_attr))
+		dev_err(hba->dev, "Failed to create sysfs for rpm_lvl\n");
+}
+
+static ssize_t ufshcd_spm_lvl_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	int curr_len;
+	u8 lvl;
+
+	curr_len = snprintf(buf, PAGE_SIZE,
+			    "\nCurrent System PM level [%d] => dev_state [%s] link_state [%s]\n",
+			    hba->spm_lvl,
+			    ufschd_ufs_dev_pwr_mode_to_string(
+				ufs_pm_lvl_states[hba->spm_lvl].dev_state),
+			    ufschd_uic_link_state_to_string(
+				ufs_pm_lvl_states[hba->spm_lvl].link_state));
+
+	curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
+			     "\nAll available System PM levels info:\n");
+	for (lvl = UFS_PM_LVL_0; lvl < UFS_PM_LVL_MAX; lvl++)
+		curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
+				     "\tSystem PM level [%d] => dev_state [%s] link_state [%s]\n",
+				    lvl,
+				    ufschd_ufs_dev_pwr_mode_to_string(
+					ufs_pm_lvl_states[lvl].dev_state),
+				    ufschd_uic_link_state_to_string(
+					ufs_pm_lvl_states[lvl].link_state));
+
+	return curr_len;
+}
+
+static ssize_t ufshcd_spm_lvl_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	return ufshcd_pm_lvl_store(dev, attr, buf, count, false);
+}
+
+static void ufshcd_add_spm_lvl_sysfs_nodes(struct ufs_hba *hba)
+{
+	hba->spm_lvl_attr.show = ufshcd_spm_lvl_show;
+	hba->spm_lvl_attr.store = ufshcd_spm_lvl_store;
+	sysfs_attr_init(&hba->spm_lvl_attr.attr);
+	hba->spm_lvl_attr.attr.name = "spm_lvl";
+	hba->spm_lvl_attr.attr.mode = 0644;
+	if (device_create_file(hba->dev, &hba->spm_lvl_attr))
+		dev_err(hba->dev, "Failed to create sysfs for spm_lvl\n");
+}
+
+static inline void ufshcd_add_sysfs_nodes(struct ufs_hba *hba)
+{
+	ufshcd_add_rpm_lvl_sysfs_nodes(hba);
+	ufshcd_add_spm_lvl_sysfs_nodes(hba);
+}
+
 /**
  * ufshcd_shutdown - shutdown routine
  * @hba: per adapter instance
@@ -8994,216 +9137,6 @@ static int ufshcd_set_dma_mask(struct ufs_hba *hba)
 			return 0;
 	}
 	return dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(32));
-}
-
-static ssize_t ufshcd_unique_number_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host *host = container_of(dev, struct Scsi_Host, shost_dev);
-	struct ufs_hba *hba = shost_priv(host);
-	int curr_len;
-
-	curr_len = snprintf(buf, PAGE_SIZE, "%s\n", hba->unique_number);
-
-	return curr_len;
-}
-
-static void ufshcd_add_unique_number_sysfs_nodes(struct ufs_hba *hba)
-{
-	struct device *dev = &(hba->host->shost_dev);
-
-	hba->unique_number_attr.show = ufshcd_unique_number_show;
-	hba->unique_number_attr.store = NULL;
-	sysfs_attr_init(&hba->unique_number_attr.attr);
-	hba->unique_number_attr.attr.name = "unique_number";
-	hba->unique_number_attr.attr.mode = S_IRUSR|S_IRGRP;
-	if (device_create_file(dev, &hba->unique_number_attr))
-		dev_err(hba->dev, "Failed to create sysfs for unique_number\n");
-}
-
-static ssize_t ufshcd_manufacturer_id_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host *host = container_of(dev, struct Scsi_Host, shost_dev);
-	struct ufs_hba *hba = shost_priv(host);
-	int curr_len;
-
-	curr_len = snprintf(buf, PAGE_SIZE, "%04x\n", hba->manufacturer_id);
-
-	return curr_len;
-}
-
-static void ufshcd_add_manufacturer_id_sysfs_nodes(struct ufs_hba *hba)
-{
-	struct device *dev = &(hba->host->shost_dev);
-
-	hba->manufacturer_id_attr.show = ufshcd_manufacturer_id_show;
-	hba->manufacturer_id_attr.store = NULL;
-	sysfs_attr_init(&hba->manufacturer_id_attr.attr);
-	hba->manufacturer_id_attr.attr.name = "man_id";
-	hba->manufacturer_id_attr.attr.mode = S_IRUGO;
-	if (device_create_file(dev, &hba->manufacturer_id_attr))
-		dev_err(hba->dev, "Failed to create sysfs for manufacturer_id\n");
-}
-
-#if defined(SEC_UFS_ERROR_COUNT)
-#define SEC_UFS_DATA_ATTR(name, fmt, args...)								\
-static ssize_t SEC_UFS_##name##_show(struct device *dev, struct device_attribute *attr, char *buf)	\
-{													\
-	struct Scsi_Host *Shost = container_of(dev, struct Scsi_Host, shost_dev);			\
-	struct ufs_hba *hba = shost_priv(Shost);							\
-	struct SEC_UFS_counting *err_info = &(hba->SEC_err_info);					\
-	return sprintf(buf, fmt, args);									\
-}													\
-static DEVICE_ATTR(name, (S_IRUGO|S_IWUSR|S_IWGRP), SEC_UFS_##name##_show, NULL)
-
-SEC_UFS_DATA_ATTR(SEC_UFS_op_cnt, "\"HWRESET\":\"%u\",\"LINKFAIL\":\"%u\",\"H8ENTERFAIL\":\"%u\",\"H8EXITFAIL\":\"%u\"\n",
-		err_info->op_count.HW_RESET_count, err_info->op_count.link_startup_count,
-		err_info->op_count.Hibern8_enter_count, err_info->op_count.Hibern8_exit_count);
-
-SEC_UFS_DATA_ATTR(SEC_UFS_uic_cmd_cnt, "\"TESTMODE\":\"%d\",\"DME_GET\":\"%d\",\"DME_SET\":\"%d\""
-		",\"DME_PGET\":\"%d\",\"DME_PSET\":\"%d\",\"PWRON\":\"%d\",\"PWROFF\":\"%d\""
-		",\"DME_EN\":\"%d\",\"DME_RST\":\"%d\",\"EPRST\":\"%d\",\"LINKSTARTUP\":\"%d\""
-		",\"H8ENTER\":\"%d\",\"H8EXIT\":\"%d\"\n",
-		err_info->UIC_cmd_count.DME_TEST_MODE_err,	// TEST_MODE
-		err_info->UIC_cmd_count.DME_GET_err,		// DME_GET
-		err_info->UIC_cmd_count.DME_SET_err,		// DME_SET
-		err_info->UIC_cmd_count.DME_PEER_GET_err,	// DME_PEER_GET
-		err_info->UIC_cmd_count.DME_PEER_SET_err,	// DME_PEER_SET
-		err_info->UIC_cmd_count.DME_POWERON_err,	// DME_POWERON
-		err_info->UIC_cmd_count.DME_POWEROFF_err,	// DME_POWEROFF
-		err_info->UIC_cmd_count.DME_ENABLE_err,		// DME_ENABLE
-		err_info->UIC_cmd_count.DME_RESET_err,		// DME_RESET
-		err_info->UIC_cmd_count.DME_END_PT_RST_err,	// DME_END_PT_RST
-		err_info->UIC_cmd_count.DME_LINK_STARTUP_err,	// DME_LINK_STARTUP
-		err_info->UIC_cmd_count.DME_HIBER_ENTER_err,	// DME_HIBERN8_ENTER
-		err_info->UIC_cmd_count.DME_HIBER_EXIT_err);	// DME_HIBERN8_EXIT
-
-SEC_UFS_DATA_ATTR(SEC_UFS_uic_err_cnt, "\"PAERR\":\"%d\",\"DLPAINITERROR\":\"%d\",\"DLNAC\":\"%d\""
-		",\"DLTCREPLAY\":\"%d\",\"NLERR\":\"%d\",\"TLERR\":\"%d\",\"DMEERR\":\"%d\"\n",
-		err_info->UIC_err_count.PA_ERR_cnt,			// PA_ERR
-		err_info->UIC_err_count.DL_PA_INIT_ERROR_cnt,		// DL_PA_INIT_ERROR
-		err_info->UIC_err_count.DL_NAC_RECEIVED_ERROR_cnt,	// DL_NAC_RECEIVED
-		err_info->UIC_err_count.DL_TC_REPLAY_ERROR_cnt,		// DL_TCx_REPLAY_ERROR
-		err_info->UIC_err_count.NL_ERROR_cnt,			// NL_ERROR
-		err_info->UIC_err_count.TL_ERROR_cnt,			// TL_ERROR
-		err_info->UIC_err_count.DME_ERROR_cnt);			// DME_ERROR
-
-SEC_UFS_DATA_ATTR(SEC_UFS_fatal_cnt, "\"DFE\":\"%d\",\"CFE\":\"%d\",\"SBFE\":\"%d\""
-		",\"CEFE\":\"%d\",\"LLE\":\"%d\"\n",
-		err_info->Fatal_err_count.DFE,		// Device_Fatal
-		err_info->Fatal_err_count.CFE,		// Controller_Fatal
-		err_info->Fatal_err_count.SBFE,		// System_Bus_Fatal
-		err_info->Fatal_err_count.CEFE,		// Crypto_Engine_Fatal
-		err_info->Fatal_err_count.LLE);		// Link_Lost
-
-SEC_UFS_DATA_ATTR(SEC_UFS_utp_cnt, "\"UTMRQTASK\":\"%d\",\"UTMRATASK\":\"%d\",\"UTRR\":\"%d\""
-		",\"UTRW\":\"%d\",\"UTRSYNCCACHE\":\"%d\",\"UTRUNMAP\":\"%d\",\"UTRETC\":\"%d\"\n",
-		err_info->UTP_count.UTMR_query_task_count,	// QUERY_TASK
-		err_info->UTP_count.UTMR_abort_task_count,	// ABORT_TASK
-		err_info->UTP_count.UTR_read_err,		// READ_10
-		err_info->UTP_count.UTR_write_err,		// WRITE_10
-		err_info->UTP_count.UTR_sync_cache_err,		// SYNC_CACHE
-		err_info->UTP_count.UTR_unmap_err,		// UNMAP
-		err_info->UTP_count.UTR_etc_err);		// etc
-
-SEC_UFS_DATA_ATTR(SEC_UFS_query_cnt, "\"NOPERR\":\"%d\",\"R_DESC\":\"%d\",\"W_DESC\":\"%d\""
-		",\"R_ATTR\":\"%d\",\"W_ATTR\":\"%d\",\"R_FLAG\":\"%d\",\"S_FLAG\":\"%d\""
-		",\"C_FLAG\":\"%d\",\"T_FLAG\":\"%d\"\n",
-		err_info->query_count.NOP_err,
-		err_info->query_count.R_Desc_err,		// R_Desc
-		err_info->query_count.W_Desc_err,	// W_Desc
-		err_info->query_count.R_Attr_err,	// R_Attr
-		err_info->query_count.W_Attr_err,	// W_Attr
-		err_info->query_count.R_Flag_err,	// R_Flag
-		err_info->query_count.Set_Flag_err,	// Set_Flag
-		err_info->query_count.Clear_Flag_err,	// Clear_Flag
-		err_info->query_count.Toggle_Flag_err);	// Toggle_Flag
-
-SEC_UFS_DATA_ATTR(SEC_UFS_err_sum, "\"OPERR\":\"%d\",\"UICCMD\":\"%d\",\"UICERR\":\"%d\""
-		",\"FATALERR\":\"%d\",\"UTPERR\":\"%d\",\"QUERYERR\":\"%d\"\n",
-		err_info->op_count.op_err,
-		err_info->UIC_cmd_count.UIC_cmd_err,
-		err_info->UIC_err_count.UIC_err,
-		err_info->Fatal_err_count.Fatal_err,
-		err_info->UTP_count.UTP_err,
-		err_info->query_count.Query_err);
-#endif
-
-UFS_DEV_ATTR(lt,  "%01x", hba->lifetime);
-UFS_DEV_ATTR(sense_err_count, "\"MEDIUM\":\"%d\",\"HWERR\":\"%d\"\n",
-						hba->host->medium_err_cnt, hba->host->hw_err_cnt); 
-UFS_DEV_ATTR(sense_err_logging, "\"LBA0\":\"%lx\",\"LBA1\":\"%lx\",\"LBA2\":\"%lx\""
-		",\"LBA3\":\"%lx\",\"LBA4\":\"%lx\",\"LBA5\":\"%lx\""
-		",\"LBA6\":\"%lx\",\"LBA7\":\"%lx\",\"LBA8\":\"%lx\",\"LBA9\":\"%lx\""
-		",\"REGIONMAP\":\"%016llx\"\n",
-		hba->host->issue_LBA_list[0], hba->host->issue_LBA_list[1]
-		, hba->host->issue_LBA_list[2], hba->host->issue_LBA_list[3]
-		, hba->host->issue_LBA_list[4], hba->host->issue_LBA_list[5]
-		, hba->host->issue_LBA_list[6], hba->host->issue_LBA_list[7]
-		, hba->host->issue_LBA_list[8], hba->host->issue_LBA_list[9]
-		, hba->host->issue_region_map);
-
-static ssize_t ufs_lc_info_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host *host = container_of(dev, struct Scsi_Host, shost_dev);
-	struct ufs_hba *hba = shost_priv(host);
-	return sprintf(buf, "%u\n", hba->lc_info);
-}
-
-static ssize_t ufs_lc_info_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct Scsi_Host *host = container_of(dev, struct Scsi_Host, shost_dev);
-	struct ufs_hba *hba = shost_priv(host);
-	unsigned int value;
-
-	if (kstrtou32(buf, 0, &value))
-		return -EINVAL;
-
-	hba->lc_info = value;
-
-	return count;
-}
-
-static DEVICE_ATTR(lc, 0664, ufs_lc_info_show, ufs_lc_info_store);
-
-static struct attribute *ufs_attributes[] = {
-	&dev_attr_lt.attr,
-	&dev_attr_sense_err_count.attr,
-	&dev_attr_lc.attr,
-	&dev_attr_sense_err_logging.attr,
-#if defined(SEC_UFS_ERROR_COUNT)
-	&dev_attr_SEC_UFS_op_cnt.attr,
-	&dev_attr_SEC_UFS_uic_cmd_cnt.attr,
-	&dev_attr_SEC_UFS_uic_err_cnt.attr,
-	&dev_attr_SEC_UFS_fatal_cnt.attr,
-	&dev_attr_SEC_UFS_utp_cnt.attr,
-	&dev_attr_SEC_UFS_query_cnt.attr,
-	&dev_attr_SEC_UFS_err_sum.attr,
-#endif
-	NULL
-};
-static struct attribute_group ufs_attribute_group = {
-	.attrs	= ufs_attributes,
-};
-
-static void ufshcd_add_lt_sysfs_node(struct ufs_hba *hba)
-{
-	int err  = -ENOMEM;
-
-	struct device *dev = &(hba->host->shost_dev);
-	err = sysfs_create_group(&dev->kobj, &ufs_attribute_group);
-
-	if (err)
-		printk("cannot create sysfs group err: %d\n", err);
-}
-
-static inline void ufshcd_add_sysfs_nodes(struct ufs_hba *hba)
-{
-	ufshcd_add_unique_number_sysfs_nodes(hba);
-	ufshcd_add_lt_sysfs_node(hba);
-	ufshcd_add_manufacturer_id_sysfs_nodes(hba);
 }
 
 /**
@@ -9640,6 +9573,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	ufshcd_set_ufs_dev_active(hba);
 
 	async_schedule(ufshcd_async_scan, hba);
+	ufshcd_add_sysfs_nodes(hba);
 
 	/*create sysfs related with ufs*/
 	ufshcd_add_sysfs_nodes(hba);
