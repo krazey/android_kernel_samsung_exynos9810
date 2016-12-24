@@ -360,8 +360,7 @@ static void evtchn_fifo_resume(void)
 		}
 
 		ret = init_control_block(cpu, control_block);
-		if (ret < 0)
-			BUG();
+		BUG_ON(ret < 0);
 	}
 
 	/*
