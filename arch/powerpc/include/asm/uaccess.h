@@ -1,9 +1,6 @@
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
 #include <asm/asm-compat.h>
 #include <asm/processor.h>
 #include <asm/page.h>
@@ -515,8 +512,5 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 #define unsafe_put_user(x, p, e) unsafe_op_wrap(__put_user_allowed(x, p), e)
 #define unsafe_copy_to_user(d, s, l, e) \
 	unsafe_op_wrap(__copy_to_user_inatomic(d, s, l), e)
-
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */
