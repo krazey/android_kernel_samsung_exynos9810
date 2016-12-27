@@ -807,7 +807,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	/* Don't bother reading ds in the access check since we already
 	   know that this came from the user.  Also rely on the fact that
 	   the page at TASK_SIZE is unmapped and so can't be touched anyway. */
-	if (!__access_ok((unsigned long)va, 0, USER_DS))
+	if ((unsigned long)va >= TASK_SIZE)
 		goto give_sigsegv;
 
 	++unaligned[1].count;
@@ -1052,7 +1052,7 @@ give_sigsegv:
 	/* We need to replicate some of the logic in mm/fault.c,
 	   since we don't have access to the fault code in the
 	   exception handling return path.  */
-	if (!__access_ok((unsigned long)va, 0, USER_DS))
+	if ((unsigned long)va >= TASK_SIZE)
 		info.si_code = SEGV_ACCERR;
 	else {
 		struct mm_struct *mm = current->mm;
