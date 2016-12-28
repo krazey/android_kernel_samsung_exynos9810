@@ -263,8 +263,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define FLAG_FORWARD_PROGRESS   (FLAG_ACKED|FLAG_DATA_SACKED)
 #endif
 
-extern struct inet_timewait_death_row tcp_death_row;
-
 /* sysctl variables for tcp */
 extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
