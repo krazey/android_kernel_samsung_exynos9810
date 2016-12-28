@@ -1068,7 +1068,9 @@ static void __exit lane_module_cleanup(void)
 {
 	int i;
 
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("lec", atm_proc_root);
+#endif
 
 	deregister_atm_ioctl(&lane_ioctl_ops);
 
