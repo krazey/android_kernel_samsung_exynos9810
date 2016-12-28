@@ -125,6 +125,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_default_init_rwnd;
 	int sysctl_tcp_tw_reuse;
 	struct inet_timewait_death_row tcp_death_row;
+	int sysctl_max_syn_backlog;
 
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
