@@ -1029,7 +1029,6 @@ static int create_extcon_class(void)
 		if (IS_ERR(extcon_class))
 			return PTR_ERR(extcon_class);
 		extcon_class->dev_groups = extcon_groups;
-
 	}
 
 	return 0;
