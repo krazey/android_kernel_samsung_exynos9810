@@ -1808,6 +1808,7 @@ struct ib_cache {
 	struct ib_pkey_cache  **pkey_cache;
 	struct ib_gid_table   **gid_cache;
 	u8                     *lmc_cache;
+	enum ib_port_state     *port_state_cache;
 };
 
 struct ib_dma_mapping_ops {
