@@ -1158,6 +1158,7 @@ struct i915_psr {
 	bool link_standby;
 	bool y_cord_support;
 	bool colorimetry_support;
+	bool alpm;
 };
 
 enum intel_pch {
