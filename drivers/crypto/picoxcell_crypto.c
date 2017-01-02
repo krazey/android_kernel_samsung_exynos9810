@@ -1814,12 +1814,6 @@ static int spacc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id spacc_id_table[] = {
-	{ "picochip,spacc-ipsec", },
-	{ "picochip,spacc-l2", },
-	{ }
-};
-
 static struct platform_driver spacc_driver = {
 	.probe		= spacc_probe,
 	.remove		= spacc_remove,
@@ -1830,7 +1824,6 @@ static struct platform_driver spacc_driver = {
 #endif /* CONFIG_PM */
 		.of_match_table	= of_match_ptr(spacc_of_id_table),
 	},
-	.id_table	= spacc_id_table,
 };
 
 module_platform_driver(spacc_driver);
