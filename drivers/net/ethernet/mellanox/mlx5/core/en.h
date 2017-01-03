@@ -467,7 +467,6 @@ struct mlx5e_sq {
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
-	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u16                        bf_buf_size;
@@ -481,7 +480,7 @@ struct mlx5e_sq {
 
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
-	struct mlx5_uar            uar;
+	struct mlx5_sq_bfreg	   bfreg;
 	struct mlx5e_channel      *channel;
 	int                        tc;
 	u32                        rate_limit;
@@ -809,7 +808,7 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 				      struct mlx5_wqe_ctrl_seg *ctrl, int bf_sz)
 {
-	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
+	u16 ofst = sq->bf_offset;
 
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
@@ -821,9 +820,9 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 */
 	wmb();
 	if (bf_sz)
-		__iowrite64_copy(sq->uar_map + ofst, ctrl, bf_sz);
+		__iowrite64_copy(sq->bfreg.map + ofst, ctrl, bf_sz);
 	else
-		mlx5_write64((__be32 *)ctrl, sq->uar_map + ofst, NULL);
+		mlx5_write64((__be32 *)ctrl, sq->bfreg.map + ofst, NULL);
 	/* flush the write-combining mapped buffer */
 	wmb();
 
