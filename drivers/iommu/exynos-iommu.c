@@ -1507,7 +1507,8 @@ static int __init exynos_iommu_of_setup(struct device_node *np)
 	if (!pdev)
 		return -ENODEV;
 
-	of_iommu_set_ops(np, &exynos_iommu_ops);
+	iommu_register_instance(&np->fwnode, &exynos_iommu_ops);
+
 	return 0;
 }
 
