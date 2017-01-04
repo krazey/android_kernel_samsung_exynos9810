@@ -815,6 +815,13 @@ inline bool is_a_helper<const ggoto *>::test(const_gimple gs)
 
 template <>
 template <>
+inline bool is_a_helper<const ggoto *>::test(const_gimple gs)
+{
+	return gs->code == GIMPLE_GOTO;
+}
+
+template <>
+template <>
 inline bool is_a_helper<const greturn *>::test(const_gimple gs)
 {
 	return gs->code == GIMPLE_RETURN;
