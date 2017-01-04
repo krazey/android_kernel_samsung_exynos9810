@@ -21,11 +21,11 @@ static int qfprom_reg_read(void *context,
 			unsigned int reg, void *_val, size_t bytes)
 {
 	void __iomem *base = context;
-	u32 *val = _val;
-	int i = 0, words = bytes / 4;
+	u8 *val = _val;
+	int i = 0, words = bytes;
 
 	while (words--)
-		*val++ = readl(base + reg + (i++ * 4));
+		*val++ = readb(base + reg + i++);
 
 	return 0;
 }
@@ -40,7 +40,7 @@ static int qfprom_remove(struct platform_device *pdev)
 static struct nvmem_config econfig = {
 	.name = "qfprom",
 	.owner = THIS_MODULE,
-	.stride = 4,
+	.stride = 1,
 	.word_size = 1,
 	.reg_read = qfprom_reg_read,
 };
