@@ -2092,8 +2092,8 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 /*
  * The number of allocated logical CPU IDs. Since logical CPU IDs are allocated
  * contiguously, it equals to current allocated max logical CPU ID plus 1.
- * All allocated CPU ID should be in [0, nr_logical_cpuidi), so the maximum of
- * nr_logical_cpuids is nr_cpu_ids.
+ * All allocated CPU IDs should be in the [0, nr_logical_cpuids) range,
+ * so the maximum of nr_logical_cpuids is nr_cpu_ids.
  *
  * NOTE: Reserve 0 for BSP.
  */
@@ -2175,7 +2175,7 @@ int generic_processor_info(int apicid, int version)
 	 * Since fixing handling of boot_cpu_physical_apicid requires
 	 * another discussion and tests on each platform, we leave it
 	 * for now and here we use read_apic_id() directly in this
-	 * function, generic_processor_info().
+	 * function, __generic_processor_info().
 	 */
 	if (disabled_cpu_apicid != BAD_APICID &&
 	    disabled_cpu_apicid != read_apic_id() &&
