@@ -111,7 +111,6 @@ struct fscrypt_ctx {
 		struct list_head free_list;	/* Free list */
 	};
 	u8 flags;				/* Flags */
-	u8 mode;				/* Encryption mode for tfm */
 };
 
 struct fscrypt_completion_result {
