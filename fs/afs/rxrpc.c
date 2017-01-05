@@ -25,28 +25,10 @@ static void afs_free_call(struct afs_call *);
 static void afs_wake_up_call_waiter(struct sock *, struct rxrpc_call *, unsigned long);
 static int afs_wait_for_call_to_complete(struct afs_call *);
 static void afs_wake_up_async_call(struct sock *, struct rxrpc_call *, unsigned long);
-static int afs_dont_wait_for_call_to_complete(struct afs_call *);
 static void afs_process_async_call(struct work_struct *);
 static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
 static int afs_deliver_cm_op_id(struct afs_call *);
-
-/* synchronous call management */
-const struct afs_wait_mode afs_sync_call = {
-	.notify_rx	= afs_wake_up_call_waiter,
-	.wait		= afs_wait_for_call_to_complete,
-};
-
-/* asynchronous call management */
-const struct afs_wait_mode afs_async_call = {
-	.notify_rx	= afs_wake_up_async_call,
-	.wait		= afs_dont_wait_for_call_to_complete,
-};
-
-/* asynchronous incoming call management */
-static const struct afs_wait_mode afs_async_incoming_call = {
-	.notify_rx	= afs_wake_up_async_call,
-};
 
 /* asynchronous incoming call initial processing */
 static const struct afs_call_type afs_RXCMxxxx = {
@@ -314,7 +296,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
  * initiate a call
  */
 int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
-		  const struct afs_wait_mode *wait_mode)
+		  bool async)
 {
 	struct sockaddr_rxrpc srx;
 	struct rxrpc_call *rxcall;
@@ -333,7 +315,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	       call, call->type->name, key_serial(call->key),
 	       atomic_read(&afs_outstanding_calls));
 
-	call->wait_mode = wait_mode;
+	call->async = async;
 	INIT_WORK(&call->async_work, afs_process_async_call);
 
 	memset(&srx, 0, sizeof(srx));
@@ -348,7 +330,9 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	/* create a call */
 	rxcall = rxrpc_kernel_begin_call(afs_socket, &srx, call->key,
 					 (unsigned long) call, gfp,
-					 wait_mode->notify_rx);
+					 (async ?
+					  afs_wake_up_async_call :
+					  afs_wake_up_call_waiter));
 	call->key = NULL;
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
@@ -389,7 +373,10 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 
 	/* at this point, an async call may no longer exist as it may have
 	 * already completed */
-	return wait_mode->wait(call);
+	if (call->async)
+		return -EINPROGRESS;
+
+	return afs_wait_for_call_to_complete(call);
 
 error_do_abort:
 	call->state = AFS_CALL_COMPLETE;
@@ -560,17 +547,6 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 }
 
 /*
- * put a call into asynchronous mode
- * - mustn't touch the call descriptor as the call my have completed by the
- *   time we get here
- */
-static int afs_dont_wait_for_call_to_complete(struct afs_call *call)
-{
-	_enter("");
-	return -EINPROGRESS;
-}
-
-/*
  * delete an asynchronous call
  */
 static void afs_delete_async_call(struct work_struct *work)
@@ -598,10 +574,7 @@ static void afs_process_async_call(struct work_struct *work)
 		afs_deliver_to_call(call);
 	}
 
-	if (call->state == AFS_CALL_COMPLETE && call->wait_mode) {
-		if (call->wait_mode->async_complete)
-			call->wait_mode->async_complete(call->reply,
-							call->error);
+	if (call->state == AFS_CALL_COMPLETE) {
 		call->reply = NULL;
 
 		/* kill the call */
@@ -637,10 +610,10 @@ static void afs_charge_preallocation(struct work_struct *work)
 				break;
 
 			INIT_WORK(&call->async_work, afs_process_async_call);
-			call->wait_mode = &afs_async_incoming_call;
 			call->type = &afs_RXCMxxxx;
-			init_waitqueue_head(&call->waitq);
+			call->async = true;
 			call->state = AFS_CALL_AWAIT_OP_ID;
+			init_waitqueue_head(&call->waitq);
 		}
 
 		if (rxrpc_kernel_charge_accept(afs_socket,
