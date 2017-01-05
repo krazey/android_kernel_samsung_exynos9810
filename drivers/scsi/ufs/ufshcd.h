@@ -989,8 +989,6 @@ static inline int ufshcd_dme_peer_get(struct ufs_hba *hba,
 	return ufshcd_dme_get_attr(hba, attr_sel, mib_val, DME_PEER);
 }
 
-int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size);
-
 static inline bool ufshcd_is_hs_mode(struct ufs_pa_layer_attr *pwr_info)
 {
 	return (pwr_info->pwr_rx == FAST_MODE ||
@@ -998,11 +996,6 @@ static inline bool ufshcd_is_hs_mode(struct ufs_pa_layer_attr *pwr_info)
 		(pwr_info->pwr_tx == FAST_MODE ||
 		pwr_info->pwr_tx == FASTAUTO_MODE);
 }
-
-#define ASCII_STD true
-
-int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
-				u32 size, bool ascii);
 
 /* Expose Query-Request API */
 int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
@@ -1148,18 +1141,13 @@ static inline u8 ufshcd_vops_get_unipro(struct ufs_hba *hba, int num)
 	return 0;
 }
 
-int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 int ufshcd_read_health_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 #ifdef CONFIG_JOURNAL_DATA_TAG
 int ufshcd_read_vendor_specific_desc(struct ufs_hba *hba, enum desc_idn desc_id,
 		int desc_index, u8 *buf, u32 size);
 #endif
 
-#define ASCII_STD true
 #define UTF16_STD false
-int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
-				u32 size, bool ascii);
-
 static inline int ufshcd_vops_crypto_engine_cfg(struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp,
 					struct scatterlist *sg, int index,
