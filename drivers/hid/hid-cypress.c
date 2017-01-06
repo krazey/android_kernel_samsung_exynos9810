@@ -40,6 +40,9 @@ static __u8 *cp_rdesc_fixup(struct hid_device *hdev, __u8 *rdesc,
 	if (*rsize < 4)
 		return rdesc;
 
+	if (*rsize < 4)
+		return rdesc;
+
 	for (i = 0; i < *rsize - 4; i++)
 		if (rdesc[i] == 0x29 && rdesc[i + 2] == 0x19) {
 			rdesc[i] = 0x19;
