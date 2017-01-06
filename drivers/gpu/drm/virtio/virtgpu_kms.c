@@ -249,7 +249,7 @@ static void virtio_gpu_cleanup_cap_cache(struct virtio_gpu_device *vgdev)
 	}
 }
 
-int virtio_gpu_driver_unload(struct drm_device *dev)
+void virtio_gpu_driver_unload(struct drm_device *dev)
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 
@@ -265,7 +265,6 @@ int virtio_gpu_driver_unload(struct drm_device *dev)
 	virtio_gpu_cleanup_cap_cache(vgdev);
 	kfree(vgdev->capsets);
 	kfree(vgdev);
-	return 0;
 }
 
 int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file)

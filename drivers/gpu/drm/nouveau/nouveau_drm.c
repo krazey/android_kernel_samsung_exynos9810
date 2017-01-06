@@ -505,7 +505,7 @@ fail_device:
 	return ret;
 }
 
-static int
+static void
 nouveau_drm_unload(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -534,7 +534,6 @@ nouveau_drm_unload(struct drm_device *dev)
 	if (drm->hdmi_device)
 		pci_dev_put(drm->hdmi_device);
 	nouveau_cli_destroy(&drm->client);
-	return 0;
 }
 
 void
