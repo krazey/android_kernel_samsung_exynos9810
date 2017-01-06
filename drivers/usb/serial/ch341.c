@@ -98,6 +98,7 @@ struct ch341_private {
 	unsigned baud_rate; /* set baud rate */
 	u8 line_control; /* set line control value RTS/DTR */
 	u8 line_status; /* active status of modem control inputs */
+	u8 lcr;
 };
 
 static void ch341_set_termios(struct tty_struct *tty,
@@ -255,7 +256,7 @@ static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 	if (r < 0)
 		goto out;
 
-	r = ch341_set_baudrate_lcr(dev, priv, 0);
+	r = ch341_set_baudrate_lcr(dev, priv, priv->lcr);
 	if (r < 0)
 		goto out;
 
