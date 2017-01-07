@@ -3004,13 +3004,6 @@ static int do_set_pmd(struct vm_fault *vmf, struct page *page)
 	ret = 0;
 	count_vm_event(THP_FILE_MAPPED);
 out:
-	/*
-	 * If we are going to fallback to pte mapping, do a
-	 * withdraw with pmd lock held.
-	 */
-	if (arch_needs_pgtable_deposit() && ret == VM_FAULT_FALLBACK)
-		vmf->prealloc_pte = pgtable_trans_huge_withdraw(vma->vm_mm,
-								vmf->pmd);
 	spin_unlock(vmf->ptl);
 	return ret;
 }
@@ -3051,20 +3044,18 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 
 		ret = do_set_pmd(vmf, page);
 		if (ret != VM_FAULT_FALLBACK)
-			goto fault_handled;
+			return ret;
 	}
 
 	if (!vmf->pte) {
 		ret = pte_alloc_one_map(vmf);
 		if (ret)
-			goto fault_handled;
+			return ret;
 	}
 
 	/* Re-check under ptl */
-	if (unlikely(!pte_none(*vmf->pte))) {
-		ret = VM_FAULT_NOPAGE;
-		goto fault_handled;
-	}
+	if (unlikely(!pte_none(*vmf->pte)))
+		return VM_FAULT_NOPAGE;
 
 	flush_icache_page(vma, page);
 	entry = mk_pte(page, vma->vm_page_prot);
@@ -3084,15 +3075,8 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 
 	/* no need to invalidate: a not-present page won't be cached */
 	update_mmu_cache(vma, vmf->address, vmf->pte);
-	ret = 0;
 
-fault_handled:
-	/* preallocated pagetable is unused: free it */
-	if (vmf->prealloc_pte) {
-		pte_free(vmf->vma->vm_mm, vmf->prealloc_pte);
-		vmf->prealloc_pte = 0;
-	}
-	return ret;
+	return 0;
 }
 
 
