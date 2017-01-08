@@ -4069,6 +4069,7 @@ static int mv_platform_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct mv_host_priv *hpriv;
 	struct resource *res;
+	void __iomem *mmio;
 	int n_ports = 0, irq = 0;
 	int rc;
 	int port;
@@ -4087,8 +4088,9 @@ static int mv_platform_probe(struct platform_device *pdev)
 	 * Get the register base first
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -EINVAL;
+	mmio = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mmio))
+		return PTR_ERR(mmio);
 
 	/* allocate host */
 	if (pdev->dev.of_node) {
@@ -4136,12 +4138,7 @@ static int mv_platform_probe(struct platform_device *pdev)
 	hpriv->board_idx = chip_soc;
 
 	host->iomap = NULL;
-	hpriv->base = devm_ioremap(&pdev->dev, res->start,
-				   resource_size(res));
-	if (!hpriv->base)
-		return -ENOMEM;
-
-	hpriv->base -= SATAHC0_REG_BASE;
+	hpriv->base = mmio - SATAHC0_REG_BASE;
 
 	hpriv->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(hpriv->clk))
