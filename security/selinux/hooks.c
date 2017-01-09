@@ -975,17 +975,14 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	}
 
 	/*
-	 * Back port from https://patchwork.kernel.org/patch/9466451/
-	 * To support SELinux context mounts on tmpfs, ramfs, devpts within user namespaces
-	 *
 	 * If this is a user namespace mount and the filesystem type is not
 	 * explicitly whitelisted, then no contexts are allowed on the command
 	 * line and security labels must be ignored.
 	 */
 	if (sb->s_user_ns != &init_user_ns &&
-			strcmp(sb->s_type->name, "tmpfs") &&
-			strcmp(sb->s_type->name, "ramfs") &&
-			strcmp(sb->s_type->name, "devpts")) {
+	    strcmp(sb->s_type->name, "tmpfs") &&
+	    strcmp(sb->s_type->name, "ramfs") &&
+	    strcmp(sb->s_type->name, "devpts")) {
 		if (context_sid || fscontext_sid || rootcontext_sid ||
 		    defcontext_sid) {
 			rc = -EACCES;
