@@ -1821,6 +1821,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->hw_features = NETIF_F_SG |
 			      NETIF_F_HW_CSUM |
+			      NETIF_F_RXCSUM |
 			      NETIF_F_TSO |
 			      NETIF_F_TSO6;
 
