@@ -38,6 +38,7 @@
 #include <asm/export.h>
 #include <asm/kaiser.h>
 #include <asm/nospec-branch.h>
+#include <asm/frame.h>
 #include <linux/err.h>
 
 .code64
@@ -349,18 +350,20 @@ END(__switch_to_asm)
  * r12: kernel thread arg
  */
 ENTRY(ret_from_fork)
+	FRAME_BEGIN			/* help unwinder find end of stack */
 	movq	%rax, %rdi
-	call	schedule_tail			/* rdi: 'prev' task parameter */
+	call	schedule_tail		/* rdi: 'prev' task parameter */
 
-	testq	%rbx, %rbx			/* from kernel_thread? */
-	jnz	1f				/* kernel threads are uncommon */
+	testq	%rbx, %rbx		/* from kernel_thread? */
+	jnz	1f			/* kernel threads are uncommon */
 
 2:
-	movq	%rsp, %rdi
+	leaq	FRAME_OFFSET(%rsp),%rdi	/* pt_regs pointer */
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	TRACE_IRQS_ON			/* user mode is traced as IRQS on */
 	SWITCH_USER_CR3
 	SWAPGS
+	FRAME_END
 	jmp	restore_regs_and_iret
 
 1:
