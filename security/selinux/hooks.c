@@ -6870,8 +6870,7 @@ bad:
 	return error;
 }
 
-static int selinux_setprocattr(struct task_struct *p,
-			       char *name, void *value, size_t size)
+static int selinux_setprocattr(const char *name, void *value, size_t size)
 {
 	struct task_security_struct *tsec;
 	struct cred *new;
@@ -6884,15 +6883,6 @@ static int selinux_setprocattr(struct task_struct *p,
 	if ((rc = security_integrity_current()))
 		return rc;
 #endif  /* CONFIG_RKP_KDP */
-	if (current != p) {
-		/*
-		 * A task may only alter its own credentials.
-		 * SELinux has always enforced this restriction,
-		 * and it is now mandated by the Linux credentials
-		 * infrastructure; see Documentation/security/credentials.txt.
-		 */
-		return -EACCES;
-	}
 
 	/*
 	 * Basic control over ability to set these attributes at all.
