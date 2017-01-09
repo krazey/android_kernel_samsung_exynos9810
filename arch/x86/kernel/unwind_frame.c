@@ -178,7 +178,7 @@ bool unwind_next_frame(struct unwind_state *state)
 	if (state->regs)
 		next_bp = (unsigned long *)state->regs->bp;
 	else
-		next_bp = (unsigned long *)*state->bp;
+		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task,*state->bp);
 
 	/* is the next frame pointer an encoded pointer to pt_regs? */
 	regs = decode_frame_pointer(next_bp);
