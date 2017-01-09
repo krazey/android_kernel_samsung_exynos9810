@@ -1007,7 +1007,7 @@ static int gpio_chrdev_open(struct inode *inode, struct file *filp)
 					      struct gpio_device, chrdev);
 
 	/* Fail on open if the backing gpiochip is gone */
-	if (!gdev || !gdev->chip)
+	if (!gdev->chip)
 		return -ENODEV;
 	get_device(&gdev->dev);
 	filp->private_data = gdev;
@@ -1026,8 +1026,6 @@ static int gpio_chrdev_release(struct inode *inode, struct file *filp)
 	struct gpio_device *gdev = container_of(inode->i_cdev,
 					      struct gpio_device, chrdev);
 
-	if (!gdev)
-		return -ENODEV;
 	put_device(&gdev->dev);
 	return 0;
 }
