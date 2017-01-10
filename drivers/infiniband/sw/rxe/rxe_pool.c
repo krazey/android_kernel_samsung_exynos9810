@@ -459,7 +459,7 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 
 out:
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
-	return node ? (void *)elem : NULL;
+	return node ? elem : NULL;
 }
 
 void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
@@ -495,5 +495,5 @@ void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 
 out:
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
-	return node ? ((void *)elem) : NULL;
+	return node ? elem : NULL;
 }
