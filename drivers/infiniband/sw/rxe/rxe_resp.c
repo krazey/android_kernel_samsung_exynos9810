@@ -1215,6 +1215,19 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	}
 }
 
+static void rxe_drain_req_pkts(struct rxe_qp *qp)
+{
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&qp->req_pkts))) {
+		rxe_drop_ref(qp);
+		kfree_skb(skb);
+	}
+
+	while (!qp->srq && qp->rq.queue && queue_head(qp->rq.queue))
+		advance_consumer(qp->rq.queue);
+}
+
 int rxe_responder(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
@@ -1382,21 +1395,10 @@ int rxe_responder(void *arg)
 
 			goto exit;
 
-		case RESPST_RESET: {
-			struct sk_buff *skb;
-
-			while ((skb = skb_dequeue(&qp->req_pkts))) {
-				rxe_drop_ref(qp);
-				kfree_skb(skb);
-			}
-
-			while (!qp->srq && qp->rq.queue &&
-			       queue_head(qp->rq.queue))
-				advance_consumer(qp->rq.queue);
-
+		case RESPST_RESET:
+			rxe_drain_req_pkts(qp);
 			qp->resp.wqe = NULL;
 			goto exit;
-		}
 
 		case RESPST_ERROR:
 			qp->resp.goto_error = 0;
