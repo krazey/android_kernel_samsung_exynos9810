@@ -770,7 +770,10 @@ drop_root_mnt:
 
 static inline int d_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	return dentry->d_op->d_revalidate(dentry, flags);
+	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
+		return dentry->d_op->d_revalidate(dentry, flags);
+	else
+		return 1;
 }
 
 /**
@@ -1535,19 +1538,14 @@ static struct dentry *lookup_dcache(const struct qstr *name,
 				    struct dentry *dir,
 				    unsigned int flags)
 {
-	struct dentry *dentry;
-	int error;
-
-	dentry = d_lookup(dir, name);
+	struct dentry *dentry = d_lookup(dir, name);
 	if (dentry) {
-		if (dentry->d_flags & DCACHE_OP_REVALIDATE) {
-			error = d_revalidate(dentry, flags);
-			if (unlikely(error <= 0)) {
-				if (!error)
-					d_invalidate(dentry);
-				dput(dentry);
-				return ERR_PTR(error);
-			}
+		int error = d_revalidate(dentry, flags);
+		if (unlikely(error <= 0)) {
+			if (!error)
+				d_invalidate(dentry);
+			dput(dentry);
+			return ERR_PTR(error);
 		}
 	}
 	return dentry;
@@ -1637,8 +1635,7 @@ static int lookup_fast(struct nameidata *nd,
 			return -ECHILD;
 
 		*seqp = seq;
-		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
-			status = d_revalidate(dentry, nd->flags);
+		status = d_revalidate(dentry, nd->flags);
 		if (likely(status > 0)) {
 			/*
 			 * Note: do negative dentry check after revalidation in
@@ -1660,8 +1657,7 @@ static int lookup_fast(struct nameidata *nd,
 		dentry = __d_lookup(parent, &nd->last);
 		if (unlikely(!dentry))
 			return 0;
-		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
-			status = d_revalidate(dentry, nd->flags);
+		status = d_revalidate(dentry, nd->flags);
 	}
 	if (unlikely(status <= 0)) {
 		if (!status)
@@ -1700,8 +1696,7 @@ again:
 	if (IS_ERR(dentry))
 		goto out;
 	if (unlikely(!d_in_lookup(dentry))) {
-		if ((dentry->d_flags & DCACHE_OP_REVALIDATE) &&
-		    !(flags & LOOKUP_NO_REVAL)) {
+		if (!(flags & LOOKUP_NO_REVAL)) {
 			int error = d_revalidate(dentry, flags);
 			if (unlikely(error <= 0)) {
 				if (!error) {
@@ -3161,9 +3156,6 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 				return PTR_ERR(dentry);
 		}
 		if (d_in_lookup(dentry))
-			break;
-
-		if (!(dentry->d_flags & DCACHE_OP_REVALIDATE))
 			break;
 
 		error = d_revalidate(dentry, nd->flags);
