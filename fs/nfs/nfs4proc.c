@@ -633,10 +633,6 @@ static int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
 {
 	struct nfs4_slot *slot;
 
-	/* slot already allocated? */
-	if (res->sr_slot != NULL)
-		goto out_start;
-
 	spin_lock(&tbl->slot_tbl_lock);
 	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
 		goto out_sleep;
@@ -653,7 +649,6 @@ static int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
 	args->sa_slot = slot;
 	res->sr_slot = slot;
 
-out_start:
 	rpc_call_start(task);
 	return 0;
 
@@ -894,10 +889,6 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	struct nfs4_slot_table *tbl;
 
 	dprintk("--> %s\n", __func__);
-	/* slot already allocated? */
-	if (res->sr_slot != NULL)
-		goto out_success;
-
 	tbl = &session->fc_slot_table;
 
 	task->tk_timeout = 0;
@@ -935,7 +926,6 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	 */
 	res->sr_status = 1;
 	trace_nfs4_setup_sequence(session, args);
-out_success:
 	rpc_call_start(task);
 	return 0;
 out_sleep:
@@ -1000,12 +990,21 @@ int nfs4_setup_sequence(const struct nfs_client *client,
 {
 #if defined(CONFIG_NFS_V4_1)
 	struct nfs4_session *session = nfs4_get_session(client);
+#endif /* CONFIG_NFS_V4_1 */
 
+	/* slot already allocated? */
+	if (res->sr_slot != NULL)
+		goto out_start;
+
+#if defined(CONFIG_NFS_V4_1)
 	if (session)
 		return nfs41_setup_sequence(session, args, res, task);
 #endif /* CONFIG_NFS_V4_1 */
 	return nfs40_setup_sequence(client->cl_slot_tbl, args, res, task);
 
+out_start:
+	rpc_call_start(task);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs4_setup_sequence);
 
