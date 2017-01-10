@@ -2082,7 +2082,6 @@ struct ata_scsi_args {
 	struct ata_device	*dev;
 	u16			*id;
 	struct scsi_cmnd	*cmd;
-	void			(*done)(struct scsi_cmnd *);
 };
 
 /**
@@ -2161,7 +2160,7 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 
 	if (rc == 0)
 		cmd->result = SAM_STAT_GOOD;
-	args->done(cmd);
+	cmd->scsi_done(cmd);
 }
 
 /**
@@ -4403,7 +4402,6 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	args.dev = dev;
 	args.id = dev->id;
 	args.cmd = cmd;
-	args.done = cmd->scsi_done;
 
 	switch(scsicmd[0]) {
 	case INQUIRY:
