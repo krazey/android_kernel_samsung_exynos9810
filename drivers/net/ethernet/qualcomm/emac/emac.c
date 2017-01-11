@@ -730,8 +730,7 @@ static int emac_probe(struct platform_device *pdev)
 err_undo_napi:
 	netif_napi_del(&adpt->rx_q.napi);
 err_undo_mdiobus:
-	if (!has_acpi_companion(&pdev->dev))
-		put_device(&adpt->phydev->mdio.dev);
+	put_device(&adpt->phydev->mdio.dev);
 	mdiobus_unregister(adpt->mii_bus);
 err_undo_clocks:
 	emac_clks_teardown(adpt);
@@ -751,8 +750,7 @@ static int emac_remove(struct platform_device *pdev)
 
 	emac_clks_teardown(adpt);
 
-	if (!has_acpi_companion(&pdev->dev))
-		put_device(&adpt->phydev->mdio.dev);
+	put_device(&adpt->phydev->mdio.dev);
 	mdiobus_unregister(adpt->mii_bus);
 
 	if (adpt->phy.digital)
