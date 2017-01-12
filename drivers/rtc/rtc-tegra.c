@@ -19,6 +19,7 @@
  */
 #include <linux/clk.h>
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
