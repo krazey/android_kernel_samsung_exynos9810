@@ -461,10 +461,10 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
  * some helpers for common operations on buffers using the sg_table
  * and vaddr fields
  */
-void *ion_heap_map_kernel(struct ion_heap *, struct ion_buffer *);
-void ion_heap_unmap_kernel(struct ion_heap *, struct ion_buffer *);
-int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
-			struct vm_area_struct *);
+void *ion_heap_map_kernel(struct ion_heap *heap, struct ion_buffer *buffer);
+void ion_heap_unmap_kernel(struct ion_heap *heap, struct ion_buffer *buffer);
+int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
+		      struct vm_area_struct *vma);
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
@@ -545,27 +545,27 @@ size_t ion_heap_freelist_size(struct ion_heap *heap);
  * heaps as appropriate.
  */
 
-struct ion_heap *ion_heap_create(struct ion_platform_heap *);
-void ion_heap_destroy(struct ion_heap *);
-struct ion_heap *ion_system_heap_create(struct ion_platform_heap *);
-void ion_system_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data);
+void ion_heap_destroy(struct ion_heap *heap);
+struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused);
+void ion_system_heap_destroy(struct ion_heap *heap);
 
-struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *);
-void ion_system_contig_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *heap);
+void ion_system_contig_heap_destroy(struct ion_heap *heap);
 
 #ifdef CONFIG_ION_RBIN_HEAP
 struct ion_heap *ion_rbin_heap_create(struct ion_platform_heap *);
 void ion_rbin_heap_destroy(struct ion_heap *);
 #endif
 
-struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
-void ion_carveout_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data);
+void ion_carveout_heap_destroy(struct ion_heap *heap);
 
 void ion_debug_heap_usage_show(struct ion_heap *heap);
-struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
-void ion_chunk_heap_destroy(struct ion_heap *);
-struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);
-void ion_cma_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data);
+void ion_chunk_heap_destroy(struct ion_heap *heap);
+struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data);
+void ion_cma_heap_destroy(struct ion_heap *heap);
 
 struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *);
 void ion_hpa_heap_destroy(struct ion_heap *);
@@ -612,7 +612,7 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order,
 					   bool cached);
 int ion_page_pool_total(struct ion_page_pool *pool, bool high);
 
-void ion_page_pool_destroy(struct ion_page_pool *);
+void ion_page_pool_destroy(struct ion_page_pool *pool);
 struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high);
 
 #define PGMASK_FROM_BUDDY		BIT(PG_owner_priv_1)
@@ -622,7 +622,7 @@ struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high);
 
 void *ion_page_pool_only_alloc(struct ion_page_pool *a);
 struct page *ion_page_pool_alloc(struct ion_page_pool *pool, bool zeroed);
-void ion_page_pool_free(struct ion_page_pool *, struct page *);
+void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
 
 /** ion_page_pool_shrink - shrinks the size of the memory cached in the pool
  * @pool:		the pool
