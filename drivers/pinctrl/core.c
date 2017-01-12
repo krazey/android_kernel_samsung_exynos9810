@@ -1948,6 +1948,7 @@ struct pinctrl_dev *pinctrl_init_controller(struct pinctrl_desc *pctldesc,
 	INIT_RADIX_TREE(&pctldev->pin_function_tree, GFP_KERNEL);
 #endif
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
+	INIT_LIST_HEAD(&pctldev->node);
 	pctldev->dev = dev;
 	mutex_init(&pctldev->mutex);
 
@@ -2099,7 +2100,6 @@ EXPORT_SYMBOL_GPL(pinctrl_register_and_init);
 void pinctrl_unregister(struct pinctrl_dev *pctldev)
 {
 	struct pinctrl_gpio_range *range, *n;
-	struct pinctrl_dev *p, *p1;
 
 	if (pctldev == NULL)
 		return;
@@ -2114,9 +2114,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	mutex_lock(&pinctrldev_list_mutex);
 	mutex_lock(&pctldev->mutex);
 	/* TODO: check that no pinmuxes are still active? */
-	list_for_each_entry_safe(p, p1, &pinctrldev_list, node)
-		if (p == pctldev)
-			list_del(&p->node);
+	list_del(&pctldev->node);
 	pinmux_generic_free_functions(pctldev);
 	pinctrl_generic_free_groups(pctldev);
 	/* Destroy descriptor tree */
