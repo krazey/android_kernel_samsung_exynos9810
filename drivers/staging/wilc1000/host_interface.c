@@ -4000,8 +4000,9 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				pNewJoinBssParam->rsn_found = true;
 				index += pu8IEs[index + 1] + 2;
 				continue;
-			} else
+			} else {
 				index += pu8IEs[index + 1] + 2;
+			}
 		}
 	}
 
