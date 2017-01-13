@@ -293,11 +293,11 @@ int blk_mq_reinit_tagset(struct blk_mq_tag_set *set)
 			continue;
 
 		for (j = 0; j < tags->nr_tags; j++) {
-			if (!tags->rqs[j])
+			if (!tags->static_rqs[j])
 				continue;
 
 			ret = set->ops->reinit_request(set->driver_data,
-						tags->rqs[j]);
+						tags->static_rqs[j]);
 			if (ret)
 				goto out;
 		}
