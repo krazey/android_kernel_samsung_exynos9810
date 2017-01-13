@@ -22,6 +22,7 @@
 
 #include "core.h"
 #include "card.h"
+#include "host.h"
 #include "bus.h"
 #include "host.h"
 #include "sd.h"
