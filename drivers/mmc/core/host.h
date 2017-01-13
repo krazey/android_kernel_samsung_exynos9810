@@ -10,7 +10,8 @@
  */
 #ifndef _MMC_CORE_HOST_H
 #define _MMC_CORE_HOST_H
-#include <linux/mmc/host.h>
+
+struct mmc_host;
 
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
