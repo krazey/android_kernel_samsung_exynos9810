@@ -3228,7 +3228,6 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 	union sctp_params param;
 	sctp_addiphdr_t		*hdr;
 	union sctp_addr_param	*addr_param;
-	sctp_addip_param_t	*asconf_param;
 	struct sctp_chunk	*asconf_ack;
 	__be16	err_code;
 	int	length = 0;
@@ -3248,7 +3247,6 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 	 * asconf parameter.
 	 */
 	length = ntohs(addr_param->p.length);
-	asconf_param = (void *)addr_param + length;
 	chunk_len -= length;
 
 	/* create an ASCONF_ACK chunk.
