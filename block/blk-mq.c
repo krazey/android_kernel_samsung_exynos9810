@@ -327,7 +327,7 @@ void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 	rq->rq_flags = 0;
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-	blk_mq_put_tag(hctx, ctx, tag);
+	blk_mq_put_tag(hctx, hctx->tags, ctx, tag);
 	blk_queue_exit(q);
 }
 
