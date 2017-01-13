@@ -10,9 +10,6 @@
 #ifndef LINUX_MMC_HOST_H
 #define LINUX_MMC_HOST_H
 
-#include <linux/leds.h>
-#include <linux/mutex.h>
-#include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/fault-inject.h>
@@ -21,7 +18,6 @@
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
-#include <linux/mmc/mmc.h>
 #include <linux/mmc/pm.h>
 
 struct mmc_ios {
@@ -84,6 +80,8 @@ struct mmc_ios {
 
 	bool enhanced_strobe;			/* hs400es selection */
 };
+
+struct mmc_host;
 
 struct mmc_host_ops {
 	int (*init)(struct mmc_host *host);
@@ -171,9 +169,6 @@ struct mmc_host_ops {
 	int	(*multi_io_quirk)(struct mmc_card *card,
 				  unsigned int direction, int blk_size);
 };
-
-struct mmc_card;
-struct device;
 
 struct mmc_async_req {
 	/* active mmc request */
