@@ -47,6 +47,9 @@
 
 #include "queue.h"
 #include "block.h"
+#include "core.h"
+#include "mmc_ops.h"
+#include "sd_ops.h"
 
 #ifdef CONFIG_MMC_SUPPORT_STLOG
 #include <linux/fslog.h>
