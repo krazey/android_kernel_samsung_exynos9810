@@ -1417,10 +1417,9 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[3];
 	u32 len;
 
-	rc = -ENOMEM;
 	role = kzalloc(sizeof(*role), GFP_KERNEL);
 	if (!role)
-		goto bad;
+		return -ENOMEM;
 
 	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
 		to_read = 3;
