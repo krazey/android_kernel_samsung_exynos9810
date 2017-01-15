@@ -272,8 +272,7 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mpr_suspend(struct device *dev)
+static int __maybe_unused mpr_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -285,7 +284,7 @@ static int mpr_suspend(struct device *dev)
 	return 0;
 }
 
-static int mpr_resume(struct device *dev)
+static int __maybe_unused mpr_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mpr121_touchkey *mpr121 = i2c_get_clientdata(client);
@@ -298,7 +297,6 @@ static int mpr_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mpr121_touchkey_pm_ops, mpr_suspend, mpr_resume);
 
