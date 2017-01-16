@@ -233,14 +233,8 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
 	return phys;
 }
 
-void __init arm_memblock_init(const struct machine_desc *mdesc)
+static void __init arm_initrd_init(void)
 {
-	/* Register the kernel text, kernel data and initrd with memblock. */
-	set_memsize_kernel_type(MEMSIZE_KERNEL_KERNEL);
-	memblock_reserve(__pa(KERNEL_START), KERNEL_END - KERNEL_START);
-	set_memsize_kernel_type(MEMSIZE_KERNEL_STOP);
-	record_memsize_reserved("initmem", __pa(__init_begin),
-				__init_end - __init_begin, false, false);
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* FDT scan will populate initrd_start */
 	if (initrd_start && !phys_initrd_size) {
@@ -274,6 +268,14 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 		initrd_end = initrd_start + phys_initrd_size;
 	}
 #endif
+}
+
+void __init arm_memblock_init(const struct machine_desc *mdesc)
+{
+	/* Register the kernel text, kernel data and initrd with memblock. */
+	memblock_reserve(__pa(KERNEL_START), KERNEL_END - KERNEL_START);
+
+	arm_initrd_init();
 
 	set_memsize_kernel_type(MEMSIZE_KERNEL_OTHERS);
 	arm_mm_memblock_reserve();
