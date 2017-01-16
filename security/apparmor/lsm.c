@@ -735,7 +735,7 @@ __setup("apparmor=", apparmor_enabled_setup);
 /* set global flag turning off the ability to load policy */
 static int param_set_aalockpolicy(const char *val, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable())
+	if (!policy_admin_capable(NULL))
 		return -EPERM;
 	return param_set_bool(val, kp);
 }
@@ -749,7 +749,7 @@ static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp)
 
 static int param_set_aabool(const char *val, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable())
+	if (!policy_admin_capable(NULL))
 		return -EPERM;
 	return param_set_bool(val, kp);
 }
@@ -763,7 +763,7 @@ static int param_get_aabool(char *buffer, const struct kernel_param *kp)
 
 static int param_set_aauint(const char *val, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable())
+	if (!policy_admin_capable(NULL))
 		return -EPERM;
 	return param_set_uint(val, kp);
 }
@@ -789,7 +789,7 @@ static int param_get_audit(char *buffer, const struct kernel_param *kp)
 static int param_set_audit(const char *val, const struct kernel_param *kp)
 {
 	int i;
-	if (!policy_admin_capable())
+	if (!policy_admin_capable(NULL))
 		return -EPERM;
 
 	if (!apparmor_enabled)
@@ -810,7 +810,7 @@ static int param_set_audit(const char *val, const struct kernel_param *kp)
 
 static int param_get_mode(char *buffer, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable())
+	if (!policy_view_capable(NULL))
 		return -EPERM;
 
 	if (!apparmor_enabled)
@@ -822,7 +822,7 @@ static int param_get_mode(char *buffer, const struct kernel_param *kp)
 static int param_set_mode(const char *val, const struct kernel_param *kp)
 {
 	int i;
-	if (!policy_admin_capable())
+	if (!policy_admin_capable(NULL))
 		return -EPERM;
 
 	if (!apparmor_enabled)
