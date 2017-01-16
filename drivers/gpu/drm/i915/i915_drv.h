@@ -1085,7 +1085,6 @@ struct intel_fbc {
 		} plane;
 
 		struct {
-			u64 ilk_ggtt_offset;
 			const struct drm_format_info *format;
 			unsigned int stride;
 		} fb;
@@ -1101,7 +1100,6 @@ struct intel_fbc {
 		} crtc;
 
 		struct {
-			u64 ggtt_offset;
 			const struct drm_format_info *format;
 			unsigned int stride;
 		} fb;
