@@ -747,6 +747,8 @@ static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp)
 {
 	if (!policy_view_capable(NULL))
 		return -EPERM;
+	if (!apparmor_enabled)
+		return -EINVAL;
 	return param_get_bool(buffer, kp);
 }
 
@@ -754,6 +756,8 @@ static int param_set_aabool(const char *val, const struct kernel_param *kp)
 {
 	if (!policy_admin_capable(NULL))
 		return -EPERM;
+	if (!apparmor_enabled)
+		return -EINVAL;
 	return param_set_bool(val, kp);
 }
 
@@ -761,6 +765,8 @@ static int param_get_aabool(char *buffer, const struct kernel_param *kp)
 {
 	if (!policy_view_capable(NULL))
 		return -EPERM;
+	if (!apparmor_enabled)
+		return -EINVAL;
 	return param_get_bool(buffer, kp);
 }
 
@@ -768,6 +774,8 @@ static int param_set_aauint(const char *val, const struct kernel_param *kp)
 {
 	if (!policy_admin_capable(NULL))
 		return -EPERM;
+	if (!apparmor_enabled)
+		return -EINVAL;
 	return param_set_uint(val, kp);
 }
 
@@ -775,6 +783,8 @@ static int param_get_aauint(char *buffer, const struct kernel_param *kp)
 {
 	if (!policy_view_capable(NULL))
 		return -EPERM;
+	if (!apparmor_enabled)
+		return -EINVAL;
 	return param_get_uint(buffer, kp);
 }
 
