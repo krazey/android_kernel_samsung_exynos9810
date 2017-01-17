@@ -1258,7 +1258,8 @@ struct sctp_endpoint {
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
 	__u8  auth_enable:1,
-	      prsctp_enable:1;
+	      prsctp_enable:1,
+	      reconf_enable:1;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1511,6 +1512,7 @@ struct sctp_association {
 			hostname_address:1, /* Peer understands DNS addresses? */
 			asconf_capable:1,   /* Does peer support ADDIP? */
 			prsctp_capable:1,   /* Can peer do PR-SCTP? */
+			reconf_capable:1,   /* Can peer do RE-CONFIG? */
 			auth_capable:1;     /* Is peer doing SCTP-AUTH? */
 
 		/* sack_needed : This flag indicates if the next received
@@ -1870,7 +1872,8 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
-	     prsctp_enable:1;
+	     prsctp_enable:1,
+	     reconf_enable:1;
 
 	__u32 strreset_outseq; /* Update after receiving response */
 	__u32 strreset_inseq; /* Update after receiving request */
