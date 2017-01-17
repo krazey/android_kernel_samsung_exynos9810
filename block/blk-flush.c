@@ -74,6 +74,7 @@
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
+#include "blk-mq-sched.h"
 
 /* FLUSH/FUA sequences */
 enum {
@@ -390,9 +391,10 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 	 * the comment in flush_end_io().
 	 */
 	spin_lock_irqsave(&fq->mq_flush_lock, flags);
-	if (blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error))
-		blk_mq_run_hw_queue(hctx, true);
+	blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error);
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
+
+	blk_mq_run_hw_queue(hctx, true);
 }
 
 /**
@@ -452,9 +454,9 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		if (q->mq_ops) {
-			blk_mq_insert_request(rq, false, false, true);
-		} else
+		if (q->mq_ops)
+			blk_mq_sched_insert_request(rq, false, false, true);
+		else
 			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
 	}
