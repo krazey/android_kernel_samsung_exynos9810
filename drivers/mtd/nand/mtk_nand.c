@@ -1382,7 +1382,6 @@ static int mtk_nfc_probe(struct platform_device *pdev)
 	nfc->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(nfc->regs)) {
 		ret = PTR_ERR(nfc->regs);
-		dev_err(dev, "no nfi base\n");
 		goto release_ecc;
 	}
 
