@@ -216,6 +216,8 @@ struct xfrm_state {
 	/* Last used time */
 	time64_t		lastused;
 
+	struct page_frag xfrag;
+
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	const struct xfrm_type	*type;
