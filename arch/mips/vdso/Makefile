@@ -53,6 +53,9 @@ quiet_cmd_vdsold = VDSO    $@
       cmd_vdsold = $(CC) $(c_flags) $(VDSO_LDFLAGS) \
                    -Wl,-T $(filter %.lds,$^) $(filter %.o,$^) -o $@
 
+quiet_cmd_vdsoas_o_S = AS       $@
+      cmd_vdsoas_o_S = $(CC) $(a_flags) -c -o $@ $<
+
 # Strip rule for the raw .so files
 $(obj)/%.so.raw: OBJCOPYFLAGS := -S
 $(obj)/%.so.raw: $(obj)/%.so.dbg.raw FORCE
@@ -113,7 +116,7 @@ $(obj-vdso-o32): KBUILD_CFLAGS := $(cflags-vdso) -mabi=32
 $(obj-vdso-o32): KBUILD_AFLAGS := $(aflags-vdso) -mabi=32
 
 $(obj)/%-o32.o: $(src)/%.S FORCE
-	$(call if_changed_dep,as_o_S)
+	$(call if_changed_dep,vdsoas_o_S)
 
 $(obj)/%-o32.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
@@ -153,7 +156,7 @@ $(obj-vdso-n32): KBUILD_CFLAGS := $(cflags-vdso) -mabi=n32
 $(obj-vdso-n32): KBUILD_AFLAGS := $(aflags-vdso) -mabi=n32
 
 $(obj)/%-n32.o: $(src)/%.S FORCE
-	$(call if_changed_dep,as_o_S)
+	$(call if_changed_dep,vdsoas_o_S)
 
 $(obj)/%-n32.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
