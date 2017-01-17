@@ -1260,6 +1260,8 @@ struct sctp_endpoint {
 	__u8  auth_enable:1,
 	      prsctp_enable:1,
 	      reconf_enable:1;
+
+	__u8  strreset_enable;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1874,6 +1876,8 @@ struct sctp_association {
 	     temp:1,		/* Is it a temporary association? */
 	     prsctp_enable:1,
 	     reconf_enable:1;
+
+	__u8 strreset_enable;
 
 	__u32 strreset_outseq; /* Update after receiving response */
 	__u32 strreset_inseq; /* Update after receiving request */
