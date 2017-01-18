@@ -1639,9 +1639,8 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 				}
 
 				/* If we have pending request, then start it */
-				if (!ep->req) {
+				if (!ep->req)
 					dwc2_gadget_start_next_request(ep);
-				}
 			}
 
 			break;
@@ -1933,9 +1932,8 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 	 * so be careful when doing this.
 	 */
 
-	if (!hs_ep->req && result >= 0) {
+	if (!hs_ep->req && result >= 0)
 		dwc2_gadget_start_next_request(hs_ep);
-	}
 }
 
 /*
@@ -4038,9 +4036,9 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 		epreg = DOEPCTL(index);
 		epctl = dwc2_readl(hs->regs + epreg);
 
-		if (value)
+		if (value) {
 			epctl |= DXEPCTL_STALL;
-		else {
+		} else {
 			epctl &= ~DXEPCTL_STALL;
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
