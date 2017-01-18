@@ -600,6 +600,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
+	intel_huc_init(dev_priv);
 	intel_guc_init(dev_priv);
 
 	ret = i915_gem_init(dev_priv);
@@ -628,6 +629,7 @@ cleanup_gem:
 	i915_gem_fini(dev_priv);
 cleanup_irq:
 	intel_guc_fini(dev_priv);
+	intel_huc_fini(dev_priv);
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev_priv);
 cleanup_csr:
@@ -1315,6 +1317,7 @@ void i915_driver_unload(struct drm_device *dev)
 	drain_workqueue(dev_priv->wq);
 
 	intel_guc_fini(dev_priv);
+	intel_huc_fini(dev_priv);
 	i915_gem_fini(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
