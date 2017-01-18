@@ -439,7 +439,6 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	platform_set_drvdata(pdev, kp);
 	return 0;
 }
 
