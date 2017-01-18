@@ -1053,7 +1053,6 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 		batadv_inc_counter(bat_priv, BATADV_CNT_RX);
 		batadv_add_counter(bat_priv, BATADV_CNT_RX_BYTES,
 				   skb->len + ETH_HLEN + hdr_size);
-		bat_priv->soft_iface->last_rx = jiffies;
 
 		netif_rx(skb_new);
 		batadv_dbg(BATADV_DBG_DAT, bat_priv, "ARP request replied locally\n");
