@@ -83,4 +83,4 @@ static int __init register_mid_wdt(void)
 
 	return 0;
 }
-rootfs_initcall(register_mid_wdt);
+arch_initcall(register_mid_wdt);
