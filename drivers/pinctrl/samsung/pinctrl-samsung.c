@@ -101,10 +101,8 @@ static int reserve_map(struct device *dev, struct pinctrl_map **map,
 		return 0;
 
 	new_map = krealloc(*map, sizeof(*new_map) * new_num, GFP_KERNEL);
-	if (!new_map) {
-		dev_err(dev, "krealloc(map) failed\n");
+	if (!new_map)
 		return -ENOMEM;
-	}
 
 	memset(new_map + old_num, 0, (new_num - old_num) * sizeof(*new_map));
 
@@ -141,10 +139,8 @@ static int add_map_configs(struct device *dev, struct pinctrl_map **map,
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
-	if (!dup_configs) {
-		dev_err(dev, "kmemdup(configs) failed\n");
+	if (!dup_configs)
 		return -ENOMEM;
-	}
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
 	(*map)[*num_maps].data.configs.group_or_pin = group;
@@ -164,10 +160,8 @@ static int add_config(struct device *dev, unsigned long **configs,
 
 	new_configs = krealloc(*configs, sizeof(*new_configs) * new_num,
 			       GFP_KERNEL);
-	if (!new_configs) {
-		dev_err(dev, "krealloc(configs) failed\n");
+	if (!new_configs)
 		return -ENOMEM;
-	}
 
 	new_configs[old_num] = config;
 
@@ -878,10 +872,8 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 
 	functions = devm_kzalloc(dev, func_cnt * sizeof(*functions),
 					GFP_KERNEL);
-	if (!functions) {
-		dev_err(dev, "failed to allocate memory for function list\n");
+	if (!functions)
 		return ERR_PTR(-EINVAL);
-	}
 	func = functions;
 
 	/*
@@ -977,10 +969,8 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 
 	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
 			drvdata->nr_pins, GFP_KERNEL);
-	if (!pindesc) {
-		dev_err(&pdev->dev, "mem alloc for pin descriptors failed\n");
+	if (!pindesc)
 		return -ENOMEM;
-	}
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = drvdata->nr_pins;
 
@@ -994,10 +984,8 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	 */
 	pin_names = devm_kzalloc(&pdev->dev, sizeof(char) * PIN_NAME_LENGTH *
 					drvdata->nr_pins, GFP_KERNEL);
-	if (!pin_names) {
-		dev_err(&pdev->dev, "mem alloc for pin names failed\n");
+	if (!pin_names)
 		return -ENOMEM;
-	}
 
 	/* for each pin, the name of the pin is pin-bank name + pin number */
 	for (bank = 0; bank < drvdata->nr_banks; bank++) {
