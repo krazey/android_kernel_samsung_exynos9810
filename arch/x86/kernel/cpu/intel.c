@@ -15,6 +15,8 @@
 #include <asm/cpu.h>
 #include <asm/intel-family.h>
 #include <asm/microcode_intel.h>
+#include <asm/hwcap2.h>
+#include <asm/elf.h>
 
 #ifdef CONFIG_X86_64
 #include <linux/topology.h>
@@ -119,6 +121,39 @@ static bool bad_spectre_microcode(struct cpuinfo_x86 *c)
 			return (c->microcode <= spectre_bad_microcodes[i].microcode);
 	}
 	return false;
+}
+
+static bool ring3mwait_disabled __read_mostly;
+
+static int __init ring3mwait_disable(char *__unused)
+{
+	ring3mwait_disabled = true;
+	return 0;
+}
+__setup("ring3mwait=disable", ring3mwait_disable);
+
+static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
+{
+	/*
+	 * Ring 3 MONITOR/MWAIT feature cannot be detected without
+	 * cpu model and family comparison.
+	 */
+	if (c->x86 != 6 || c->x86_model != INTEL_FAM6_XEON_PHI_KNL)
+		return;
+
+	if (ring3mwait_disabled) {
+		msr_clear_bit(MSR_MISC_FEATURE_ENABLES,
+			      MSR_MISC_FEATURE_ENABLES_RING3MWAIT_BIT);
+		return;
+	}
+
+	msr_set_bit(MSR_MISC_FEATURE_ENABLES,
+		    MSR_MISC_FEATURE_ENABLES_RING3MWAIT_BIT);
+
+	set_cpu_cap(c, X86_FEATURE_RING3MWAIT);
+
+	if (c == &boot_cpu_data)
+		ELF_HWCAP2 |= HWCAP2_RING3MWAIT;
 }
 
 static void early_init_intel(struct cpuinfo_x86 *c)
@@ -644,6 +679,8 @@ static void init_intel(struct cpuinfo_x86 *c)
 		detect_vmx_virtcap(c);
 
 	init_intel_energy_perf(c);
+
+	probe_xeon_phi_r3mwait(c);
 
 	if (tsx_ctrl_state == TSX_CTRL_ENABLE)
 		tsx_enable();
