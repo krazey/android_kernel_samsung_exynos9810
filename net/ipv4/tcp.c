@@ -455,9 +455,7 @@ void tcp_init_sock(struct sock *sk)
 	mptcp_init_tcp_sock(sk);
 #endif
 
-	local_bh_disable();
 	sk_sockets_allocated_inc(sk);
-	local_bh_enable();
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
