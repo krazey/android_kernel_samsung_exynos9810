@@ -27,13 +27,13 @@
 
 #define DMA_ERROR_CODE	(~(dma_addr_t)0)
 
-extern struct dma_map_ops dummy_dma_ops;
-extern struct dma_map_ops *dma_ops;
-extern struct dma_map_ops coherent_swiotlb_dma_ops;
-extern struct dma_map_ops noncoherent_swiotlb_dma_ops;
+extern const struct dma_map_ops dummy_dma_ops;
+extern const struct dma_map_ops *dma_ops;
+extern const struct dma_map_ops coherent_swiotlb_dma_ops;
+extern const struct dma_map_ops noncoherent_swiotlb_dma_ops;
 extern struct dma_map_ops arm_exynos_dma_mcode_ops;
 
-static inline struct dma_map_ops *__generic_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *__generic_dma_ops(struct device *dev)
 {
 	if (dev && dev->archdata.dma_ops)
 		return dev->archdata.dma_ops;
@@ -45,7 +45,7 @@ static inline struct dma_map_ops *__generic_dma_ops(struct device *dev)
 	return &dummy_dma_ops;
 }
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	if (xen_initial_domain())
 		return xen_dma_ops;
