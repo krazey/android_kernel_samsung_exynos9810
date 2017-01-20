@@ -235,7 +235,7 @@ struct rds_ib_device {
 	int			*vector_load;
 };
 
-#define ibdev_to_node(ibdev) dev_to_node(ibdev->dma_device)
+#define ibdev_to_node(ibdev) dev_to_node((ibdev)->dev.parent)
 #define rdsibdev_to_node(rdsibdev) ibdev_to_node(rdsibdev->dev)
 
 /* bits for i_ack_flags */
