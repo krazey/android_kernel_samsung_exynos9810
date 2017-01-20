@@ -97,7 +97,8 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_dynset_policy[NFTA_DYNSET_MAX + 1] = {
-	[NFTA_DYNSET_SET_NAME]	= { .type = NLA_STRING },
+	[NFTA_DYNSET_SET_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_DYNSET_SET_ID]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_OP]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_SREG_KEY]	= { .type = NLA_U32 },
