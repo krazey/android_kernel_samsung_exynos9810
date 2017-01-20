@@ -66,10 +66,6 @@ static DEFINE_MUTEX(microcode_mutex);
 
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 
-/*
- * Operations that are run on a target cpu:
- */
-
 struct cpu_info_ctx {
 	struct cpu_signature	*cpu_sig;
 	int			err;
@@ -78,7 +74,6 @@ struct cpu_info_ctx {
 static bool __init check_loader_disabled_bsp(void)
 {
 	static const char *__dis_opt_str = "dis_ucode_ldr";
-	u32 a, b, c, d;
 
 #ifdef CONFIG_X86_32
 	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
@@ -91,16 +86,12 @@ static bool __init check_loader_disabled_bsp(void)
 	bool *res = &dis_ucode_ldr;
 #endif
 
-	a = 1;
-	c = 0;
-	native_cpuid(&a, &b, &c, &d);
-
 	/*
 	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
 	 * completely accurate as xen pv guests don't see that CPUID bit set but
 	 * that's good enough as they don't land on the BSP path anyway.
 	 */
-	if (c & BIT(31))
+	if (native_cpuid_ecx(1) & BIT(31))
 		return *res;
 
 	if (cmdline_find_option_bool(cmdline, option) <= 0)
@@ -130,24 +121,23 @@ bool get_builtin_firmware(struct cpio_data *cd, const char *name)
 
 void __init load_ucode_bsp(void)
 {
-	int vendor;
-	unsigned int family;
+	unsigned int vendor, cpuid_1_eax;
 	bool intel = true;
 
 	if (!have_cpuid_p())
 		return;
 
-	vendor = x86_cpuid_vendor();
-	family = x86_cpuid_family();
+	vendor	    = x86_cpuid_vendor();
+	cpuid_1_eax = native_cpuid_eax(1);
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
-		if (family < 6)
+		if (x86_family(cpuid_1_eax) < 6)
 			return;
 		break;
 
 	case X86_VENDOR_AMD:
-		if (family < 0x10)
+		if (x86_family(cpuid_1_eax) < 0x10)
 			return;
 		intel = false;
 		break;
@@ -176,22 +166,22 @@ static bool check_loader_disabled_ap(void)
 
 void load_ucode_ap(void)
 {
-	int vendor, family;
+	unsigned int vendor, cpuid_1_eax;
 
 	if (check_loader_disabled_ap())
 		return;
 
-	vendor = x86_cpuid_vendor();
-	family = x86_cpuid_family();
+	vendor	    = x86_cpuid_vendor();
+	cpuid_1_eax = native_cpuid_eax(1);
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
-		if (family >= 6)
+		if (x86_family(cpuid_1_eax) >= 6)
 			load_ucode_intel_ap();
 		break;
 	case X86_VENDOR_AMD:
-		if (family >= 0x10)
-			load_ucode_amd_ap(family);
+		if (x86_family(cpuid_1_eax) >= 0x10)
+			load_ucode_amd_ap(cpuid_1_eax);
 		break;
 	default:
 		break;
@@ -210,7 +200,7 @@ static int __init save_microcode_in_initrd(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			ret = save_microcode_in_initrd_amd(c->x86);
+			ret = save_microcode_in_initrd_amd(cpuid_eax(1));
 		break;
 	default:
 		break;
