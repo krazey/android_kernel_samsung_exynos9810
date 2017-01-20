@@ -282,10 +282,10 @@ static void tcm_qla2xxx_complete_free(struct work_struct *work)
 
 	cmd->cmd_in_wq = 0;
 
-	WARN_ON(cmd->cmd_flags &  BIT_16);
+	WARN_ON(cmd->trc_flags & TRC_CMD_FREE);
 
 	cmd->vha->tgt_counters.qla_core_ret_sta_ctio++;
-	cmd->cmd_flags |= BIT_16;
+	cmd->trc_flags |= TRC_CMD_FREE;
 	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
@@ -299,8 +299,8 @@ static void tcm_qla2xxx_free_cmd(struct qla_tgt_cmd *cmd)
 	cmd->vha->tgt_counters.core_qla_free_cmd++;
 	cmd->cmd_in_wq = 1;
 
-	BUG_ON(cmd->cmd_flags & BIT_20);
-	cmd->cmd_flags |= BIT_20;
+	WARN_ON(cmd->trc_flags & TRC_CMD_DONE);
+	cmd->trc_flags |= TRC_CMD_DONE;
 
 	INIT_WORK(&cmd->work, tcm_qla2xxx_complete_free);
 	queue_work_on(smp_processor_id(), tcm_qla2xxx_free_wq, &cmd->work);
@@ -315,7 +315,7 @@ static int tcm_qla2xxx_check_stop_free(struct se_cmd *se_cmd)
 
 	if ((se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB) == 0) {
 		cmd = container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
-		cmd->cmd_flags |= BIT_14;
+		cmd->trc_flags |= TRC_CMD_CHK_STOP;
 	}
 
 	return target_put_sess_cmd(se_cmd);
@@ -377,7 +377,7 @@ static int tcm_qla2xxx_write_pending(struct se_cmd *se_cmd)
 			cmd->se_cmd.se_cmd_flags);
 		return 0;
 	}
-	cmd->cmd_flags |= BIT_3;
+	cmd->trc_flags |= TRC_XFR_RDY;
 	cmd->bufflen = se_cmd->data_length;
 	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
 
@@ -520,7 +520,7 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
  */
 static void tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 {
-	cmd->cmd_flags |= BIT_10;
+	cmd->trc_flags |= TRC_DATA_IN;
 	cmd->cmd_in_wq = 1;
 	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_data_work);
 	queue_work_on(smp_processor_id(), tcm_qla2xxx_free_wq, &cmd->work);
@@ -615,7 +615,7 @@ static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 		return 0;
 	}
 
-	cmd->cmd_flags |= BIT_4;
+	cmd->trc_flags |= TRC_XMIT_DATA;
 	cmd->bufflen = se_cmd->data_length;
 	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
 
@@ -646,11 +646,11 @@ static int tcm_qla2xxx_queue_status(struct se_cmd *se_cmd)
 	cmd->sg_cnt = 0;
 	cmd->offset = 0;
 	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
-	if (cmd->cmd_flags &  BIT_5) {
-		pr_crit("Bit_5 already set for cmd = %p.\n", cmd);
+	if (cmd->trc_flags & TRC_XMIT_STATUS) {
+		pr_crit("Multiple calls for status = %p.\n", cmd);
 		dump_stack();
 	}
-	cmd->cmd_flags |= BIT_5;
+	cmd->trc_flags |= TRC_XMIT_STATUS;
 
 	if (se_cmd->data_direction == DMA_FROM_DEVICE) {
 		/*
