@@ -241,6 +241,10 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	reg |= BIT(port);
 	core_writel(priv, reg, CORE_DIS_LEARN);
 
+	/* Enable Broadcom tags for that port if requested */
+	if (priv->brcm_tag_mask & BIT(port))
+		bcm_sf2_brcm_hdr_setup(priv, port);
+
 	/* Clear the Rx and Tx disable bits and set to no spanning tree */
 	core_writel(priv, 0, CORE_G_PCTL_PORT(port));
 
@@ -519,6 +523,9 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 
 		if (mode == PHY_INTERFACE_MODE_MOCA)
 			priv->moca_port = port_num;
+
+		if (of_property_read_bool(port, "brcm,use-bcm-hdr"))
+			priv->brcm_tag_mask |= 1 << port_num;
 	}
 }
 
