@@ -2236,8 +2236,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	ins.offset = disk_num_bytes;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
 	ret = btrfs_alloc_reserved_file_extent(trans, root->root_key.objectid,
-					       btrfs_ino(BTRFS_I(inode)), file_pos,
-					       ram_bytes, &ins);
+			btrfs_ino(BTRFS_I(inode)), file_pos, ram_bytes, &ins);
 	/*
 	 * Release the reserved range from inode dirty range map, as it is
 	 * already moved into delayed_ref_head
@@ -3167,7 +3166,7 @@ static int __readpage_endio_check(struct inode *inode,
 zeroit:
 	btrfs_warn_rl(BTRFS_I(inode)->root->fs_info,
 		"csum failed ino %llu off %llu csum %u expected csum %u",
-			   btrfs_ino(BTRFS_I(inode)), start, csum, csum_expected);
+		   btrfs_ino(BTRFS_I(inode)), start, csum, csum_expected);
 	memset(kaddr + pgoff, 1, len);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr);
@@ -3368,7 +3367,8 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 
 	/* insert an orphan item to track this unlinked/truncated file */
 	if (insert >= 1) {
-		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(BTRFS_I(inode)));
+		ret = btrfs_insert_orphan_item(trans, root,
+				btrfs_ino(BTRFS_I(inode)));
 		if (ret) {
 			atomic_dec(&root->orphan_inodes);
 			if (reserve) {
@@ -3853,7 +3853,7 @@ cache_acl:
 	 * any xattrs or acls
 	 */
 	maybe_acls = acls_after_inode_item(leaf, path->slots[0],
-					   btrfs_ino(BTRFS_I(inode)), &first_xattr_slot);
+			btrfs_ino(BTRFS_I(inode)), &first_xattr_slot);
 	if (first_xattr_slot != -1) {
 		path->slots[0] = first_xattr_slot;
 		ret = btrfs_load_inode_props(inode, path);
@@ -4917,8 +4917,8 @@ static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
 		return ret;
 	}
 
-	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(BTRFS_I(inode)), offset,
-				       0, 0, len, 0, len, 0, 0, 0);
+	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(BTRFS_I(inode)),
+			offset, 0, 0, len, 0, len, 0, 0, 0);
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
 	else
@@ -5478,8 +5478,8 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	if (!path)
 		return -ENOMEM;
 
-	di = btrfs_lookup_dir_item(NULL, root, path, btrfs_ino(BTRFS_I(dir)), name,
-				    namelen, 0);
+	di = btrfs_lookup_dir_item(NULL, root, path, btrfs_ino(BTRFS_I(dir)),
+			name, namelen, 0);
 	if (IS_ERR(di))
 		ret = PTR_ERR(di);
 
@@ -6362,7 +6362,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	if (ret)
 		btrfs_err(fs_info,
 			  "error inheriting props for ino %llu (root %llu): %d",
-			  btrfs_ino(BTRFS_I(inode)), root->root_key.objectid, ret);
+			btrfs_ino(BTRFS_I(inode)), root->root_key.objectid, ret);
 
 	return inode;
 
@@ -6490,8 +6490,8 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
-				dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
-				mode, &index);
+			dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
+			mode, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_unlock;
@@ -6561,8 +6561,8 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
-				dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
-				mode, &index);
+			dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
+			mode, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_unlock;
@@ -6710,8 +6710,8 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out_fail;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
-				dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
-				S_IFDIR | mode, &index);
+			dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
+			S_IFDIR | mode, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_fail;
@@ -7380,8 +7380,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	if (!path)
 		return -ENOMEM;
 
-	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(BTRFS_I(inode)),
-				       offset, 0);
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+			btrfs_ino(BTRFS_I(inode)), offset, 0);
 	if (ret < 0)
 		goto out;
 
@@ -8334,7 +8334,8 @@ static void btrfs_end_dio_bio(struct bio *bio)
 	if (err)
 		btrfs_warn(BTRFS_I(dip->inode)->root->fs_info,
 			   "direct IO failed ino %llu rw %d,%u sector %#Lx len %u err no %d",
-			   btrfs_ino(BTRFS_I(dip->inode)), bio_op(bio), bio->bi_opf,
+			   btrfs_ino(BTRFS_I(dip->inode)), bio_op(bio),
+			   bio->bi_opf,
 			   (unsigned long long)bio->bi_iter.bi_sector,
 			   bio->bi_iter.bi_size, err);
 
@@ -9658,7 +9659,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 					     new_dentry->d_name.name,
 					     new_dentry->d_name.len,
 					     old_ino,
-					     btrfs_ino(BTRFS_I(new_dir)), old_idx);
+					     btrfs_ino(BTRFS_I(new_dir)),
+					     old_idx);
 		if (ret)
 			goto out_fail;
 	}
@@ -9674,7 +9676,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 					     old_dentry->d_name.name,
 					     old_dentry->d_name.len,
 					     new_ino,
-					     btrfs_ino(BTRFS_I(old_dir)), new_idx);
+					     btrfs_ino(BTRFS_I(old_dir)),
+					     new_idx);
 		if (ret)
 			goto out_fail;
 	}
@@ -9690,8 +9693,10 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	new_inode->i_ctime = ctime;
 
 	if (old_dentry->d_parent != new_dentry->d_parent) {
-		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir), BTRFS_I(old_inode), 1);
-		btrfs_record_unlink_dir(trans, BTRFS_I(new_dir), BTRFS_I(new_inode), 1);
+		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
+				BTRFS_I(old_inode), 1);
+		btrfs_record_unlink_dir(trans, BTRFS_I(new_dir),
+				BTRFS_I(new_inode), 1);
 	}
 
 	/* src is a subvolume */
@@ -9757,13 +9762,15 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	if (root_log_pinned) {
 		parent = new_dentry->d_parent;
-		btrfs_log_new_name(trans, BTRFS_I(old_inode), BTRFS_I(old_dir), parent);
+		btrfs_log_new_name(trans, BTRFS_I(old_inode), BTRFS_I(old_dir),
+				parent);
 		btrfs_end_log_trans(root);
 		root_log_pinned = false;
 	}
 	if (dest_log_pinned) {
 		parent = old_dentry->d_parent;
-		btrfs_log_new_name(trans, BTRFS_I(new_inode), BTRFS_I(new_dir), parent);
+		btrfs_log_new_name(trans, BTRFS_I(new_inode), BTRFS_I(new_dir),
+				parent);
 		btrfs_end_log_trans(dest);
 		dest_log_pinned = false;
 	}
@@ -9970,7 +9977,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_inode->i_ctime = current_time(old_dir);
 
 	if (old_dentry->d_parent != new_dentry->d_parent)
-		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir), BTRFS_I(old_inode), 1);
+		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
+				BTRFS_I(old_inode), 1);
 
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		root_objectid = BTRFS_I(old_inode)->root->root_key.objectid;
@@ -10029,7 +10037,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (log_pinned) {
 		struct dentry *parent = new_dentry->d_parent;
 
-		btrfs_log_new_name(trans, BTRFS_I(old_inode), BTRFS_I(old_dir), parent);
+		btrfs_log_new_name(trans, BTRFS_I(old_inode), BTRFS_I(old_dir),
+				parent);
 		btrfs_end_log_trans(root);
 		log_pinned = false;
 	}
@@ -10324,8 +10333,8 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
-				dentry->d_name.len, btrfs_ino(BTRFS_I(dir)), objectid,
-				S_IFLNK|S_IRWXUGO, &index);
+				dentry->d_name.len, btrfs_ino(BTRFS_I(dir)),
+				objectid, S_IFLNK|S_IRWXUGO, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_unlock;
@@ -10603,7 +10612,7 @@ static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 
 	inode = btrfs_new_inode(trans, root, dir, NULL, 0,
-				btrfs_ino(BTRFS_I(dir)), objectid, mode, &index);
+			btrfs_ino(BTRFS_I(dir)), objectid, mode, &index);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		inode = NULL;
