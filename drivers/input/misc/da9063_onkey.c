@@ -284,7 +284,6 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, onkey);
 	return 0;
 }
 
