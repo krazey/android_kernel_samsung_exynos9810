@@ -313,8 +313,10 @@ static int __i8042_command(unsigned char *param, int command)
 
 	for (i = 0; i < ((command >> 12) & 0xf); i++) {
 		error = i8042_wait_write();
-		if (error)
+		if (error) {
+			dbg("     -- i8042 (wait write timeout)\n");
 			return error;
+		}
 		dbg("%02x -> i8042 (parameter)\n", param[i]);
 		i8042_write_data(param[i]);
 	}
@@ -322,7 +324,7 @@ static int __i8042_command(unsigned char *param, int command)
 	for (i = 0; i < ((command >> 8) & 0xf); i++) {
 		error = i8042_wait_read();
 		if (error) {
-			dbg("     -- i8042 (timeout)\n");
+			dbg("     -- i8042 (wait read timeout)\n");
 			return error;
 		}
 
