@@ -4357,10 +4357,11 @@ int ext4_inode_attach_jinode(struct inode *inode)
  * that's fine - as long as they are linked from the inode, the post-crash
  * ext4_truncate() run will find them and release them.
  */
-void ext4_truncate(struct inode *inode)
+int ext4_truncate(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned int credits;
+	int err = 0;
 	handle_t *handle;
 	struct address_space *mapping = inode->i_mapping;
 
@@ -4374,7 +4375,7 @@ void ext4_truncate(struct inode *inode)
 	trace_ext4_truncate_enter(inode);
 
 	if (!ext4_can_truncate(inode))
-		return;
+		return 0;
 
 	ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
 
@@ -4384,15 +4385,17 @@ void ext4_truncate(struct inode *inode)
 	if (ext4_has_inline_data(inode)) {
 		int has_inline = 1;
 
-		ext4_inline_data_truncate(inode, &has_inline);
+		err = ext4_inline_data_truncate(inode, &has_inline);
+		if (err)
+			return err;
 		if (has_inline)
-			return;
+			return 0;
 	}
 
 	/* If we zero-out tail of the page, we have to create jinode for jbd2 */
 	if (inode->i_size & (inode->i_sb->s_blocksize - 1)) {
 		if (ext4_inode_attach_jinode(inode) < 0)
-			return;
+			return 0;
 	}
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
@@ -4403,7 +4406,7 @@ void ext4_truncate(struct inode *inode)
 	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, credits);
 	if (IS_ERR(handle)) {
 		ext4_std_error(inode->i_sb, PTR_ERR(handle));
-		return;
+		return 0;
 	}
 
 	if (inode->i_size & (inode->i_sb->s_blocksize - 1))
@@ -4451,6 +4454,7 @@ out_stop:
 	ext4_journal_stop(handle);
 
 	trace_ext4_truncate_exit(inode);
+	return err;
 }
 
 /*
