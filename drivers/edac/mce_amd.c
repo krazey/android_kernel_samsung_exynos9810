@@ -1006,6 +1006,9 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		goto err_code;
 	}
 
+	if (m->tsc)
+		pr_emerg(HW_ERR "TSC: %llu\n", m->tsc);
+
 	if (!fam_ops)
 		goto err_code;
 
