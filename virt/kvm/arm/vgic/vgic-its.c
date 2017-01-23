@@ -351,7 +351,7 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 
 		irq = vgic_get_irq(vcpu->kvm, NULL, intids[i]);
 		spin_lock(&irq->irq_lock);
-		irq->pending = pendmask & (1U << bit_nr);
+		irq->pending_latch = pendmask & (1U << bit_nr);
 		vgic_queue_irq_unlock(vcpu->kvm, irq);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
@@ -443,7 +443,7 @@ static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
 		return -EBUSY;
 
 	spin_lock(&itte->irq->irq_lock);
-	itte->irq->pending = true;
+	itte->irq->pending_latch = true;
 	vgic_queue_irq_unlock(kvm, itte->irq);
 
 	return 0;
@@ -893,7 +893,7 @@ static int vgic_its_cmd_handle_clear(struct kvm *kvm, struct vgic_its *its,
 	if (!itte)
 		return E_ITS_CLEAR_UNMAPPED_INTERRUPT;
 
-	itte->irq->pending = false;
+	itte->irq->pending_latch = false;
 
 	return 0;
 }
