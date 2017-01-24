@@ -206,6 +206,7 @@ void lwtstate_free(struct lwtunnel_state *lws)
 	} else {
 		kfree(lws);
 	}
+	module_put(ops->owner);
 }
 EXPORT_SYMBOL(lwtstate_free);
 
