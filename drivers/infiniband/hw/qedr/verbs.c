@@ -1610,7 +1610,7 @@ err0:
 	return ERR_PTR(-EFAULT);
 }
 
-enum ib_qp_state qedr_get_ibqp_state(enum qed_roce_qp_state qp_state)
+static enum ib_qp_state qedr_get_ibqp_state(enum qed_roce_qp_state qp_state)
 {
 	switch (qp_state) {
 	case QED_ROCE_QP_STATE_RESET:
@@ -1631,7 +1631,8 @@ enum ib_qp_state qedr_get_ibqp_state(enum qed_roce_qp_state qp_state)
 	return IB_QPS_ERR;
 }
 
-enum qed_roce_qp_state qedr_get_state_from_ibqp(enum ib_qp_state qp_state)
+static enum qed_roce_qp_state qedr_get_state_from_ibqp(
+					enum ib_qp_state qp_state)
 {
 	switch (qp_state) {
 	case IB_QPS_RESET:
@@ -2325,7 +2326,8 @@ int qedr_dereg_mr(struct ib_mr *ib_mr)
 	return rc;
 }
 
-struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd, int max_page_list_len)
+static struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd,
+				       int max_page_list_len)
 {
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
@@ -2727,7 +2729,7 @@ static int qedr_prepare_reg(struct qedr_qp *qp,
 	return 0;
 }
 
-enum ib_wc_opcode qedr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
+static enum ib_wc_opcode qedr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 {
 	switch (opcode) {
 	case IB_WR_RDMA_WRITE:
@@ -2752,7 +2754,7 @@ enum ib_wc_opcode qedr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 	}
 }
 
-inline bool qedr_can_post_send(struct qedr_qp *qp, struct ib_send_wr *wr)
+static inline bool qedr_can_post_send(struct qedr_qp *qp, struct ib_send_wr *wr)
 {
 	int wq_is_full, err_wr, pbl_is_full;
 	struct qedr_dev *dev = qp->dev;
@@ -2789,7 +2791,7 @@ inline bool qedr_can_post_send(struct qedr_qp *qp, struct ib_send_wr *wr)
 	return true;
 }
 
-int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		     struct ib_send_wr **bad_wr)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
