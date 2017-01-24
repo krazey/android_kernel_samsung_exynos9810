@@ -136,7 +136,7 @@ static int netvsc_close(struct net_device *net)
 	while (true) {
 		aread = 0;
 		for (i = 0; i < nvdev->num_chn; i++) {
-			chn = nvdev->chn_table[i];
+			chn = nvdev->chan_table[i].channel;
 			if (!chn)
 				continue;
 
@@ -226,7 +226,7 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 		q_idx = new_idx;
 	}
 
-	if (unlikely(!nvsc_dev->chn_table[q_idx]))
+	if (unlikely(!nvsc_dev->chan_table[q_idx].channel))
 		q_idx = 0;
 
 	return q_idx;
@@ -546,7 +546,6 @@ no_memory:
 	++net_device_ctx->eth_stats.tx_no_memory;
 	goto drop;
 }
-
 /*
  * netvsc_linkstatus_callback - Link up/down notification
  */
