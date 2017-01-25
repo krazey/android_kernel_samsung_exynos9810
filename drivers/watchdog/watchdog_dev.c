@@ -1003,6 +1003,11 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 	wdd->wd_data = NULL;
 	mutex_unlock(&wd_data->lock);
 
+	if (watchdog_active(wdd) &&
+	    test_bit(WDOG_STOP_ON_UNREGISTER, &wdd->status)) {
+		watchdog_stop(wdd);
+	}
+
 	cancel_delayed_work_sync(&wd_data->work);
 
 	put_device(&wd_data->dev);
