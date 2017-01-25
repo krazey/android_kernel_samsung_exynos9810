@@ -39,30 +39,25 @@ merged much easier.
    process/index
    dev-tools/index
    doc-guide/index
-   driver-api/index
-   media/index
-   gpu/index
-   security/index
-   sound/index
 
-This section describes CPU vulnerabilities and their mitigations.
+Kernel API documentation
+------------------------
 
-.. toctree::
-   :maxdepth: 1
-
-   hw-vuln/index
-
-Architecture-specific documentation
------------------------------------
-
-These books provide programming details about architecture-specific
-implementation.
+These books get into the details of how specific kernel subsystems work
+from the point of view of a kernel developer.  Much of the information here
+is taken directly from the kernel source, with supplemental material added
+as needed (or at least as we managed to add it — probably *not* all that is
+needed).
 
 .. toctree::
    :maxdepth: 2
 
-   x86/index
+   driver-api/index
    core-api/index
+   media/index
+   gpu/index
+   security/index
+   sound/index
    crypto/index
 
 Korean translations
@@ -72,6 +67,14 @@ Korean translations
    :maxdepth: 1
 
    translations/ko_KR/index
+
+Chinese translations
+--------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/zh_CN/index
 
 Indices and tables
 ==================
