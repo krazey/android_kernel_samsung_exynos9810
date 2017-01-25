@@ -591,6 +591,11 @@ struct request_queue {
 	struct list_head	tag_set_list;
 	struct bio_set		*bio_split;
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*debugfs_dir;
+	struct dentry		*mq_debugfs_dir;
+#endif
+
 	bool			mq_sysfs_init_done;
 };
 
