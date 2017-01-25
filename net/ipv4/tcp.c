@@ -1206,7 +1206,7 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	}
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
 	err = __inet_stream_connect(sk->sk_socket, uaddr,
-				    msg->msg_namelen, flags);
+				    msg->msg_namelen, flags, 1);
 	/* fastopen_req could already be freed in __inet_stream_connect
 	 * if the connection times out or gets rst
 	 */
