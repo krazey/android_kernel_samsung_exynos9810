@@ -1272,6 +1272,11 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 			else
 				conf &= ~BYT_DEBOUNCE_EN;
 
+			if (arg)
+				conf |= BYT_DEBOUNCE_EN;
+			else
+				conf &= ~BYT_DEBOUNCE_EN;
+
 			switch (arg) {
 			case 375:
 				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
