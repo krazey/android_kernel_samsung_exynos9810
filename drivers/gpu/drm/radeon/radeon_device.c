@@ -1553,8 +1553,6 @@ failed:
 	return r;
 }
 
-static void radeon_debugfs_remove_files(struct radeon_device *rdev);
-
 /**
  * radeon_device_fini - tear down the driver
  *
@@ -1581,7 +1579,6 @@ void radeon_device_fini(struct radeon_device *rdev)
 	rdev->rmmio = NULL;
 	if (rdev->family >= CHIP_BONAIRE)
 		radeon_doorbell_fini(rdev);
-	radeon_debugfs_remove_files(rdev);
 }
 
 
@@ -1957,17 +1954,4 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 				 rdev->ddev->primary);
 #endif
 	return 0;
-}
-
-static void radeon_debugfs_remove_files(struct radeon_device *rdev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < rdev->debugfs_count; i++) {
-		drm_debugfs_remove_files(rdev->debugfs[i].files,
-					 rdev->debugfs[i].num_files,
-					 rdev->ddev->primary);
-	}
-#endif
 }
