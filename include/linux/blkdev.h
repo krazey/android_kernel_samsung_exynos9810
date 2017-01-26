@@ -627,6 +627,7 @@ struct request_queue {
 #define QUEUE_FLAG_FLUSH_NQ    25	/* flush not queueuable */
 #define QUEUE_FLAG_DAX         26	/* device supports DAX */
 #define QUEUE_FLAG_STATS       27	/* track rq completion times */
+#define QUEUE_FLAG_RESTART     28	/* queue needs restart at completion */
 #ifdef CONFIG_JOURNAL_DATA_TAG
 #define QUEUE_FLAG_JOURNAL_TAG     31      /* supports JOURNAL_DATA_TAG */
 #endif
