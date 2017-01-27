@@ -1359,7 +1359,7 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_fdb_dump);
 
-int b53_br_join(struct dsa_switch *ds, int port, struct net_device *bridge)
+int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
 	s8 cpu_port = ds->dst->cpu_port;
@@ -1377,11 +1377,10 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *bridge)
 		b53_write16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, reg);
 	}
 
-	dev->ports[port].bridge_dev = bridge;
 	b53_read16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), &pvlan);
 
 	b53_for_each_port(dev, i) {
-		if (dev->ports[i].bridge_dev != bridge)
+		if (ds->ports[i].bridge_dev != br)
 			continue;
 
 		/* Add this local port to the remote port VLAN control
@@ -1410,7 +1409,6 @@ EXPORT_SYMBOL(b53_br_join);
 void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
-	struct net_device *bridge = dev->ports[port].bridge_dev;
 	struct b53_vlan *vl = &dev->vlans[0];
 	s8 cpu_port = ds->dst->cpu_port;
 	unsigned int i;
@@ -1420,7 +1418,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 
 	b53_for_each_port(dev, i) {
 		/* Don't touch the remaining ports */
-		if (dev->ports[i].bridge_dev != bridge)
+		if (ds->ports[i].bridge_dev != br)
 			continue;
 
 		b53_read16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(i), &reg);
@@ -1435,7 +1433,6 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 
 	b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), pvlan);
 	dev->ports[port].vlan_ctl_mask = pvlan;
-	dev->ports[port].bridge_dev = NULL;
 
 	if (is5325(dev) || is5365(dev))
 		pvid = 1;
