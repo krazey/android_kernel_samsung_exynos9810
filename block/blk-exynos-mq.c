@@ -193,13 +193,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	rq->special = NULL;
 	/* tag was already set */
 	rq->errors = 0;
-
-	rq->cmd = rq->__cmd;
-
 	rq->extra_len = 0;
-	rq->sense_len = 0;
-	rq->resid_len = 0;
-	rq->sense = NULL;
 
 	INIT_LIST_HEAD(&rq->timeout_list);
 	rq->timeout = 0;
@@ -464,10 +458,6 @@ void blk_mq_start_request(struct request *rq)
 	struct request_queue *q = rq->q;
 
 	trace_block_rq_issue(q, rq);
-
-	rq->resid_len = blk_rq_bytes(rq);
-	if (unlikely(blk_bidi_rq(rq)))
-		rq->next_rq->resid_len = blk_rq_bytes(rq->next_rq);
 
 	if (test_bit(QUEUE_FLAG_STATS, &q->queue_flags)) {
 		blk_stat_set_issue_time(&rq->issue_stat);
