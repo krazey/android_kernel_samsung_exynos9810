@@ -2175,7 +2175,7 @@ F:	include/linux/atm*
 F:	include/uapi/linux/atm*
 
 ATMEL AT91 / AT32 MCI DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 S:	Maintained
 F:	drivers/mmc/host/atmel-mci.c
 
@@ -2185,7 +2185,7 @@ S:	Supported
 F:	drivers/power/reset/at91-sama5d2_shdwc.c
 
 ATMEL SAMA5D2 ADC DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 F:	drivers/iio/adc/at91-sama5d2_adc.c
@@ -2197,20 +2197,20 @@ S:	Supported
 F:	sound/soc/atmel
 
 ATMEL XDMA DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	dmaengine@vger.kernel.org
 S:	Supported
 F:	drivers/dma/at_xdmac.c
 
 ATMEL I2C DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-i2c@vger.kernel.org
 S:	Supported
 F:	drivers/i2c/busses/i2c-at91.c
 
 ATMEL ISI DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/platform/soc_camera/atmel-isi.c
@@ -2236,7 +2236,7 @@ S:	Supported
 F:	drivers/mtd/nand/atmel_nand*
 
 ATMEL SDMMC DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-mmc@vger.kernel.org
 S:	Supported
 F:	drivers/mmc/host/sdhci-of-at91.c
@@ -9747,7 +9747,7 @@ S:	Maintained
 F:	drivers/pinctrl/pinctrl-at91.*
 
 PIN CONTROLLER - ATMEL AT91 PIO4
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-gpio@vger.kernel.org
 S:	Supported
