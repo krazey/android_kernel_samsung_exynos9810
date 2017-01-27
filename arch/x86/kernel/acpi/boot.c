@@ -37,6 +37,7 @@
 #include <linux/pci.h>
 #include <linux/efi-bgrt.h>
 
+#include <asm/e820/api.h>
 #include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
 #include <asm/pgtable.h>
