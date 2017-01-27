@@ -2069,6 +2069,7 @@ struct ec_response_get_next_event {
 
 /* Switches */
 #define EC_MKBP_LID_OPEN	0
+#define EC_MKBP_TABLET_MODE	1
 
 /*****************************************************************************/
 /* Temperature sensor commands */
