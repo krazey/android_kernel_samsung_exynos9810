@@ -2307,7 +2307,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	if (q->mq_ops) {
 		if (blk_queue_io_stat(q))
 			blk_account_io_start(rq, true);
-		blk_mq_sched_insert_request(rq, false, true, false);
+		blk_mq_sched_insert_request(rq, false, true, false, false);
 		return BLK_STS_OK;
 	}
 
