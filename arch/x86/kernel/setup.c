@@ -1272,7 +1272,7 @@ void __init setup_arch(char **cmdline_p)
 	kvm_guest_init();
 
 	e820__reserve_resources();
-	e820_mark_nosave_regions(max_low_pfn);
+	e820__register_nosave_regions(max_low_pfn);
 
 	x86_init.resources.reserve_resources();
 
