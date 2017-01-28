@@ -982,7 +982,7 @@ static int vmbus_bus_init(void)
 
 	ret = bus_register(&hv_bus);
 	if (ret)
-		goto err_cleanup;
+		return ret;
 
 	hv_setup_vmbus_irq(vmbus_isr);
 
@@ -1023,9 +1023,6 @@ err_alloc:
 	hv_remove_vmbus_irq();
 
 	bus_unregister(&hv_bus);
-
-err_cleanup:
-	hv_cleanup(false);
 
 	return ret;
 }
@@ -1482,7 +1479,7 @@ static void hv_kexec_handler(void)
 	/* Make sure conn_state is set as hv_synic_cleanup checks for it */
 	mb();
 	cpuhp_remove_state(hyperv_cpuhp_online);
-	hv_cleanup(false);
+	hyperv_cleanup();
 };
 
 static void hv_crash_handler(struct pt_regs *regs)
@@ -1495,7 +1492,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 */
 	vmbus_connection.conn_state = DISCONNECTED;
 	hv_synic_cleanup(smp_processor_id());
-	hv_cleanup(true);
+	hyperv_cleanup();
 };
 
 static int __init hv_acpi_init(void)
@@ -1555,7 +1552,6 @@ static void __exit vmbus_exit(void)
 						 &hyperv_panic_block);
 	}
 	bus_unregister(&hv_bus);
-	hv_cleanup(false);
 	for_each_online_cpu(cpu) {
 		tasklet_kill(hv_context.event_dpc[cpu]);
 	}
