@@ -77,6 +77,7 @@ struct res_common {
 	int			from_state;
 	int			to_state;
 	int			removing;
+	const char		*func_name;
 };
 
 enum {
@@ -847,6 +848,36 @@ static int mpt_mask(struct mlx4_dev *dev)
 	return dev->caps.num_mpts - 1;
 }
 
+static const char *mlx4_resource_type_to_str(enum mlx4_resource t)
+{
+	switch (t) {
+	case RES_QP:
+		return "QP";
+	case RES_CQ:
+		return "CQ";
+	case RES_SRQ:
+		return "SRQ";
+	case RES_XRCD:
+		return "XRCD";
+	case RES_MPT:
+		return "MPT";
+	case RES_MTT:
+		return "MTT";
+	case RES_MAC:
+		return "MAC";
+	case RES_VLAN:
+		return "VLAN";
+	case RES_COUNTER:
+		return "COUNTER";
+	case RES_FS_RULE:
+		return "FS_RULE";
+	case RES_EQ:
+		return "EQ";
+	default:
+		return "INVALID RESOURCE";
+	}
+}
+
 static void *find_res(struct mlx4_dev *dev, u64 res_id,
 		      enum mlx4_resource type)
 {
@@ -856,9 +887,9 @@ static void *find_res(struct mlx4_dev *dev, u64 res_id,
 				  res_id);
 }
 
-static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
-		   enum mlx4_resource type,
-		   void *res)
+static int _get_res(struct mlx4_dev *dev, int slave, u64 res_id,
+		    enum mlx4_resource type,
+		    void *res, const char *func_name)
 {
 	struct res_common *r;
 	int err = 0;
@@ -871,6 +902,10 @@ static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 	}
 
 	if (r->state == RES_ANY_BUSY) {
+		mlx4_warn(dev,
+			  "%s(%d) trying to get resource %llx of type %s, but it's already taken by %s\n",
+			  func_name, slave, res_id, mlx4_resource_type_to_str(type),
+			  r->func_name);
 		err = -EBUSY;
 		goto exit;
 	}
@@ -882,6 +917,7 @@ static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 
 	r->from_state = r->state;
 	r->state = RES_ANY_BUSY;
+	r->func_name = func_name;
 
 	if (res)
 		*((struct res_common **)res) = r;
@@ -890,6 +926,9 @@ exit:
 	spin_unlock_irq(mlx4_tlock(dev));
 	return err;
 }
+
+#define get_res(dev, slave, res_id, type, res) \
+	_get_res((dev), (slave), (res_id), (type), (res), __func__)
 
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource type,
@@ -921,8 +960,10 @@ static void put_res(struct mlx4_dev *dev, int slave, u64 res_id,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = find_res(dev, res_id, type);
-	if (r)
+	if (r) {
 		r->state = r->from_state;
+		r->func_name = "";
+	}
 	spin_unlock_irq(mlx4_tlock(dev));
 }
 
