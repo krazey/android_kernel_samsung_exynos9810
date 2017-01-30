@@ -142,6 +142,15 @@ static const struct of_device_id exynos_pm_domain_of_match[] __initconst = {
 	{ },
 };
 
+static __init const char *exynos_get_domain_name(struct device_node *node)
+{
+	const char *name;
+
+	if (of_property_read_string(node, "label", &name) < 0)
+		name = strrchr(node->full_name, '/') + 1;
+	return kstrdup_const(name, GFP_KERNEL);
+}
+
 static __init int exynos4_pm_init_power_domain(void)
 {
 	struct device_node *np;
@@ -159,8 +168,7 @@ static __init int exynos4_pm_init_power_domain(void)
 			of_node_put(np);
 			return -ENOMEM;
 		}
-		pd->pd.name = kstrdup_const(strrchr(np->full_name, '/') + 1,
-					    GFP_KERNEL);
+		pd->pd.name = exynos_get_domain_name(np);
 		if (!pd->pd.name) {
 			kfree(pd);
 			of_node_put(np);
