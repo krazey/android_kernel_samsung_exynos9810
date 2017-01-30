@@ -67,6 +67,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/security_features.h>
+#include <asm/isa-bridge.h>
 
 #include "pseries.h"
 
