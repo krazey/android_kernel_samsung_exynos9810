@@ -36,6 +36,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	scsi_req(rq)->cmd[0] = REQ_PARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->special = &timeout;
 	blk_execute_rq(q, NULL, rq, 1);
 	rc = rq->errors ? -EIO : 0;
@@ -55,6 +56,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	scsi_req(rq)->cmd[0] = REQ_UNPARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	elv_add_request(q, rq, ELEVATOR_INSERT_FRONT);
 
 out:
