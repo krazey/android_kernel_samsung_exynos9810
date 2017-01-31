@@ -34,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/blk-cgroup.h>
 #include <linux/psi.h>
+#include <linux/debugfs.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -44,6 +45,10 @@
 #include "blk-wbt.h"
 
 #include <linux/math64.h>
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *blk_debugfs_root;
+#endif
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
@@ -3576,6 +3581,9 @@ int __init blk_dev_init(void)
 
 #if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
 	sio_debugfs_init();
+#endif
+#ifdef CONFIG_DEBUG_FS
+	blk_debugfs_root = debugfs_create_dir("block", NULL);
 #endif
 
 	return 0;
