@@ -256,7 +256,7 @@ static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted_len,
                                                   struct scsi_cmnd *cmd)
 {
-	if (wanted_len < DMA_MIN_SIZE || cmd->request->cmd_type != REQ_TYPE_FS)
+	if (wanted_len < DMA_MIN_SIZE || blk_rq_is_passthrough(cmd->request))
 		return 0;
 
 	return wanted_len;
