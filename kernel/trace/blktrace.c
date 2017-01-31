@@ -791,7 +791,7 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 		return;
 	}
 
-	if (rq->cmd_type != REQ_TYPE_FS)
+	if (blk_rq_is_passthrough(rq))
 		what |= BLK_TC_ACT(BLK_TC_PC);
 	else
 		what |= BLK_TC_ACT(BLK_TC_FS);
