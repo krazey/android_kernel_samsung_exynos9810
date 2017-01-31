@@ -267,16 +267,22 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd)
 	struct bio *bio;
 	u32 type;
 
-	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
-		type = NBD_CMD_DISC;
-	else if (req_op(req) == REQ_OP_DISCARD)
+	switch (req_op(req)) {
+	case REQ_OP_DISCARD:
 		type = NBD_CMD_TRIM;
-	else if (req_op(req) == REQ_OP_FLUSH)
+		break;
+	case REQ_OP_FLUSH:
 		type = NBD_CMD_FLUSH;
-	else if (rq_data_dir(req) == WRITE)
+		break;
+	case REQ_OP_WRITE:
 		type = NBD_CMD_WRITE;
-	else
+		break;
+	case REQ_OP_READ:
 		type = NBD_CMD_READ;
+		break;
+	default:
+		return -EIO;
+	}
 
 	memset(&request, 0, sizeof(request));
 	request.magic = htonl(NBD_REQUEST_MAGIC);
