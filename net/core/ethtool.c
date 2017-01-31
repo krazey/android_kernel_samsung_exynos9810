@@ -1824,12 +1824,15 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	ret = __ethtool_get_sset_count(dev, gstrings.string_set);
 	if (ret < 0)
 		return ret;
+	if (ret > S32_MAX / ETH_GSTRING_LEN)
+		return -ENOMEM;
+	WARN_ON_ONCE(!ret);
 
 	gstrings.len = ret;
 
 	if (gstrings.len) {
-		data = kcalloc(gstrings.len, ETH_GSTRING_LEN, GFP_USER);
-		if (!data)
+		data = vzalloc(gstrings.len * ETH_GSTRING_LEN);
+		if (gstrings.len && !data)
 			return -ENOMEM;
 
 		__ethtool_get_strings(dev, gstrings.string_set, data);
@@ -1847,7 +1850,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	ret = 0;
 
 out:
-	kfree(data);
+	vfree(data);
 	return ret;
 }
 
@@ -1924,15 +1927,16 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	n_stats = ops->get_sset_count(dev, ETH_SS_STATS);
 	if (n_stats < 0)
 		return n_stats;
-	WARN_ON(n_stats == 0);
-
+	if (n_stats > S32_MAX / sizeof(u64))
+		return -ENOMEM;
+	WARN_ON_ONCE(!n_stats);
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
 	if (n_stats) {
-		data = kmalloc(n_stats * sizeof(u64), GFP_USER);
-		if (!data)
+		data = vzalloc(n_stats * sizeof(u64));
+		if (n_stats && !data)
 			return -ENOMEM;
 
 		ops->get_ethtool_stats(dev, &stats, data);
@@ -1949,7 +1953,7 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	ret = 0;
 
  out:
-	kfree(data);
+	vfree(data);
 	return ret;
 }
 
@@ -1964,18 +1968,19 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 		return -EOPNOTSUPP;
 
 	n_stats = phy_get_sset_count(phydev);
-
 	if (n_stats < 0)
 		return n_stats;
-	WARN_ON(n_stats == 0);
+	if (n_stats > S32_MAX / sizeof(u64))
+		return -ENOMEM;
+	WARN_ON_ONCE(!n_stats);
 
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
 	if (n_stats) {
-		data = kmalloc_array(n_stats, sizeof(u64), GFP_USER);
-		if (!data)
+		data = vzalloc(n_stats * sizeof(u64));
+		if (n_stats && !data)
 			return -ENOMEM;
 
 		mutex_lock(&phydev->lock);
@@ -1994,7 +1999,7 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	ret = 0;
 
  out:
-	kfree(data);
+	vfree(data);
 	return ret;
 }
 
