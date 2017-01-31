@@ -146,6 +146,9 @@ struct request {
 	int cpu;
 	unsigned int cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
+
+	int internal_tag;
+
 	unsigned long atomic_flags;
 
 	/* the following two fields are internal, NEVER access directly */
@@ -216,8 +219,6 @@ struct request {
 #endif
 
 	unsigned short ioprio;
-
-	int internal_tag;
 
 	void *special;		/* opaque pointer available for LLD use */
 
