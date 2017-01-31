@@ -373,7 +373,8 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
 
-	err = vfs_getattr(&parentpath, &pstat);
+	err = vfs_getattr(&parentpath, &pstat,
+			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);
 	if (err)
 		return err;
 
@@ -452,7 +453,8 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 		}
 
 		ovl_path_lower(next, &lowerpath);
-		err = vfs_getattr(&lowerpath, &stat);
+		err = vfs_getattr(&lowerpath, &stat,
+				  STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
 		/* maybe truncate regular file. this has no effect on dirs */
 		if (flags & O_TRUNC)
 			stat.size = 0;
