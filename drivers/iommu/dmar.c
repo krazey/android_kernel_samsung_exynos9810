@@ -1100,14 +1100,11 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	raw_spin_lock_init(&iommu->register_lock);
 
 	if (intel_iommu_enabled && !drhd->ignored) {
-		iommu->iommu_dev = iommu_device_create(NULL, iommu,
-						       intel_iommu_groups,
-						       "%s", iommu->name);
-
-		if (IS_ERR(iommu->iommu_dev)) {
-			err = PTR_ERR(iommu->iommu_dev);
+		err = iommu_device_sysfs_add(&iommu->iommu, NULL,
+					     intel_iommu_groups,
+					     "%s", iommu->name);
+		if (err)
 			goto err_unmap;
-		}
 
 		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
 
@@ -1133,7 +1130,7 @@ error:
 static void free_iommu(struct intel_iommu *iommu)
 {
 	if (intel_iommu_enabled && !iommu->drhd->ignored) {
-		iommu_device_destroy(iommu->iommu_dev);
+		iommu_device_sysfs_remove(&iommu->iommu);
 		iommu_device_unregister(&iommu->iommu);
 	}
 
