@@ -14,6 +14,7 @@
 #include <linux/cpufreq.h>
 #include <linux/fb.h>
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/slab.h>
 #include <linux/cpu_pm.h>
 #include <linux/of.h>
