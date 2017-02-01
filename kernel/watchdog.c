@@ -21,6 +21,7 @@
 #include <linux/sched/rt.h>
 #include <linux/tick.h>
 #include <linux/workqueue.h>
+#include <linux/sched/clock.h>
 #include <linux/exynos-ss.h>
 
 #include <asm/irq_regs.h>
