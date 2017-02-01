@@ -2215,20 +2215,27 @@ static void mmc_blk_rw_cmd_abort(struct mmc_card *card, struct request *req)
 				      blk_rq_cur_bytes(req));
 }
 
-static void mmc_blk_rw_start_new(struct mmc_queue *mq, struct mmc_card *card,
-				 struct request *req)
+/**
+ * mmc_blk_rw_try_restart() - tries to restart the current async request
+ * @mq: the queue with the card and host to restart
+ * @req: a new request that want to be started after the current one
+ */
+static void mmc_blk_rw_try_restart(struct mmc_queue *mq, struct request *req)
 {
 	if (!req)
 		return;
 
-	if (mmc_card_removed(card)) {
+	/*
+	 * If the card was removed, just cancel everything and return.
+	 */
+	if (mmc_card_removed(mq->card)) {
 		req->rq_flags |= RQF_QUIET;
 		blk_end_request_all(req, -EIO);
-	} else {
-		mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
-		mmc_start_areq(card->host,
-			       &mq->mqrq_cur->mmc_active, NULL);
+		return;
 	}
+	/* Else proceed and try to restart the current async request */
+	mmc_blk_rw_rq_prep(mq->mqrq_cur, mq->card, 0, mq);
+	mmc_start_areq(mq->card->host, &mq->mqrq_cur->mmc_active, NULL);
 }
 
 static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
@@ -2320,11 +2327,11 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			ret = mmc_blk_cmd_err(md, card, brq, old_req, ret);
 			if (mmc_blk_reset(md, card->host, type)) {
 				mmc_blk_rw_cmd_abort(card, old_req);
-				mmc_blk_rw_start_new(mq, card, new_req);
+				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
 			if (!ret) {
-				mmc_blk_rw_start_new(mq, card, new_req);
+				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
 			break;
@@ -2337,7 +2344,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			if (!mmc_blk_reset(md, card->host, type))
 				break;
 			mmc_blk_rw_cmd_abort(card, old_req);
-			mmc_blk_rw_start_new(mq, card, new_req);
+			mmc_blk_rw_try_restart(mq, new_req);
 			return;
 		case MMC_BLK_DATA_ERR: {
 			int err;
@@ -2347,7 +2354,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 				break;
 			if (err == -ENODEV) {
 				mmc_blk_rw_cmd_abort(card, old_req);
-				mmc_blk_rw_start_new(mq, card, new_req);
+				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
 			/* Fall through */
@@ -2368,19 +2375,19 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			ret = blk_end_request(old_req, -EIO,
 						brq->data.blksz);
 			if (!ret) {
-				mmc_blk_rw_start_new(mq, card, new_req);
+				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
 			break;
 		case MMC_BLK_NOMEDIUM:
 			mmc_blk_rw_cmd_abort(card, old_req);
-			mmc_blk_rw_start_new(mq, card, new_req);
+			mmc_blk_rw_try_restart(mq, new_req);
 			return;
 		default:
 			pr_err("%s: Unhandled return value (%d)",
 					old_req->rq_disk->disk_name, status);
 			mmc_blk_rw_cmd_abort(card, old_req);
-			mmc_blk_rw_start_new(mq, card, new_req);
+			mmc_blk_rw_try_restart(mq, new_req);
 			return;
 		}
 
