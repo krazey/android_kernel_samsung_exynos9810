@@ -308,16 +308,6 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
 
-		status = update_fdt_memmap((void *)*new_fdt_addr, &map);
-		if (status != EFI_SUCCESS) {
-			/*
-			 * The kernel won't get far without the memory map, but
-			 * may still be able to print something meaningful so
-			 * return success here.
-			 */
-			return EFI_SUCCESS;
-		}
-
 		/* Install the new virtual address map */
 		svam = sys_table->runtime->set_virtual_address_map;
 		status = svam(runtime_entry_count * desc_size, desc_size,
