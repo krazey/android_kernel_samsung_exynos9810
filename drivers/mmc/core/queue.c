@@ -92,8 +92,8 @@ static int mmc_queue_thread(void *d)
 			set_current_state(TASK_RUNNING);
 			mmc_blk_issue_rq(mq, req);
 			cond_resched();
-			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
-				mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
+			if (mq->new_request) {
+				mq->new_request = false;
 				continue; /* fetch again */
 			}
 
@@ -436,15 +436,15 @@ int mmc_queue_suspend(struct mmc_queue *mq, int wait)
 	unsigned long flags;
 	int rc = 0;
 
-	if (!(mq->flags & MMC_QUEUE_SUSPENDED)) {
-		mq->flags |= MMC_QUEUE_SUSPENDED;
+	if (!mq->suspended) {
+		mq->suspended |= true;
 
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_stop_queue(q);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 		rc = down_trylock(&mq->thread_sem);
 		if (rc && !wait) {
-			mq->flags &= ~MMC_QUEUE_SUSPENDED;
+			mq->suspended |= true;
 			spin_lock_irqsave(q->queue_lock, flags);
 			blk_start_queue(q);
 			spin_unlock_irqrestore(q->queue_lock, flags);
@@ -452,7 +452,7 @@ int mmc_queue_suspend(struct mmc_queue *mq, int wait)
 		} else if (wait) {
 			printk("%s: mq->flags: %x, q->queue_flags: 0x%lx, \
 					q->in_flight (%d, %d) \n",
-					mmc_hostname(mq->card->host), mq->flags,
+					mmc_hostname(mq->card->host), mq,
 					q->queue_flags, q->in_flight[0], q->in_flight[1]);
 			mutex_lock(&q->sysfs_lock);
 			if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) {
@@ -491,8 +491,8 @@ void mmc_queue_resume(struct mmc_queue *mq)
 	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
-	if (mq->flags & MMC_QUEUE_SUSPENDED) {
-		mq->flags &= ~MMC_QUEUE_SUSPENDED;
+	if (mq->suspended) {
+		mq->suspended = false;
 
 		up(&mq->thread_sem);
 
