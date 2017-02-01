@@ -3310,6 +3310,23 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 }
 
+struct sd_devt {
+	int idx;
+	struct disk_devt disk_devt;
+};
+
+void sd_devt_release(struct disk_devt *disk_devt)
+{
+	struct sd_devt *sd_devt = container_of(disk_devt, struct sd_devt,
+			disk_devt);
+
+	spin_lock(&sd_index_lock);
+	ida_remove(&sd_index_ida, sd_devt->idx);
+	spin_unlock(&sd_index_lock);
+
+	kfree(sd_devt);
+}
+
 /**
  *	sd_probe - called during driver initialization and whenever a
  *	new scsi device is attached to the system. It is called once
@@ -3331,6 +3348,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 static int sd_probe(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
+	struct sd_devt *sd_devt;
 	struct scsi_disk *sdkp;
 	struct gendisk *gd;
 	int index;
@@ -3356,9 +3374,13 @@ static int sd_probe(struct device *dev)
 	if (!sdkp)
 		goto out;
 
+	sd_devt = kzalloc(sizeof(*sd_devt), GFP_KERNEL);
+	if (!sd_devt)
+		goto out_free;
+
 	gd = alloc_disk(SD_MINORS);
 	if (!gd)
-		goto out_free;
+		goto out_free_devt;
 
 	do {
 		if (!ida_pre_get(&sd_index_ida, GFP_KERNEL))
@@ -3373,6 +3395,11 @@ static int sd_probe(struct device *dev)
 		sdev_printk(KERN_WARNING, sdp, "sd_probe: memory exhausted.\n");
 		goto out_put;
 	}
+
+	atomic_set(&sd_devt->disk_devt.count, 1);
+	sd_devt->disk_devt.release = sd_devt_release;
+	sd_devt->idx = index;
+	gd->disk_devt = &sd_devt->disk_devt;
 
 	error = sd_format_disk_name("sd", index, gd->disk_name, DISK_NAME_LEN);
 	if (error) {
@@ -3474,13 +3501,14 @@ static int sd_probe(struct device *dev)
 	return 0;
 
  out_free_index:
-	spin_lock(&sd_index_lock);
-	ida_remove(&sd_index_ida, index);
-	spin_unlock(&sd_index_lock);
+	put_disk_devt(&sd_devt->disk_devt);
+	sd_devt = NULL;
  out_put:
 	put_disk(gd);
  out_free:
 	kfree(sdkp);
+ out_free_devt:
+	kfree(sd_devt);
  out:
 	scsi_autopm_put_device(sdp);
 	return error;
@@ -3560,9 +3588,7 @@ static void scsi_disk_release(struct device *dev)
 	struct gendisk *disk = sdkp->disk;
 	struct request_queue *q = disk->queue;
 
-	spin_lock(&sd_index_lock);
-	ida_remove(&sd_index_ida, sdkp->index);
-	spin_unlock(&sd_index_lock);
+	put_disk_devt(disk->disk_devt);
 
 	/*
 	 * Wait until all requests that are in progress have completed.

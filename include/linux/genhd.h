@@ -174,6 +174,13 @@ struct blk_integrity {
 };
 
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
+struct disk_devt {
+	atomic_t count;
+	void (*release)(struct disk_devt *disk_devt);
+};
+
+void put_disk_devt(struct disk_devt *disk_devt);
+void get_disk_devt(struct disk_devt *disk_devt);
 
 struct accumulated_stats {
 	struct timespec uptime;
@@ -189,6 +196,7 @@ struct gendisk {
 	int first_minor;
 	int minors;                     /* maximum number of minors, =1 for
                                          * disks that can't be partitioned. */
+	struct disk_devt *disk_devt;
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 	char *(*devnode)(struct gendisk *gd, umode_t *mode);
