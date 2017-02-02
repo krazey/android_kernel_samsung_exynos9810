@@ -1456,7 +1456,7 @@ retry_next:
 	}
 }
 
-static int _aac_reset_adapter(struct aac_dev *aac, int forced)
+static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	int index, quirks;
 	int retval;
@@ -1465,6 +1465,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	struct scsi_cmnd *command;
 	struct scsi_cmnd *command_list;
 	int jafo = 0;
+	int bled;
 
 	/*
 	 * Assumptions:
@@ -1490,7 +1491,8 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	 *	If a positive health, means in a known DEAD PANIC
 	 * state and the adapter could be reset to `try again'.
 	 */
-	retval = aac_adapter_restart(aac, forced ? 0 : aac_adapter_check_health(aac));
+	bled = forced ? 0 : aac_adapter_check_health(aac);
+	retval = aac_adapter_restart(aac, bled, reset_type);
 
 	if (retval)
 		goto out;
@@ -1601,11 +1603,12 @@ out:
 	return retval;
 }
 
-int aac_reset_adapter(struct aac_dev * aac, int forced)
+int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	unsigned long flagv = 0;
 	int retval;
 	struct Scsi_Host * host;
+	int bled;
 
 	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
 		return -EBUSY;
@@ -1654,7 +1657,9 @@ int aac_reset_adapter(struct aac_dev * aac, int forced)
 	if (forced < 2)
 		aac_send_shutdown(aac);
 	spin_lock_irqsave(host->host_lock, flagv);
-	retval = _aac_reset_adapter(aac, forced ? forced : ((aac_check_reset != 0) && (aac_check_reset != 1)));
+	bled = forced ? forced :
+			(aac_check_reset != 0 && aac_check_reset != 1);
+	retval = _aac_reset_adapter(aac, bled, reset_type);
 	spin_unlock_irqrestore(host->host_lock, flagv);
 
 	if ((forced < 2) && (retval == -ENODEV)) {
@@ -1700,6 +1705,7 @@ int aac_check_health(struct aac_dev * aac)
 	unsigned long time_now, flagv = 0;
 	struct list_head * entry;
 	struct Scsi_Host * host;
+	int bled;
 
 	/* Extending the scope of fib_lock slightly to protect aac->in_reset */
 	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
@@ -1817,7 +1823,8 @@ int aac_check_health(struct aac_dev * aac)
 	host = aac->scsi_host_ptr;
 	if (aac->thread->pid != current->pid)
 		spin_lock_irqsave(host->host_lock, flagv);
-	BlinkLED = _aac_reset_adapter(aac, aac_check_reset != 1);
+	bled = aac_check_reset != 1 ? 1 : 0;
+	_aac_reset_adapter(aac, bled, IOP_HWSOFT_RESET);
 	if (aac->thread->pid != current->pid)
 		spin_unlock_irqrestore(host->host_lock, flagv);
 	return BlinkLED;
