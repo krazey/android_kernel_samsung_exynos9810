@@ -1038,16 +1038,6 @@ static void musb_enable_interrupts(struct musb *musb)
 
 }
 
-static void musb_generic_disable(struct musb *musb)
-{
-	void __iomem	*mbase = musb->mregs;
-
-	musb_disable_interrupts(musb);
-
-	/* off */
-	musb_writeb(mbase, MUSB_DEVCTL, 0);
-}
-
 /*
  * Program the HDRC to start (enable interrupts, dma, etc.).
  */
@@ -1104,8 +1094,8 @@ void musb_stop(struct musb *musb)
 {
 	/* stop IRQs, timers, ... */
 	musb_platform_disable(musb);
-	musb_generic_disable(musb);
-	musb_dbg(musb, "HDRC disabled");
+	musb_disable_interrupts(musb);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	/* FIXME
 	 *  - mark host and/or peripheral drivers unusable/inactive
@@ -2334,7 +2324,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	/* be sure interrupts are disabled before connecting ISR */
 	musb_platform_disable(musb);
-	musb_generic_disable(musb);
+	musb_disable_interrupts(musb);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	/* MUSB_POWER_SOFTCONN might be already set, JZ4740 does this. */
 	musb_writeb(musb->mregs, MUSB_POWER, 0);
@@ -2513,9 +2504,9 @@ static int musb_remove(struct platform_device *pdev)
 	musb_gadget_cleanup(musb);
 	musb_platform_disable(musb);
 	spin_lock_irqsave(&musb->lock, flags);
-	musb_generic_disable(musb);
-	spin_unlock_irqrestore(&musb->lock, flags);
+	musb_disable_interrupts(musb);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+	spin_unlock_irqrestore(&musb->lock, flags);
 	musb_platform_exit(musb);
 
 	pm_runtime_dont_use_autosuspend(musb->controller);
@@ -2698,7 +2689,8 @@ static int musb_suspend(struct device *dev)
 	}
 
 	musb_platform_disable(musb);
-	musb_generic_disable(musb);
+	musb_disable_interrupts(musb);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	WARN_ON(!list_empty(&musb->pending_list));
 
 	spin_lock_irqsave(&musb->lock, flags);
