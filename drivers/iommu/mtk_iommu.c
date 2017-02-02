@@ -681,7 +681,6 @@ static int mtk_iommu_init_fn(struct device_node *np)
 		return ret;
 	}
 
-	iommu_register_instance(&np->fwnode, &mtk_iommu_ops);
 	return 0;
 }
 
