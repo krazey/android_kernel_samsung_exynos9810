@@ -632,7 +632,7 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 	disk_alloc_events(disk);
 
 	/* Register BDI before referencing it from bdev */
-	bdi = &disk->queue->backing_dev_info;
+	bdi = disk->queue->backing_dev_info;
 	bdi_register_owner(bdi, disk_to_dev(disk));
 
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
@@ -1536,7 +1536,7 @@ static int iostats_show(struct seq_file *seqf, void *v)
 		part_stat_unlock();
 		uptime = ktime_to_ns(ktime_get());
 		uptime /= 1000000; /* in ms */
-		bdi = &gp->queue->backing_dev_info;
+		bdi = gp->queue->backing_dev_info;
 		nread = part_in_flight_read(hd);
 		nwrite = part_in_flight_write(hd);
 		seq_printf(seqf, "%4d %7d %s %lu %lu %lu %u "
