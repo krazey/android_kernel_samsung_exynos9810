@@ -7,9 +7,6 @@
 #include <linux/cpufreq_times.h>
 #include <linux/cputime.h>
 #include "sched.h"
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#endif
 #include "walt.h"
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
