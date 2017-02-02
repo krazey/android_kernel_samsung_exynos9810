@@ -65,8 +65,6 @@
 #include <net/net_namespace.h>
 #include <net/addrconf.h>
 
-#include "fib_lookup.h"
-
 #define IPV6ONLY_FLAGS	\
 		(IFA_F_NODAD | IFA_F_OPTIMISTIC | IFA_F_DADFAILED | \
 		 IFA_F_HOMEADDRESS | IFA_F_TENTATIVE | \
