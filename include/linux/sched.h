@@ -30,6 +30,8 @@
 #include <linux/topology.h>
 #include <linux/magic.h>
 
+#include <asm/current.h>
+
 struct sched_attr;
 struct sched_param;
 
@@ -1810,8 +1812,6 @@ extern struct pid_namespace init_pid_ns;
 extern struct task_struct *find_task_by_vpid(pid_t nr);
 extern struct task_struct *find_task_by_pid_ns(pid_t nr,
 		struct pid_namespace *ns);
-
-#include <asm/current.h>
 
 extern int wake_up_state(struct task_struct *tsk, unsigned int state);
 extern int wake_up_process(struct task_struct *tsk);
