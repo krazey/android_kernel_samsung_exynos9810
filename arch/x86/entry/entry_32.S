@@ -599,7 +599,7 @@ ENTRY(iret_exc	)
 	 * will soon execute iret and the tracer was already set to
 	 * the irqstate after the IRET:
 	 */
-	DISABLE_INTERRUPTS(CLBR_EAX)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	lss	(%esp), %esp			/* switch to espfix segment */
 	jmp	.Lrestore_nocheck
 #endif
