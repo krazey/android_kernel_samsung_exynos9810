@@ -464,7 +464,7 @@ common_interrupt:
 	interrupt do_IRQ
 	/* 0(%rsp): old RSP */
 ret_from_intr:
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	decl	PER_CPU_VAR(irq_count)
 
@@ -1028,7 +1028,7 @@ END(paranoid_entry)
  *           ebx=3: needs SWITCH_USER_CR3 but not swapgs
  */
 ENTRY(paranoid_exit)
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF_DEBUG
 	TRACE_IRQS_IRETQ_DEBUG
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
@@ -1138,7 +1138,7 @@ ENTRY(error_entry)
 END(error_entry)
 
 ENTRY(error_exit)
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	testb	$3, CS(%rsp)
 	jz	retint_kernel
