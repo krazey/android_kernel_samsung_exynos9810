@@ -133,10 +133,6 @@ struct blk_plug;
 struct filename;
 struct nameidata;
 
-#define VMACACHE_BITS 2
-#define VMACACHE_SIZE (1U << VMACACHE_BITS)
-#define VMACACHE_MASK (VMACACHE_SIZE - 1)
-
 extern unsigned long total_forks;
 extern int nr_threads;
 DECLARE_PER_CPU(unsigned long, process_counts);
@@ -1748,9 +1744,10 @@ struct task_struct {
 	unsigned int sse;
 
 	struct mm_struct *mm, *active_mm;
-	/* per-thread vma caching */
-	u64 vmacache_seqnum;
-	struct vm_area_struct *vmacache[VMACACHE_SIZE];
+
+	/* Per-thread vma caching: */
+	struct vmacache vmacache;
+
 #if defined(SPLIT_RSS_COUNTING)
 	struct task_rss_stat	rss_stat;
 #endif

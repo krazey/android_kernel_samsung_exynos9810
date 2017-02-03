@@ -12,7 +12,7 @@
 
 static inline void vmacache_flush(struct task_struct *tsk)
 {
-	memset(tsk->vmacache, 0, sizeof(tsk->vmacache));
+	memset(tsk->vmacache.vmas, 0, sizeof(tsk->vmacache.vmas));
 }
 
 extern void vmacache_update(unsigned long addr, struct vm_area_struct *newvma);
