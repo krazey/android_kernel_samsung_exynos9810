@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 #include <asm/cputable.h>
 #include <asm/code-patching.h>
