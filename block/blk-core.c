@@ -1746,8 +1746,8 @@ EXPORT_SYMBOL_GPL(blk_init_request_from_bio);
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	struct blk_plug *plug;
-	where = ELEVATOR_INSERT_SORT;
-	struct request *req;
+	int where = ELEVATOR_INSERT_SORT;
+	struct request *req, *free;
 	unsigned int request_count = 0;
 	unsigned int wb_acct;
 

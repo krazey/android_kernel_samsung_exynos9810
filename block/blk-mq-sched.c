@@ -234,7 +234,8 @@ void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_move_to_dispatch);
 
-bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio)
+bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
+			    struct request **merged_request)
 {
 	struct request *rq;
 
