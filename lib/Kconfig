@@ -571,6 +571,9 @@ config STACKDEPOT
 config SBITMAP
 	bool
 
+config PARMAN
+	tristate "parman"
+
 config PRIME_NUMBERS
 	tristate "Prime number generator"
 	default n
