@@ -1604,7 +1604,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 					bool exclusive, bool allow_dummy)
 {
 	struct regulator_dev *rdev;
-	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
+	struct regulator *regulator;
 	const char *devname = NULL;
 	int ret;
 
@@ -1615,11 +1615,6 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 	if (dev)
 		devname = dev_name(dev);
-
-	if (have_full_constraints())
-		ret = -ENODEV;
-	else
-		ret = -EPROBE_DEFER;
 
 	rdev = regulator_dev_lookup(dev, id, &ret);
 	if (rdev)
@@ -1676,6 +1671,7 @@ found:
 	}
 
 	if (!try_module_get(rdev->owner)) {
+		regulator = ERR_PTR(-EPROBE_DEFER);
 		put_device(&rdev->dev);
 		return regulator;
 	}
