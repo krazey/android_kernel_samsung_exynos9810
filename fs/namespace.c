@@ -25,6 +25,8 @@
 #include <linux/magic.h>
 #include <linux/bootmem.h>
 #include <linux/task_work.h>
+#include <linux/sched/task.h>
+
 #include <linux/slub_def.h>
 #include <linux/fslog.h>
 #include "pnode.h"
