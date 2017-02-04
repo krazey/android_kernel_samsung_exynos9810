@@ -45,6 +45,7 @@
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/sched.h>
+#include <linux/rculist.h>
 
 #ifdef CONFIG_SEC_DEBUG
 #include <linux/sec_debug.h>

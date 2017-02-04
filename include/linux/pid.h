@@ -1,7 +1,7 @@
 #ifndef _LINUX_PID_H
 #define _LINUX_PID_H
 
-#include <linux/rcupdate.h>
+#include <linux/rculist.h>
 #include <linux/wait.h>
 
 enum pid_type
