@@ -224,7 +224,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *ndev,
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		log_debug(1 << CXGBI_DBG_DEV,
@@ -257,7 +257,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
 	struct cxgbi_device *cdev;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
@@ -291,7 +291,7 @@ static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
