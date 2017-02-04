@@ -4979,26 +4979,6 @@ void __napi_schedule_irqoff(struct napi_struct *n)
 }
 EXPORT_SYMBOL(__napi_schedule_irqoff);
 
-bool __napi_complete(struct napi_struct *n)
-{
-	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
-
-	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
-
-	/* Some drivers call us directly, instead of calling
-	 * napi_complete_done().
-	 */
-	if (unlikely(test_bit(NAPI_STATE_IN_BUSY_POLL, &n->state)))
-		return false;
-
-	list_del_init(&n->poll_list);
-	smp_mb__before_atomic();
-	sd->current_napi = NULL;
-	clear_bit(NAPI_STATE_SCHED, &n->state);
-	return true;
-}
-EXPORT_SYMBOL(__napi_complete);
-
 bool napi_complete_done(struct napi_struct *n, int work_done)
 {
 	unsigned long flags;
@@ -5025,14 +5005,13 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		else
 			napi_gro_flush(n, false);
 	}
-	if (likely(list_empty(&n->poll_list))) {
-		WARN_ON_ONCE(!test_and_clear_bit(NAPI_STATE_SCHED, &n->state));
-	} else {
+	if (unlikely(!list_empty(&n->poll_list))) {
 		/* If n->poll_list is not empty, we need to mask irqs */
 		local_irq_save(flags);
-		__napi_complete(n);
+		list_del_init(&n->poll_list);
 		local_irq_restore(flags);
 	}
+	WARN_ON_ONCE(!test_and_clear_bit(NAPI_STATE_SCHED, &n->state));
 	return true;
 }
 EXPORT_SYMBOL(napi_complete_done);
