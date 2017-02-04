@@ -1703,9 +1703,6 @@ static inline int kstack_end(void *addr)
 }
 #endif
 
-extern union thread_union init_thread_union;
-extern struct task_struct init_task;
-
 extern struct pid_namespace init_pid_ns;
 
 /*
