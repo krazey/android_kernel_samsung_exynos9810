@@ -4480,6 +4480,9 @@ out:
 #endif
 		ufshcd_vops_dbg_register_dump(hba);
 		exynos_ufs_show_uic_info(hba);
+		ufshcd_print_host_state(hba);
+		ufshcd_print_pwr_info(hba);
+		ufshcd_print_host_regs(hba);
 	}
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
@@ -5206,6 +5209,9 @@ out:
 		SEC_ufs_operation_check(hba, UIC_CMD_DME_LINK_STARTUP);
 #endif
 		dev_err(hba->dev, "link startup failed %d\n", ret);
+		ufshcd_print_host_state(hba);
+		ufshcd_print_pwr_info(hba);
+		ufshcd_print_host_regs(hba);
 	}
 	return ret;
 }
