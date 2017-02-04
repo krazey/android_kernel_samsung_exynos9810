@@ -4285,6 +4285,8 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display_irqs_enabled = false;
 
+	dev_priv->hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
+
 	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
 	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
