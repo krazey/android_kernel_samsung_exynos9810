@@ -1418,8 +1418,7 @@ struct ext4_sb_info {
 	struct journal_s *s_journal;
 	struct list_head s_orphan;
 	struct mutex s_orphan_lock;
-	unsigned long s_resize_flags;		/* Flags indicating if there
-						   is a resizer */
+	unsigned long s_ext4_flags;		/* Ext4 superblock flags */
 	unsigned long s_commit_interval;
 	u32 s_max_batch_time;
 	u32 s_min_batch_time;
@@ -3341,7 +3340,6 @@ static inline void ext4_inode_resume_unlocked_dio(struct inode *inode)
 					    EXT4_WQ_HASH_SZ])
 extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 
-#define EXT4_RESIZING	0
 extern int ext4_resize_begin(struct super_block *sb);
 extern void ext4_resize_end(struct super_block *sb);
 
