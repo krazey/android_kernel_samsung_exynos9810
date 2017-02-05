@@ -30,7 +30,6 @@
 #include <linux/fdtable.h>
 #include <linux/mount.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/cputime.h>
 
 #include <asm/cacheflush.h>
 #include <asm/stacktrace.h>
