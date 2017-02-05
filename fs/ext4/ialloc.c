@@ -771,6 +771,9 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 	sb = dir->i_sb;
 	sbi = EXT4_SB(sb);
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+		return ERR_PTR(-EIO);
+
 	if ((IS_ENCRYPTED(dir) || DUMMY_ENCRYPTION_ENABLED(sbi)) &&
 	    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))) {
 		err = fscrypt_get_encryption_info(dir);

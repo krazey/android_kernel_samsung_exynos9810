@@ -1895,6 +1895,18 @@ static inline bool ext4_has_incompat_features(struct super_block *sb)
 }
 
 /*
+ * Superblock flags
+ */
+#define EXT4_FLAGS_RESIZING	0
+#define EXT4_FLAGS_SHUTDOWN	1
+
+static inline int ext4_forced_shutdown(struct ext4_sb_info *sbi)
+{
+	return test_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
+}
+
+
+/*
  * Default values for user and/or group using reserved blocks
  */
 #define	EXT4_DEF_RESUID		0
