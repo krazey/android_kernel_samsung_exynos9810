@@ -1646,10 +1646,6 @@ extern void wake_up_new_task(struct task_struct *tsk);
  static inline void kick_process(struct task_struct *tsk) { }
 #endif
 
-extern void exit_files(struct task_struct *);
-
-extern void exit_itimers(struct signal_struct *);
-
 extern int do_execve(struct filename *,
 		     const char __user * const __user *,
 		     const char __user * const __user *);
