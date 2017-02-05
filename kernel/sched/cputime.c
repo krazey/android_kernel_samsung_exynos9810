@@ -5,7 +5,7 @@
 #include <linux/static_key.h>
 #include <linux/context_tracking.h>
 #include <linux/cpufreq_times.h>
-#include <linux/cputime.h>
+#include <linux/sched/cputime.h>
 #include "sched.h"
 #include "walt.h"
 
