@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/wait.h>
 #include <linux/nospec.h>
 #include <sound/asound.h>
 
