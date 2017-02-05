@@ -188,7 +188,6 @@ extern cpumask_var_t cpu_isolated_map;
 
 extern int runqueue_is_locked(int cpu);
 
-extern void update_process_times(int user);
 extern void scheduler_tick(void);
 extern void cpuset_cpu_active(void);
 
