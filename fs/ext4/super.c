@@ -456,6 +456,9 @@ void __ext4_error(struct super_block *sb, const char *function,
 	va_list args;
 	char *page_buf = NULL;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
+
 	if (ext4_error_ratelimit(sb)) {
 		va_start(args, fmt);
 		vaf.fmt = fmt;
@@ -487,6 +490,9 @@ void __ext4_error_inode(struct inode *inode, const char *function,
 	struct va_format vaf;
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
 	char *page_buf = NULL;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return;
 
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
 	es->s_last_error_block = cpu_to_le64(block);
@@ -530,6 +536,9 @@ void __ext4_error_file(struct file *file, const char *function,
 	struct inode *inode = file_inode(file);
 	char pathname[80], *path;
 	char *page_buf = NULL;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return;
 
 	es = EXT4_SB(inode->i_sb)->s_es;
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
@@ -618,6 +627,9 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 	const char *errstr;
 	char *page_buf = NULL;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
+
 	/* Special case: if the error is EROFS, and we're not already
 	 * inside a transaction, then there's really no point in logging
 	 * an error. */
@@ -660,6 +672,9 @@ void __ext4_abort(struct super_block *sb, const char *function,
 {
 	struct va_format vaf;
 	va_list args;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
 
 	save_error_info(sb, function, line);
 	va_start(args, fmt);
@@ -758,6 +773,9 @@ __acquires(bitlock)
 	va_list args;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 	char *page_buf = NULL;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
 
 	es->s_last_error_ino = cpu_to_le32(ino);
 	es->s_last_error_block = cpu_to_le64(block);
@@ -4966,6 +4984,9 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	tid_t target;
 	bool needs_barrier = false;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return 0;
 
 	trace_ext4_sync_fs(sb, wait);
 	flush_workqueue(sbi->rsv_conversion_wq);
