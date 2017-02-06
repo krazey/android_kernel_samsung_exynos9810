@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/completion.h>
 #include <linux/magic.h>
 
 /* This is the range of ioctl() numbers we claim as ours */
