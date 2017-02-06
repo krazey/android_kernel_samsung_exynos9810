@@ -83,7 +83,7 @@ ENTRY(efi_pe_entry)
 
 	/* Relocate efi_config->call() */
 	leal	efi32_config(%esi), %eax
-	add	%esi, 32(%eax)
+	add	%esi, 40(%eax)
 	pushl	%eax
 
 	call	make_boot_params
@@ -109,7 +109,7 @@ ENTRY(efi32_stub_entry)
 
 	/* Relocate efi_config->call() */
 	leal	efi32_config(%esi), %eax
-	add	%esi, 32(%eax)
+	add	%esi, 40(%eax)
 	pushl	%eax
 2:
 	call	efi_main
@@ -265,7 +265,7 @@ relocated:
 #ifdef CONFIG_EFI_STUB
 	.data
 efi32_config:
-	.fill 4,8,0
+	.fill 5,8,0
 	.long efi_call_phys
 	.long 0
 	.byte 0
