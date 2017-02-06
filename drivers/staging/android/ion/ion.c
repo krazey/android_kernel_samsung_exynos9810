@@ -37,6 +37,8 @@
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
+#include <linux/sched/task.h>
+
 #include <linux/exynos_iovmm.h>
 #include <linux/exynos_ion.h>
 #include <linux/highmem.h>
