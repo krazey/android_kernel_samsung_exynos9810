@@ -2734,10 +2734,11 @@ void xfrm_garbage_collect(struct net *net)
 }
 EXPORT_SYMBOL(xfrm_garbage_collect);
 
-static void xfrm_garbage_collect_deferred(struct net *net)
+void xfrm_garbage_collect_deferred(struct net *net)
 {
 	flow_cache_flush_deferred(net);
 }
+EXPORT_SYMBOL(xfrm_garbage_collect_deferred);
 
 static void xfrm_init_pmtu(struct dst_entry *dst)
 {
@@ -2893,8 +2894,6 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->neigh_lookup = xfrm_neigh_lookup;
 		if (likely(!dst_ops->confirm_neigh))
 			dst_ops->confirm_neigh = xfrm_confirm_neigh;
-		if (likely(afinfo->garbage_collect == NULL))
-			afinfo->garbage_collect = xfrm_garbage_collect_deferred;
 		rcu_assign_pointer(xfrm_policy_afinfo[afinfo->family], afinfo);
 	}
 	spin_unlock(&xfrm_policy_afinfo_lock);
@@ -2921,7 +2920,6 @@ void xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 	dst_ops->check = NULL;
 	dst_ops->negative_advice = NULL;
 	dst_ops->link_failure = NULL;
-	afinfo->garbage_collect = NULL;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
 
