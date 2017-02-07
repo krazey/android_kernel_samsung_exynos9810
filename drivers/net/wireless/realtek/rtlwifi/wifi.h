@@ -2203,6 +2203,8 @@ struct rtl_hal_ops {
 				   struct rtl_wow_pattern *rtl_pattern,
 				   u8 index);
 	u16 (*get_available_desc)(struct ieee80211_hw *hw, u8 q_idx);
+	void (*c2h_content_parsing)(struct ieee80211_hw *hw, u8 tag, u8 len,
+				    u8 *val);
 };
 
 struct rtl_intf_ops {
@@ -2318,6 +2320,7 @@ struct rtl_locks {
 	spinlock_t waitq_lock;
 	spinlock_t entry_list_lock;
 	spinlock_t usb_lock;
+	spinlock_t c2hcmd_lock;
 
 	/*FW clock change */
 	spinlock_t fw_ps_lock;
@@ -2347,6 +2350,7 @@ struct rtl_works {
 	struct workqueue_struct *rtl_wq;
 	struct delayed_work watchdog_wq;
 	struct delayed_work ips_nic_off_wq;
+	struct delayed_work c2hcmd_wq;
 
 	/* For SW LPS */
 	struct delayed_work ps_work;
@@ -2554,6 +2558,13 @@ struct proxim {
 	u8  (*proxim_get_var)(struct ieee80211_hw *hw, u8 type);
 };
 
+struct rtl_c2hcmd {
+	struct list_head list;
+	u8 tag;
+	u8 len;
+	u8 *val;
+};
+
 struct rtl_priv {
 	struct ieee80211_hw *hw;
 	struct completion firmware_loading_complete;
@@ -2585,6 +2596,9 @@ struct rtl_priv {
 
 	/* sta entry list for ap adhoc or mesh */
 	struct list_head entry_list;
+
+	/* c2hcmd list for kthread level access */
+	struct list_head c2hcmd_list;
 
 	int max_fw_size;
 
