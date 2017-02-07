@@ -560,6 +560,23 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_flush = rcar_du_crtc_atomic_flush,
 };
 
+static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
+	rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
+
+	return 0;
+}
+
+static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
+}
+
 static const struct drm_crtc_funcs crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = drm_crtc_cleanup,
@@ -567,6 +584,8 @@ static const struct drm_crtc_funcs crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = rcar_du_crtc_enable_vblank,
+	.disable_vblank = rcar_du_crtc_disable_vblank,
 };
 
 /* -----------------------------------------------------------------------------
@@ -697,14 +716,4 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	}
 
 	return 0;
-}
-
-void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable)
-{
-	if (enable) {
-		rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
-		rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
-	} else {
-		rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
-	}
 }
