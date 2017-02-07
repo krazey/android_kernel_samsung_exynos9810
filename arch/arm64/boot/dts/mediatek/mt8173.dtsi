@@ -724,9 +724,11 @@
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
 			power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
 			clocks = <&topckgen CLK_TOP_USB30_SEL>,
+				 <&clk26m>,
 				 <&pericfg CLK_PERI_USB0>,
 				 <&pericfg CLK_PERI_USB1>;
 			clock-names = "sys_ck",
+				      "ref_ck",
 				      "wakeup_deb_p0",
 				      "wakeup_deb_p1";
 			phys = <&phy_port0 PHY_TYPE_USB3>,
