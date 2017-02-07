@@ -87,16 +87,16 @@
 /*
  * Modules' sections will be aligned on page boundaries
  * to ensure complete separation of code and data, but
- * only when CONFIG_DEBUG_SET_MODULE_RONX=y
+ * only when CONFIG_STRICT_MODULE_RWX=y
  */
- 
+
 #ifdef CONFIG_TIMA_LKMAUTH_CODE_PROT
 # define debug_align(X) ALIGN(X, PAGE_SIZE)
 #else
 #ifdef TIMA_LKM_SET_PAGE_ATTRIB
 #define debug_align(X) ALIGN(X, PAGE_SIZE)
 #else
-#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+#ifdef CONFIG_STRICT_MODULE_RWX
 # define debug_align(X) ALIGN(X, PAGE_SIZE)
 #else
 # define debug_align(X) (X)
@@ -1866,7 +1866,7 @@ static void mod_sysfs_teardown(struct module *mod)
 	mod_sysfs_fini(mod);
 }
 
-#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+#ifdef CONFIG_STRICT_MODULE_RWX
 /*
  * LKM RO/NX protection: protect module's text/ro-data
  * from modification and any data from execution.
