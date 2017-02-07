@@ -36,6 +36,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/microchipphy.h>
+#include <linux/phy.h>
 #include <linux/of_net.h>
 #include "lan78xx.h"
 
