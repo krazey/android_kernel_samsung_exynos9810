@@ -777,9 +777,7 @@ rpcrdma_mr_recovery_worker(struct work_struct *work)
 
 	spin_lock(&buf->rb_recovery_lock);
 	while (!list_empty(&buf->rb_stale_mrs)) {
-		mw = list_first_entry(&buf->rb_stale_mrs,
-				      struct rpcrdma_mw, mw_list);
-		list_del_init(&mw->mw_list);
+		mw = rpcrdma_pop_mw(&buf->rb_stale_mrs);
 		spin_unlock(&buf->rb_recovery_lock);
 
 		dprintk("RPC:       %s: recovering MR %p\n", __func__, mw);
@@ -797,7 +795,7 @@ rpcrdma_defer_mr_recovery(struct rpcrdma_mw *mw)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 
 	spin_lock(&buf->rb_recovery_lock);
-	list_add(&mw->mw_list, &buf->rb_stale_mrs);
+	rpcrdma_push_mw(mw, &buf->rb_stale_mrs);
 	spin_unlock(&buf->rb_recovery_lock);
 
 	schedule_delayed_work(&buf->rb_recovery_worker, 0);
@@ -1080,11 +1078,8 @@ rpcrdma_get_mw(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_mw *mw = NULL;
 
 	spin_lock(&buf->rb_mwlock);
-	if (!list_empty(&buf->rb_mws)) {
-		mw = list_first_entry(&buf->rb_mws,
-				      struct rpcrdma_mw, mw_list);
-		list_del_init(&mw->mw_list);
-	}
+	if (!list_empty(&buf->rb_mws))
+		mw = rpcrdma_pop_mw(&buf->rb_mws);
 	spin_unlock(&buf->rb_mwlock);
 
 	if (!mw)
@@ -1107,7 +1102,7 @@ rpcrdma_put_mw(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mw *mw)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 
 	spin_lock(&buf->rb_mwlock);
-	list_add_tail(&mw->mw_list, &buf->rb_mws);
+	rpcrdma_push_mw(mw, &buf->rb_mws);
 	spin_unlock(&buf->rb_mwlock);
 }
 
