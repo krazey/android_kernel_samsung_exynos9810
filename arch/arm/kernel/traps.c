@@ -25,7 +25,7 @@
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/irq.h>
 
 #include <linux/atomic.h>

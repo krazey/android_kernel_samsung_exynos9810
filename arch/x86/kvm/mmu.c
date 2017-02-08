@@ -36,6 +36,7 @@
 #include <linux/compiler.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/hash.h>
