@@ -13,6 +13,7 @@
 
 #include <linux/anon_inodes.h>
 #include <linux/slab.h>
+#include <linux/sched/autogroup.h>
 #include <linux/init.h>
 #include <linux/unistd.h>
 #include <linux/module.h>
