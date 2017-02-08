@@ -11,6 +11,7 @@
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/stat.h>
 #include <linux/sched/nohz.h>
+#include <linux/sched/debug.h>
 #include <linux/sched/smt.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/sched/deadline.h>
@@ -2150,7 +2151,6 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 extern void print_dl_stats(struct seq_file *m, int cpu);
 extern void
 print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
-
 #ifdef CONFIG_NUMA_BALANCING
 extern void
 show_numa_stats(struct task_struct *p, struct seq_file *m);

@@ -18,6 +18,7 @@
 #include <linux/suspend.h>
 #include <linux/utsname.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 
 #include <trace/events/sched.h>
 
