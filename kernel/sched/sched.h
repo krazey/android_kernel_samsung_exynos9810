@@ -6,6 +6,7 @@
 #include <linux/sched/clock.h>
 #include <linux/sched/wake_q.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/numa_balancing.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/smt.h>
