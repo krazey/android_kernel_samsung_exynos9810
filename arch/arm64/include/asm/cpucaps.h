@@ -39,12 +39,13 @@
 #define ARM64_SSBD				18
 #define ARM64_MISMATCHED_CACHE_TYPE		19
 #define ARM64_WORKAROUND_REPEAT_TLBI		20
+#define ARM64_WORKAROUND_QCOM_FALKOR_E1003	21
 /*
  * The macro below will be moved to asm/cpucaps.h together with the
  * ARM64_NCAPS update.
  */
-#define ARM64_HAS_NO_FPSIMD			21
+#define ARM64_HAS_NO_FPSIMD			22
 
-#define ARM64_NCAPS				22
+#define ARM64_NCAPS				23
 
 #endif /* __ASM_CPUCAPS_H */
