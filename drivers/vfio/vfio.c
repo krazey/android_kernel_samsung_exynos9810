@@ -2294,14 +2294,6 @@ static int __init vfio_init(void)
 
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
-	/*
-	 * Attempt to load known iommu-drivers.  This gives us a working
-	 * environment without the user needing to explicitly load iommu
-	 * drivers.
-	 */
-	request_module_nowait("vfio_iommu_type1");
-	request_module_nowait("vfio_iommu_spapr_tce");
-
 #ifdef CONFIG_VFIO_NOIOMMU
 	vfio_register_iommu_driver(&vfio_noiommu_ops);
 #endif
@@ -2341,3 +2333,4 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_ALIAS_MISCDEV(VFIO_MINOR);
 MODULE_ALIAS("devname:vfio/vfio");
+MODULE_SOFTDEP("post: vfio_iommu_type1 vfio_iommu_spapr_tce");
