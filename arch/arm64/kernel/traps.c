@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/syscalls.h>
 #include <linux/exynos-ss.h>
 

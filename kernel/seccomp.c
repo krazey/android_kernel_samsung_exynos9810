@@ -20,6 +20,7 @@
 #include <linux/prctl.h>
 #include <linux/coredump.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seccomp.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
