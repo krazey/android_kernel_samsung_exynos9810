@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/sched/user.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
