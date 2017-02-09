@@ -1,4 +1,4 @@
-CFLAGS += -Wall -O2 -I../../../../usr/include
+CFLAGS += -Wall -O2 -I../../../include/uapi
 
 TEST_GEN_PROGS = test_verifier test_maps test_lru_map
 
