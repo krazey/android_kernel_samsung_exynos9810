@@ -25,6 +25,7 @@
 #include <linux/siphash.h>
 #include <net/ip.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 #include <net/inet_ecn.h>
 
 /*
