@@ -42,8 +42,8 @@ struct xen_bus_type {
 		     const char *dir);
 	bool (*otherend_will_handle)(struct xenbus_watch *watch,
 				     const char **vec, unsigned int len);
-	void (*otherend_changed)(struct xenbus_watch *watch, const char **vec,
-				 unsigned int len);
+	void (*otherend_changed)(struct xenbus_watch *watch, const char *path,
+				 const char *token);
 	struct bus_type bus;
 };
 
@@ -86,7 +86,7 @@ int xenbus_dev_resume(struct device *dev);
 int xenbus_dev_cancel(struct device *dev);
 
 void xenbus_otherend_changed(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len,
+			     const char *path, const char *token,
 			     int ignore_on_shutdown);
 
 int xenbus_read_otherend_details(struct xenbus_device *xendev,
