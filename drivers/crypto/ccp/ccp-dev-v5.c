@@ -533,7 +533,7 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 		status >>= LSB_REGION_WIDTH;
 	}
 	queues = bitmap_weight(cmd_q->lsbmask, MAX_LSB_CNT);
-	dev_info(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
+	dev_dbg(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
 		 cmd_q->id, queues);
 
 	return queues ? 0 : -EINVAL;
@@ -575,7 +575,7 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					 */
 					cmd_q->lsb = bitno;
 					bitmap_clear(lsb_pub, bitno, 1);
-					dev_info(ccp->dev,
+					dev_dbg(ccp->dev,
 						 "Queue %d gets LSB %d\n",
 						 i, bitno);
 					break;
@@ -792,7 +792,6 @@ static int ccp5_init(struct ccp_device *ccp)
 		ret = -EIO;
 		goto e_pool;
 	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
 
 	/* Turn off the queues and disable interrupts until ready */
 	ccp5_disable_queue_interrupts(ccp);
