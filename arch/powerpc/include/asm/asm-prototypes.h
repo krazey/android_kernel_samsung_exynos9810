@@ -109,4 +109,6 @@ void early_setup_secondary(void);
 /* time */
 void accumulate_stolen_time(void);
 
+void _mcount(void);
+
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */
