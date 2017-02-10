@@ -1122,7 +1122,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 
 static int btrfs_fill_super(struct super_block *sb,
 			    struct btrfs_fs_devices *fs_devices,
-			    void *data, int silent)
+			    void *data)
 {
 	struct inode *inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
@@ -1627,8 +1627,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		btrfs_sb(s)->bdev_holder = fs_type;
-		error = btrfs_fill_super(s, fs_devices, data,
-					 flags & MS_SILENT ? 1 : 0);
+		error = btrfs_fill_super(s, fs_devices, data);
 	}
 	if (error) {
 		deactivate_locked_super(s);
