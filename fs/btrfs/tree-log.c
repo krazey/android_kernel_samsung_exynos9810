@@ -2474,7 +2474,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 				if (trans) {
 					btrfs_tree_lock(next);
 					btrfs_set_lock_blocking(next);
-					clean_tree_block(trans, fs_info, next);
+					clean_tree_block(fs_info, next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
 				} else {
@@ -2557,7 +2557,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				if (trans) {
 					btrfs_tree_lock(next);
 					btrfs_set_lock_blocking(next);
-					clean_tree_block(trans, fs_info, next);
+					clean_tree_block(fs_info, next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
 				} else {
@@ -2638,7 +2638,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 			if (trans) {
 				btrfs_tree_lock(next);
 				btrfs_set_lock_blocking(next);
-				clean_tree_block(trans, fs_info, next);
+				clean_tree_block(fs_info, next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 			} else {
