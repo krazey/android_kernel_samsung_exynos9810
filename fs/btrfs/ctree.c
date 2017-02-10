@@ -5242,7 +5242,7 @@ out:
 
 static int tree_move_down(struct btrfs_fs_info *fs_info,
 			   struct btrfs_path *path,
-			   int *level, int root_level)
+			   int *level)
 {
 	struct extent_buffer *eb;
 
@@ -5300,7 +5300,7 @@ static int tree_advance(struct btrfs_fs_info *fs_info,
 		ret = tree_move_next_or_upnext(fs_info, path, level,
 					       root_level);
 	} else {
-		ret = tree_move_down(fs_info, path, level, root_level);
+		ret = tree_move_down(fs_info, path, level);
 	}
 	if (ret >= 0) {
 		if (*level == 0)
