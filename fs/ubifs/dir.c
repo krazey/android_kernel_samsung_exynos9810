@@ -1075,8 +1075,10 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	}
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
-	if (err)
+	if (err) {
+		kfree(dev);
 		goto out_budg;
+	}
 
 	sz_change = CALC_DENT_SIZE(fname_len(&nm));
 
