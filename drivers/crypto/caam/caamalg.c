@@ -134,15 +134,15 @@ struct caam_aead_alg {
  * per-session context
  */
 struct caam_ctx {
-	struct device *jrdev;
 	u32 sh_desc_enc[DESC_MAX_USED_LEN];
 	u32 sh_desc_dec[DESC_MAX_USED_LEN];
 	u32 sh_desc_givenc[DESC_MAX_USED_LEN];
+	u8 key[CAAM_MAX_KEY_SIZE];
 	dma_addr_t sh_desc_enc_dma;
 	dma_addr_t sh_desc_dec_dma;
 	dma_addr_t sh_desc_givenc_dma;
-	u8 key[CAAM_MAX_KEY_SIZE];
 	dma_addr_t key_dma;
+	struct device *jrdev;
 	struct alginfo adata;
 	struct alginfo cdata;
 	unsigned int authsize;
@@ -171,13 +171,8 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_aead_null_encap(desc, &ctx->adata, ctx->authsize);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -194,13 +189,8 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	/* aead_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_aead_null_decap(desc, &ctx->adata, ctx->authsize);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -279,13 +269,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata, ctx->authsize,
 			       is_rfc3686, nonce, ctx1_iv_off);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 skip_enc:
 	/*
@@ -316,13 +301,8 @@ skip_enc:
 	cnstr_shdsc_aead_decap(desc, &ctx->cdata, &ctx->adata, ivsize,
 			       ctx->authsize, alg->caam.geniv, is_rfc3686,
 			       nonce, ctx1_iv_off);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	if (!alg->caam.geniv)
 		goto skip_givenc;
@@ -355,13 +335,8 @@ skip_enc:
 	cnstr_shdsc_aead_givencap(desc, &ctx->cdata, &ctx->adata, ivsize,
 				  ctx->authsize, is_rfc3686, nonce,
 				  ctx1_iv_off);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 skip_givenc:
 	return 0;
@@ -404,13 +379,8 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_gcm_encap(desc, &ctx->cdata, ctx->authsize);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -426,13 +396,8 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_gcm_decap(desc, &ctx->cdata, ctx->authsize);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -473,13 +438,8 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_rfc4106_encap(desc, &ctx->cdata, ctx->authsize);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -495,13 +455,8 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_rfc4106_decap(desc, &ctx->cdata, ctx->authsize);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -543,13 +498,8 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_rfc4543_encap(desc, &ctx->cdata, ctx->authsize);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -565,13 +515,8 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_rfc4543_decap(desc, &ctx->cdata, ctx->authsize);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -615,28 +560,15 @@ static int aead_setkey(struct crypto_aead *aead,
 
 	/* postpend encryption key to auth split key */
 	memcpy(ctx->key + ctx->adata.keylen_pad, keys.enckey, keys.enckeylen);
-
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->adata.keylen_pad +
-				      keys.enckeylen, DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->key_dma, ctx->adata.keylen_pad +
+				   keys.enckeylen, DMA_TO_DEVICE);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
 		       ctx->adata.keylen_pad + keys.enckeylen, 1);
 #endif
-
 	ctx->cdata.keylen = keys.enckeylen;
-
-	ret = aead_set_sh_desc(aead);
-	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->adata.keylen_pad +
-				 keys.enckeylen, DMA_TO_DEVICE);
-	}
-
-	return ret;
+	return aead_set_sh_desc(aead);
 badkey:
 	crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
@@ -647,7 +579,6 @@ static int gcm_setkey(struct crypto_aead *aead,
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	int ret = 0;
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
@@ -655,21 +586,10 @@ static int gcm_setkey(struct crypto_aead *aead,
 #endif
 
 	memcpy(ctx->key, key, keylen);
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, keylen,
-				      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->key_dma, keylen, DMA_TO_DEVICE);
 	ctx->cdata.keylen = keylen;
 
-	ret = gcm_set_sh_desc(aead);
-	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->cdata.keylen,
-				 DMA_TO_DEVICE);
-	}
-
-	return ret;
+	return gcm_set_sh_desc(aead);
 }
 
 static int rfc4106_setkey(struct crypto_aead *aead,
@@ -677,7 +597,6 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	int ret = 0;
 
 	if (keylen < 4)
 		return -EINVAL;
@@ -694,21 +613,9 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	 * in the nonce. Update the AES key length.
 	 */
 	ctx->cdata.keylen = keylen - 4;
-
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->cdata.keylen,
-				      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
-	}
-
-	ret = rfc4106_set_sh_desc(aead);
-	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->cdata.keylen,
-				 DMA_TO_DEVICE);
-	}
-
-	return ret;
+	dma_sync_single_for_device(jrdev, ctx->key_dma, ctx->cdata.keylen,
+				   DMA_TO_DEVICE);
+	return rfc4106_set_sh_desc(aead);
 }
 
 static int rfc4543_setkey(struct crypto_aead *aead,
@@ -716,7 +623,6 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	int ret = 0;
 
 	if (keylen < 4)
 		return -EINVAL;
@@ -733,21 +639,9 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	 * in the nonce. Update the AES key length.
 	 */
 	ctx->cdata.keylen = keylen - 4;
-
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->cdata.keylen,
-				      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
-	}
-
-	ret = rfc4543_set_sh_desc(aead);
-	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->cdata.keylen,
-				 DMA_TO_DEVICE);
-	}
-
-	return ret;
+	dma_sync_single_for_device(jrdev, ctx->key_dma, ctx->cdata.keylen,
+				   DMA_TO_DEVICE);
+	return rfc4543_set_sh_desc(aead);
 }
 
 static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
@@ -788,12 +682,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		keylen -= CTR_RFC3686_NONCE_SIZE;
 	}
 
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, keylen,
-				      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->key_dma, keylen, DMA_TO_DEVICE);
 	ctx->cdata.keylen = keylen;
 	ctx->cdata.key_virt = ctx->key;
 	ctx->cdata.key_inline = true;
@@ -802,37 +691,22 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_ablkcipher_encap(desc, &ctx->cdata, ivsize, is_rfc3686,
 				     ctx1_iv_off);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/* ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_ablkcipher_decap(desc, &ctx->cdata, ivsize, is_rfc3686,
 				     ctx1_iv_off);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
-					      desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/* ablkcipher_givencrypt shared descriptor */
 	desc = ctx->sh_desc_givenc;
 	cnstr_shdsc_ablkcipher_givencap(desc, &ctx->cdata, ivsize, is_rfc3686,
 					ctx1_iv_off);
-	ctx->sh_desc_givenc_dma = dma_map_single(jrdev, desc,
-						 desc_bytes(desc),
-						 DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_givenc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_givenc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -852,11 +726,7 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	}
 
 	memcpy(ctx->key, key, keylen);
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, keylen, DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->key_dma, keylen, DMA_TO_DEVICE);
 	ctx->cdata.keylen = keylen;
 	ctx->cdata.key_virt = ctx->key;
 	ctx->cdata.key_inline = true;
@@ -864,24 +734,14 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	/* xts_ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_xts_ablkcipher_encap(desc, &ctx->cdata);
-	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/* xts_ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_xts_ablkcipher_decap(desc, &ctx->cdata);
-	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
-		dma_unmap_single(jrdev, ctx->sh_desc_enc_dma,
-				 desc_bytes(ctx->sh_desc_enc), DMA_TO_DEVICE);
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -3412,11 +3272,30 @@ struct caam_crypto_alg {
 
 static int caam_init_common(struct caam_ctx *ctx, struct caam_alg_entry *caam)
 {
+	dma_addr_t dma_addr;
+
 	ctx->jrdev = caam_jr_alloc();
 	if (IS_ERR(ctx->jrdev)) {
 		pr_err("Job Ring Device allocation for transform failed\n");
 		return PTR_ERR(ctx->jrdev);
 	}
+
+	dma_addr = dma_map_single_attrs(ctx->jrdev, ctx->sh_desc_enc,
+					offsetof(struct caam_ctx,
+						 sh_desc_enc_dma),
+					DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (dma_mapping_error(ctx->jrdev, dma_addr)) {
+		dev_err(ctx->jrdev, "unable to map key, shared descriptors\n");
+		caam_jr_free(ctx->jrdev);
+		return -ENOMEM;
+	}
+
+	ctx->sh_desc_enc_dma = dma_addr;
+	ctx->sh_desc_dec_dma = dma_addr + offsetof(struct caam_ctx,
+						   sh_desc_dec);
+	ctx->sh_desc_givenc_dma = dma_addr + offsetof(struct caam_ctx,
+						      sh_desc_givenc);
+	ctx->key_dma = dma_addr + offsetof(struct caam_ctx, key);
 
 	/* copy descriptor header template value */
 	ctx->cdata.algtype = OP_TYPE_CLASS1_ALG | caam->class1_alg_type;
@@ -3447,25 +3326,9 @@ static int caam_aead_init(struct crypto_aead *tfm)
 
 static void caam_exit_common(struct caam_ctx *ctx)
 {
-	if (ctx->sh_desc_enc_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_enc_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_enc_dma,
-				 desc_bytes(ctx->sh_desc_enc), DMA_TO_DEVICE);
-	if (ctx->sh_desc_dec_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_dec_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_dec_dma,
-				 desc_bytes(ctx->sh_desc_dec), DMA_TO_DEVICE);
-	if (ctx->sh_desc_givenc_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_givenc_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_givenc_dma,
-				 desc_bytes(ctx->sh_desc_givenc),
-				 DMA_TO_DEVICE);
-	if (ctx->key_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->key_dma))
-		dma_unmap_single(ctx->jrdev, ctx->key_dma,
-				 ctx->cdata.keylen + ctx->adata.keylen_pad,
-				 DMA_TO_DEVICE);
-
+	dma_unmap_single_attrs(ctx->jrdev, ctx->sh_desc_enc_dma,
+			       offsetof(struct caam_ctx, sh_desc_enc_dma),
+			       DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 	caam_jr_free(ctx->jrdev);
 }
 
