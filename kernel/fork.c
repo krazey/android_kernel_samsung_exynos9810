@@ -90,6 +90,7 @@
 #include <linux/compiler.h>
 #include <linux/sysctl.h>
 #include <linux/kcov.h>
+#include <linux/livepatch.h>
 #include <linux/cpufreq_times.h>
 
 #include <asm/pgtable.h>
@@ -2028,6 +2029,8 @@ static __latent_entropy struct task_struct *copy_process(
 		p->parent_exec_id = current->self_exec_id;
 		p->exit_signal = (clone_flags & CSIGNAL);
 	}
+
+	klp_copy_process(p);
 
 	spin_lock(&current->sighand->siglock);
 

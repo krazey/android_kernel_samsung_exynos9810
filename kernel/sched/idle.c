@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/stackprotector.h>
 #include <linux/suspend.h>
+#include <linux/livepatch.h>
 #include <linux/cpu_pm.h>
 
 #include <asm/tlb.h>
@@ -269,6 +270,9 @@ static void do_idle(void)
 
 	sched_ttwu_pending();
 	schedule_preempt_disabled();
+
+	if (unlikely(klp_patch_pending(current)))
+		klp_update_patch_state(current);
 }
 
 bool cpu_in_idle(unsigned long pc)
