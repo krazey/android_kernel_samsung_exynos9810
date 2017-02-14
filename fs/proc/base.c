@@ -3117,6 +3117,15 @@ static int proc_pid_personality(struct seq_file *m, struct pid_namespace *ns,
 	return err;
 }
 
+#ifdef CONFIG_LIVEPATCH
+static int proc_pid_patch_state(struct seq_file *m, struct pid_namespace *ns,
+				struct pid *pid, struct task_struct *task)
+{
+	seq_printf(m, "%d\n", task->patch_state);
+	return 0;
+}
+#endif /* CONFIG_LIVEPATCH */
+
 #ifdef CONFIG_PROC_TRIGGER_SQLITE_BUG
 static ssize_t trigger_sqlite_bug_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *offset)
@@ -3247,6 +3256,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("timers",	  S_IRUGO, proc_timers_operations),
 #endif
 	REG("timerslack_ns", S_IRUGO|S_IWUGO, proc_pid_set_timerslack_ns_operations),
+#ifdef CONFIG_LIVEPATCH
+	ONE("patch_state",  S_IRUSR, proc_pid_patch_state),
+#endif
 #ifdef CONFIG_CPU_FREQ_TIMES
 	ONE("time_in_state", 0444, proc_time_in_state_show),
 #endif
@@ -3649,6 +3661,9 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("gid_map",    S_IRUGO|S_IWUSR, proc_gid_map_operations),
 	REG("projid_map", S_IRUGO|S_IWUSR, proc_projid_map_operations),
 	REG("setgroups",  S_IRUGO|S_IWUSR, proc_setgroups_operations),
+#endif
+#ifdef CONFIG_LIVEPATCH
+	ONE("patch_state",  S_IRUSR, proc_pid_patch_state),
 #endif
 #ifdef CONFIG_CPU_FREQ_TIMES
 	ONE("time_in_state", 0444, proc_time_in_state_show),
