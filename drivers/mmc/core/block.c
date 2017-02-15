@@ -52,6 +52,7 @@
 #include "host.h"
 #include "bus.h"
 #include "mmc_ops.h"
+#include "quirks.h"
 #include "sd_ops.h"
 
 #ifdef CONFIG_MMC_SUPPORT_STLOG
