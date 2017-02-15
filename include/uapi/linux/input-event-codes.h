@@ -652,6 +652,7 @@
  * e.g. teletext or data broadcast application (MHEG, MHP, HbbTV, etc.)
  */
 #define KEY_DATA			0x277
+#define KEY_ONSCREEN_KEYBOARD		0x278
 #define KEY_EMERGENCY			0x2a0
 #define KEY_INT_CANCEL		0x2be	/* for touch event skip */
 #define KEY_WINK			0x2bf	/* Intelligence Key */
