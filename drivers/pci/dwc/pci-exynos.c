@@ -601,7 +601,7 @@ static int chk_hard_access(void __iomem *check_mem)
 
 	while (count < 1000000) {
 		for (i = 0; i < 10; i++) {
-			dw_pcie_cfg_read(check_mem + (i * 4),
+			dw_pcie_read(check_mem + (i * 4),
 					4, &chk_val[i]);
 		}
 		count++;
@@ -1553,7 +1553,7 @@ static int exynos_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 				exynos_pcie->ch_num);
 	}
 
-	ret = dw_pcie_cfg_read(exynos_pcie->rc_dbi_base + (where), size, val);
+	ret = dw_pcie_read(exynos_pcie->rc_dbi_base + (where), size, val);
 
 	if (is_linked == 0) {
 		if (exynos_pcie->phy_ops.phy_check_rx_elecidle != NULL)
@@ -1616,7 +1616,7 @@ static int exynos_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 				exynos_pcie->ch_num);
 	}
 
-	ret = dw_pcie_cfg_write(exynos_pcie->rc_dbi_base + (where), size, val);
+	ret = dw_pcie_write(exynos_pcie->rc_dbi_base + (where), size, val);
 
 	if (is_linked == 0) {
 		if (exynos_pcie->phy_ops.phy_check_rx_elecidle != NULL)
@@ -1665,7 +1665,7 @@ static int exynos_pcie_rd_other_conf(struct pcie_port *pp,
 		exynos_pcie_prog_viewport_cfg1(pp, busdev);
 	}
 
-	ret = dw_pcie_cfg_read(va_cfg_base + where, size, val);
+	ret = dw_pcie_read(va_cfg_base + where, size, val);
 
 	return ret;
 }
@@ -1698,7 +1698,7 @@ static int exynos_pcie_wr_other_conf(struct pcie_port *pp,
 		exynos_pcie_prog_viewport_cfg1(pp, busdev);
 	}
 
-	ret = dw_pcie_cfg_write(va_cfg_base + where, size, val);
+	ret = dw_pcie_write(va_cfg_base + where, size, val);
 
 	return ret;
 }
