@@ -2016,6 +2016,8 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 	exynos_pcie->l1ss_ctrl_id_state = 0;
 	exynos_pcie->atu_ok = 0;
 
+	platform_set_drvdata(pdev, exynos_pcie);
+
 	/* parsing pcie dts data for exynos */
 	ret = exynos_pcie_parse_dt(pdev->dev.of_node, pp);
 	if (ret)
