@@ -1922,6 +1922,7 @@ skip_pio:
 
 	/* Determine queue resources */
 	ha->max_req_queues = ha->max_rsp_queues = 1;
+	ha->msix_count = QLA_BASE_VECTORS;
 	if (!ql2xmqsupport || (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
 		goto mqiobase_exit;
 
@@ -1949,9 +1950,8 @@ skip_pio:
 		    "BAR 3 not enabled.\n");
 
 mqiobase_exit:
-	ha->msix_count = ha->max_rsp_queues + 1;
 	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x001c,
-	    "MSIX Count:%d.\n", ha->msix_count);
+	    "MSIX Count: %d.\n", ha->msix_count);
 	return (0);
 
 iospace_error_exit:
@@ -1999,6 +1999,7 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 	/* 83XX 26XX always use MQ type access for queues
 	 * - mbar 2, a.k.a region 4 */
 	ha->max_req_queues = ha->max_rsp_queues = 1;
+	ha->msix_count = QLA_BASE_VECTORS;
 	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 4),
 			pci_resource_len(ha->pdev, 4));
 
@@ -2041,14 +2042,8 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 		    "BAR 1 not enabled.\n");
 
 mqiobase_exit:
-	ha->msix_count = ha->max_rsp_queues + 1;
-	if (QLA_TGT_MODE_ENABLED())
-		ha->msix_count++;
-
-	qlt_83xx_iospace_config(ha);
-
 	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x011f,
-	    "MSIX Count:%d.\n", ha->msix_count);
+	    "MSIX Count: %d.\n", ha->msix_count);
 	return 0;
 
 iospace_error_exit:
