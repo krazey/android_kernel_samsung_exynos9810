@@ -722,7 +722,6 @@ static void stmmac_adjust_link(struct net_device *dev)
 				if (priv->plat->has_gmac ||
 				    priv->plat->has_gmac4)
 					ctrl &= ~priv->hw->link.port;
-				stmmac_hw_fix_mac_speed(priv);
 				break;
 			case 100:
 			case 10:
@@ -737,7 +736,6 @@ static void stmmac_adjust_link(struct net_device *dev)
 				} else {
 					ctrl &= ~priv->hw->link.port;
 				}
-				stmmac_hw_fix_mac_speed(priv);
 				break;
 			default:
 				netif_warn(priv, link, priv->dev,
@@ -745,7 +743,8 @@ static void stmmac_adjust_link(struct net_device *dev)
 				phydev->speed = SPEED_UNKNOWN;
 				break;
 			}
-
+			if (phydev->speed != SPEED_UNKNOWN)
+				stmmac_hw_fix_mac_speed(priv);
 			priv->speed = phydev->speed;
 		}
 
