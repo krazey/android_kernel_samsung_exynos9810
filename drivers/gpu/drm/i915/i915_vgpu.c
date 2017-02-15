@@ -177,7 +177,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	unsigned long ggtt_end = ggtt->base.start + ggtt->base.total;
+	unsigned long ggtt_end = ggtt->base.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;
@@ -200,8 +200,7 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 	DRM_INFO("Unmappable graphic memory: base 0x%lx size %ldKiB\n",
 		 unmappable_base, unmappable_size / 1024);
 
-	if (mappable_base < ggtt->base.start ||
-	    mappable_end > ggtt->mappable_end ||
+	if (mappable_end > ggtt->mappable_end ||
 	    unmappable_base < ggtt->mappable_end ||
 	    unmappable_end > ggtt_end) {
 		DRM_ERROR("Invalid ballooning configuration!\n");
@@ -229,9 +228,9 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 	}
 
 	/* Mappable graphic memory ballooning */
-	if (mappable_base > ggtt->base.start) {
+	if (mappable_base) {
 		ret = vgt_balloon_space(ggtt, &bl_info.space[0],
-					ggtt->base.start, mappable_base);
+					0, mappable_base);
 
 		if (ret)
 			goto err;
