@@ -177,9 +177,9 @@ struct thread_info {
  * entirely contained by a single stack frame.
  *
  * Returns:
- *		 1 if within a frame
- *		-1 if placed across a frame boundary (or outside stack)
- *		 0 unable to determine (no frame pointers, etc)
+ *	GOOD_FRAME	if within a frame
+ *	BAD_STACK	if placed across a frame boundary (or outside stack)
+ *	NOT_STACK	unable to determine (no frame pointers, etc)
  */
 static inline int arch_within_stack_frames(const void * const stack,
 					   const void * const stackend,
@@ -206,13 +206,14 @@ static inline int arch_within_stack_frames(const void * const stack,
 		 * the copy as invalid.
 		 */
 		if (obj + len <= frame)
-			return obj >= oldframe + 2 * sizeof(void *) ? 1 : -1;
+			return obj >= oldframe + 2 * sizeof(void *) ?
+				GOOD_FRAME : BAD_STACK;
 		oldframe = frame;
 		frame = *(const void * const *)frame;
 	}
-	return -1;
+	return BAD_STACK;
 #else
-	return 0;
+	return NOT_STACK;
 #endif
 }
 
