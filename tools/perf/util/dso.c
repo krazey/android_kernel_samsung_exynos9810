@@ -1076,7 +1076,7 @@ int dso__name_len(const struct dso *dso)
 {
 	if (!dso)
 		return strlen("[unknown]");
-	if (verbose)
+	if (verbose > 0)
 		return dso->long_name_len;
 
 	return dso->short_name_len;
