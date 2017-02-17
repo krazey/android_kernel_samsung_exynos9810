@@ -326,6 +326,7 @@ static u64 execlists_update_context(struct drm_i915_gem_request *rq)
 		rq->ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
+	GEM_BUG_ON(!IS_ALIGNED(rq->tail, 8));
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
 
 	/* True 32b PPGTT with dynamic page allocation: update PDP
@@ -1281,6 +1282,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	request->tail =
 		intel_ring_wrap(request->ring,
 				request->wa_tail - WA_TAIL_DWORDS*sizeof(u32));
+	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
 }
 
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
@@ -1492,6 +1494,7 @@ static void gen8_emit_breadcrumb(struct drm_i915_gem_request *request, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
 	request->tail = intel_ring_offset(request, cs);
+	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
 
 	gen8_emit_wa_tail(request, cs);
 }
@@ -1519,6 +1522,7 @@ static void gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request,
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
 	request->tail = intel_ring_offset(request, cs);
+	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
 
 	gen8_emit_wa_tail(request, cs);
 }
