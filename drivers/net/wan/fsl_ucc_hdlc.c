@@ -1183,3 +1183,4 @@ static struct platform_driver ucc_hdlc_driver = {
 };
 
 module_platform_driver(ucc_hdlc_driver);
+MODULE_LICENSE("GPL");
