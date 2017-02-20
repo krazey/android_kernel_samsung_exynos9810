@@ -3231,7 +3231,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			page = find_or_create_page(inode->i_mapping, index,
 						   mask);
 			if (!page) {
-				btrfs_delalloc_release_metadata(inode,
+				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							PAGE_SIZE);
 				ret = -ENOMEM;
 				goto out;
@@ -3250,7 +3250,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			if (!PageUptodate(page)) {
 				unlock_page(page);
 				put_page(page);
-				btrfs_delalloc_release_metadata(inode,
+				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							PAGE_SIZE);
 				ret = -EIO;
 				goto out;
