@@ -7930,7 +7930,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	ret = btrfs_check_dio_repairable(inode, failed_bio, failrec,
 					 failed_mirror);
 	if (!ret) {
-		free_io_failure(inode, failrec);
+		free_io_failure(BTRFS_I(inode), failrec);
 		return -EIO;
 	}
 
@@ -7944,7 +7944,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	bio = btrfs_create_repair_bio(inode, failed_bio, failrec, page,
 				pgoff, isector, repair_endio, repair_arg);
 	if (!bio) {
-		free_io_failure(inode, failrec);
+		free_io_failure(BTRFS_I(inode), failrec);
 		return -EIO;
 	}
 	bio_set_op_attrs(bio, REQ_OP_READ, read_mode);
@@ -7955,7 +7955,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 
 	ret = submit_dio_repair_bio(inode, bio, failrec->this_mirror);
 	if (ret) {
-		free_io_failure(inode, failrec);
+		free_io_failure(BTRFS_I(inode), failrec);
 		bio_put(bio);
 	}
 
