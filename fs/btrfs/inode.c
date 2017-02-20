@@ -3318,20 +3318,20 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
  * item for this particular inode.
  */
 static int btrfs_orphan_del(struct btrfs_trans_handle *trans,
-			    struct inode *inode)
+			    struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	int delete_item = 0;
 	int release_rsv = 0;
 	int ret = 0;
 
 	spin_lock(&root->orphan_lock);
 	if (test_and_clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
-			       &BTRFS_I(inode)->runtime_flags))
+			       &inode->runtime_flags))
 		delete_item = 1;
 
 	if (test_and_clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
-			       &BTRFS_I(inode)->runtime_flags))
+			       &inode->runtime_flags))
 		release_rsv = 1;
 	spin_unlock(&root->orphan_lock);
 
@@ -3339,11 +3339,11 @@ static int btrfs_orphan_del(struct btrfs_trans_handle *trans,
 		atomic_dec(&root->orphan_inodes);
 		if (trans)
 			ret = btrfs_del_orphan_item(trans, root,
-						    btrfs_ino(BTRFS_I(inode)));
+						    btrfs_ino(inode));
 	}
 
 	if (release_rsv)
-		btrfs_orphan_release_metadata(BTRFS_I(inode));
+		btrfs_orphan_release_metadata(inode);
 
 	return ret;
 }
@@ -3514,7 +3514,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 			ret = btrfs_truncate(inode);
 			if (ret)
-				btrfs_orphan_del(NULL, inode);
+				btrfs_orphan_del(NULL, BTRFS_I(inode));
 		} else {
 			nr_unlink++;
 		}
@@ -5052,7 +5052,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 			/* To get a stable disk_i_size */
 			err = btrfs_wait_ordered_range(inode, 0, (u64)-1);
 			if (err) {
-				btrfs_orphan_del(NULL, inode);
+				btrfs_orphan_del(NULL, BTRFS_I(inode));
 				return err;
 			}
 
@@ -5064,11 +5064,11 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 			 */
 			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans)) {
-				btrfs_orphan_del(NULL, inode);
+				btrfs_orphan_del(NULL, BTRFS_I(inode));
 				return ret;
 			}
 			i_size_write(inode, BTRFS_I(inode)->disk_i_size);
-			err = btrfs_orphan_del(trans, inode);
+			err = btrfs_orphan_del(trans, BTRFS_I(inode));
 			if (err)
 				btrfs_abort_transaction(trans, err);
 			btrfs_end_transaction(trans);
@@ -5230,7 +5230,7 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 
 	if (is_bad_inode(inode)) {
-		btrfs_orphan_del(NULL, inode);
+		btrfs_orphan_del(NULL, BTRFS_I(inode));
 		goto no_delete;
 	}
 	/* do we really want it for ->i_nlink > 0 and zero btrfs_root_refs? */
@@ -5253,13 +5253,13 @@ void btrfs_evict_inode(struct inode *inode)
 
 	ret = btrfs_commit_inode_delayed_inode(BTRFS_I(inode));
 	if (ret) {
-		btrfs_orphan_del(NULL, inode);
+		btrfs_orphan_del(NULL, BTRFS_I(inode));
 		goto no_delete;
 	}
 
 	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv) {
-		btrfs_orphan_del(NULL, inode);
+		btrfs_orphan_del(NULL, BTRFS_I(inode));
 		goto no_delete;
 	}
 	rsv->size = min_size;
@@ -5301,14 +5301,14 @@ void btrfs_evict_inode(struct inode *inode)
 			btrfs_warn(fs_info,
 				   "Could not get space for a delete, will truncate on mount %d",
 				   ret);
-			btrfs_orphan_del(NULL, inode);
+			btrfs_orphan_del(NULL, BTRFS_I(inode));
 			btrfs_free_block_rsv(fs_info, rsv);
 			goto no_delete;
 		}
 
 		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans)) {
-			btrfs_orphan_del(NULL, inode);
+			btrfs_orphan_del(NULL, BTRFS_I(inode));
 			btrfs_free_block_rsv(fs_info, rsv);
 			goto no_delete;
 		}
@@ -5334,7 +5334,7 @@ void btrfs_evict_inode(struct inode *inode)
 		if (ret) {
 			ret = btrfs_commit_transaction(trans);
 			if (ret) {
-				btrfs_orphan_del(NULL, inode);
+				btrfs_orphan_del(NULL, BTRFS_I(inode));
 				btrfs_free_block_rsv(fs_info, rsv);
 				goto no_delete;
 			}
@@ -5363,9 +5363,9 @@ void btrfs_evict_inode(struct inode *inode)
 	 */
 	if (ret == 0) {
 		trans->block_rsv = root->orphan_block_rsv;
-		btrfs_orphan_del(trans, inode);
+		btrfs_orphan_del(trans, BTRFS_I(inode));
 	} else {
-		btrfs_orphan_del(NULL, inode);
+		btrfs_orphan_del(NULL, BTRFS_I(inode));
 	}
 
 	trans->block_rsv = &fs_info->trans_block_rsv;
@@ -6588,7 +6588,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 			 * If new hard link count is 1, it's a file created
 			 * with open(2) O_TMPFILE flag.
 			 */
-			err = btrfs_orphan_del(trans, inode);
+			err = btrfs_orphan_del(trans, BTRFS_I(inode));
 			if (err)
 				goto fail;
 		}
@@ -9242,7 +9242,7 @@ static int btrfs_truncate(struct inode *inode)
 
 	if (ret == 0 && inode->i_nlink > 0) {
 		trans->block_rsv = root->orphan_block_rsv;
-		ret = btrfs_orphan_del(trans, inode);
+		ret = btrfs_orphan_del(trans, BTRFS_I(inode));
 		if (ret)
 			err = ret;
 	}
