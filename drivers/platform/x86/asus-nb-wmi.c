@@ -108,15 +108,6 @@ static struct quirk_entry quirk_asus_x200ca = {
 	.wmi_backlight_set_devstate = true,
 };
 
-static struct quirk_entry quirk_no_rfkill = {
-	.no_rfkill = true,
-};
-
-static struct quirk_entry quirk_no_rfkill_wapf4 = {
-	.wapf = 4,
-	.no_rfkill = true,
-};
-
 static struct quirk_entry quirk_asus_ux303ub = {
 	.wmi_backlight_native = true,
 	.wmi_backlight_set_devstate = true,
@@ -215,7 +206,7 @@ static const struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X456UA"),
 		},
-		.driver_data = &quirk_no_rfkill_wapf4,
+		.driver_data = &quirk_asus_wapf4,
 	},
 	{
 		.callback = dmi_matched,
@@ -224,7 +215,7 @@ static const struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X456UF"),
 		},
-		.driver_data = &quirk_no_rfkill_wapf4,
+		.driver_data = &quirk_asus_wapf4,
 	},
 	{
 		.callback = dmi_matched,
@@ -387,42 +378,6 @@ static const struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "X200CA"),
 		},
 		.driver_data = &quirk_asus_x200ca,
-	},
-	{
-		.callback = dmi_matched,
-		.ident = "ASUSTeK COMPUTER INC. X555UB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "X555UB"),
-		},
-		.driver_data = &quirk_no_rfkill,
-	},
-	{
-		.callback = dmi_matched,
-		.ident = "ASUSTeK COMPUTER INC. N552VW",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "N552VW"),
-		},
-		.driver_data = &quirk_no_rfkill,
-	},
-	{
-		.callback = dmi_matched,
-		.ident = "ASUSTeK COMPUTER INC. U303LB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "U303LB"),
-		},
-		.driver_data = &quirk_no_rfkill,
-	},
-	{
-		.callback = dmi_matched,
-		.ident = "ASUSTeK COMPUTER INC. Z550MA",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Z550MA"),
-		},
-		.driver_data = &quirk_no_rfkill,
 	},
 	{
 		.callback = dmi_matched,
