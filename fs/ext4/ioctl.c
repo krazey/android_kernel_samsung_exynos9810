@@ -438,7 +438,7 @@ static inline unsigned long ext4_xflags_to_iflags(__u32 xflags)
 	return iflags;
 }
 
-int ext4_goingdown(struct super_block *sb, unsigned long arg)
+int ext4_shutdown(struct super_block *sb, unsigned long arg)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	__u32 flags;
@@ -933,8 +933,8 @@ resizefs_out:
 
 		return 0;
 	}
-	case EXT4_IOC_GOINGDOWN:
-		return ext4_goingdown(sb, arg);
+	case EXT4_IOC_SHUTDOWN:
+		return ext4_shutdown(sb, arg);
 	case FS_IOC_ENABLE_VERITY:
 		if (!ext4_has_feature_verity(sb))
 			return -EOPNOTSUPP;
@@ -1011,7 +1011,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_SET_ENCRYPTION_POLICY:
 	case EXT4_IOC_GET_ENCRYPTION_PWSALT:
 	case EXT4_IOC_GET_ENCRYPTION_POLICY:
-	case EXT4_IOC_GOINGDOWN:
+	case EXT4_IOC_SHUTDOWN:
 	case FS_IOC_ENABLE_VERITY:
 	case FS_IOC_MEASURE_VERITY:
 		break;
