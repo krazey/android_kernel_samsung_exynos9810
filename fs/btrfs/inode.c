@@ -317,7 +317,7 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 
 	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
 	btrfs_delalloc_release_metadata(BTRFS_I(inode), end + 1 - start);
-	btrfs_drop_extent_cache(inode, start, aligned_end - 1, 0);
+	btrfs_drop_extent_cache(BTRFS_I(inode), start, aligned_end - 1, 0);
 out:
 	/*
 	 * Don't forget to free the reserved space, as for inlined extent
@@ -810,7 +810,8 @@ retry:
 						BTRFS_ORDERED_COMPRESSED,
 						async_extent->compress_type);
 		if (ret) {
-			btrfs_drop_extent_cache(inode, async_extent->start,
+			btrfs_drop_extent_cache(BTRFS_I(inode),
+						async_extent->start,
 						async_extent->start +
 						async_extent->ram_size - 1, 0);
 			goto out_free_reserve;
@@ -973,7 +974,8 @@ static noinline int cow_file_range(struct inode *inode,
 	BUG_ON(num_bytes > btrfs_super_total_bytes(fs_info->super_copy));
 
 	alloc_hint = get_extent_allocation_hint(inode, start, num_bytes);
-	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
+	btrfs_drop_extent_cache(BTRFS_I(inode), start,
+			start + num_bytes - 1, 0);
 
 	/*
 	 * Relocation relies on the relocated extents to have exactly the same
@@ -1059,7 +1061,7 @@ out:
 	return ret;
 
 out_drop_extent_cache:
-	btrfs_drop_extent_cache(inode, start, start + ram_size - 1, 0);
+	btrfs_drop_extent_cache(BTRFS_I(inode), start, start + ram_size - 1, 0);
 out_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
@@ -2978,7 +2980,7 @@ out:
 		clear_extent_uptodate(io_tree, start, end, NULL, GFP_NOFS);
 
 		/* Drop the cache for the part of the extent we didn't write. */
-		btrfs_drop_extent_cache(inode, start, end, 0);
+		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 0);
 
 		/*
 		 * If the ordered extent had an IOERR or something else went
@@ -4384,7 +4386,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	 */
 	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
 	    root == fs_info->tree_root)
-		btrfs_drop_extent_cache(inode, ALIGN(new_size,
+		btrfs_drop_extent_cache(BTRFS_I(inode), ALIGN(new_size,
 					fs_info->sectorsize),
 					(u64)-1, 0);
 
@@ -4905,7 +4907,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 						hole_size);
 			if (err)
 				break;
-			btrfs_drop_extent_cache(inode, cur_offset,
+			btrfs_drop_extent_cache(BTRFS_I(inode), cur_offset,
 						cur_offset + hole_size - 1, 0);
 			hole_em = alloc_extent_map();
 			if (!hole_em) {
@@ -4931,7 +4933,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 				write_unlock(&em_tree->lock);
 				if (err != -EEXIST)
 					break;
-				btrfs_drop_extent_cache(inode, cur_offset,
+				btrfs_drop_extent_cache(BTRFS_I(inode),
+							cur_offset,
 							cur_offset +
 							hole_size - 1, 0);
 			}
@@ -7235,7 +7238,7 @@ static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
 	if (ret) {
 		if (em) {
 			free_extent_map(em);
-			btrfs_drop_extent_cache(inode, start,
+			btrfs_drop_extent_cache(BTRFS_I(inode), start,
 						start + len - 1, 0);
 		}
 		em = ERR_PTR(ret);
@@ -7602,7 +7605,7 @@ static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
 	}
 
 	do {
-		btrfs_drop_extent_cache(inode, em->start,
+		btrfs_drop_extent_cache(BTRFS_I(inode), em->start,
 				em->start + em->len - 1, 0);
 		write_lock(&em_tree->lock);
 		ret = add_extent_mapping(em_tree, em, 1);
@@ -9355,7 +9358,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 void btrfs_test_destroy_inode(struct inode *inode)
 {
-	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 #endif
@@ -9410,7 +9413,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	}
 	btrfs_qgroup_check_reserved_leak(inode);
 	inode_tree_del(inode);
-	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
 free:
 	call_rcu(&inode->i_rcu, btrfs_i_callback);
 }
@@ -10411,7 +10414,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 			break;
 		}
 
-		btrfs_drop_extent_cache(inode, cur_offset,
+		btrfs_drop_extent_cache(BTRFS_I(inode), cur_offset,
 					cur_offset + ins.offset -1, 0);
 
 		em = alloc_extent_map();
@@ -10438,7 +10441,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 			write_unlock(&em_tree->lock);
 			if (ret != -EEXIST)
 				break;
-			btrfs_drop_extent_cache(inode, cur_offset,
+			btrfs_drop_extent_cache(BTRFS_I(inode), cur_offset,
 						cur_offset + ins.offset - 1,
 						0);
 		}
