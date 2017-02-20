@@ -3219,10 +3219,11 @@ void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
  * NOTE: caller of this function should reserve 5 units of metadata for
  *	 this function.
  */
-int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
+int btrfs_orphan_add(struct btrfs_trans_handle *trans,
+		struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct btrfs_block_rsv *block_rsv = NULL;
 	int reserve = 0;
 	int insert = 0;
@@ -3244,7 +3245,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	}
 
 	if (!test_and_set_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
-			      &BTRFS_I(inode)->runtime_flags)) {
+			      &inode->runtime_flags)) {
 #if 0
 		/*
 		 * For proper ENOSPC handling, we should do orphan
@@ -3261,39 +3262,38 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	}
 
 	if (!test_and_set_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
-			      &BTRFS_I(inode)->runtime_flags))
+			      &inode->runtime_flags))
 		reserve = 1;
 	spin_unlock(&root->orphan_lock);
 
 	/* grab metadata reservation from transaction handle */
 	if (reserve) {
-		ret = btrfs_orphan_reserve_metadata(trans, BTRFS_I(inode));
+		ret = btrfs_orphan_reserve_metadata(trans, inode);
 		ASSERT(!ret);
 		if (ret) {
 			atomic_dec(&root->orphan_inodes);
 			clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
-				  &BTRFS_I(inode)->runtime_flags);
+				  &inode->runtime_flags);
 			if (insert)
 				clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
-					  &BTRFS_I(inode)->runtime_flags);
+					  &inode->runtime_flags);
 			return ret;
 		}
 	}
 
 	/* insert an orphan item to track this unlinked/truncated file */
 	if (insert >= 1) {
-		ret = btrfs_insert_orphan_item(trans, root,
-				btrfs_ino(BTRFS_I(inode)));
+		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(inode));
 		if (ret) {
 			atomic_dec(&root->orphan_inodes);
 			if (reserve) {
 				clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
-					  &BTRFS_I(inode)->runtime_flags);
-				btrfs_orphan_release_metadata(BTRFS_I(inode));
+					  &inode->runtime_flags);
+				btrfs_orphan_release_metadata(inode);
 			}
 			if (ret != -EEXIST) {
 				clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
-					  &BTRFS_I(inode)->runtime_flags);
+					  &inode->runtime_flags);
 				btrfs_abort_transaction(trans, ret);
 				return ret;
 			}
@@ -3505,7 +3505,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				ret = PTR_ERR(trans);
 				goto out;
 			}
-			ret = btrfs_orphan_add(trans, inode);
+			ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 			btrfs_end_transaction(trans);
 			if (ret) {
 				iput(inode);
@@ -4107,7 +4107,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 		goto out;
 
 	if (inode->i_nlink == 0) {
-		ret = btrfs_orphan_add(trans, inode);
+		ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 		if (ret)
 			goto out;
 	}
@@ -4224,7 +4224,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 
-	err = btrfs_orphan_add(trans, inode);
+	err = btrfs_orphan_add(trans, BTRFS_I(inode));
 	if (err)
 		goto out;
 
@@ -5032,7 +5032,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		 * so we need to guarantee from this point on that everything
 		 * will be consistent.
 		 */
-		ret = btrfs_orphan_add(trans, inode);
+		ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 		btrfs_end_transaction(trans);
 		if (ret)
 			return ret;
@@ -9949,7 +9949,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						 new_dentry->d_name.len);
 		}
 		if (!ret && new_inode->i_nlink == 0)
-			ret = btrfs_orphan_add(trans, d_inode(new_dentry));
+			ret = btrfs_orphan_add(trans,
+					BTRFS_I(d_inode(new_dentry)));
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
@@ -10565,7 +10566,7 @@ static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret)
 		goto out_inode;
-	ret = btrfs_orphan_add(trans, inode);
+	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 	if (ret)
 		goto out_inode;
 
