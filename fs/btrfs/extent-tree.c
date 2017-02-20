@@ -4149,7 +4149,7 @@ int btrfs_alloc_data_chunk_ondemand(struct inode *inode, u64 bytes)
 	/* make sure bytes are sectorsize aligned */
 	bytes = ALIGN(bytes, fs_info->sectorsize);
 
-	if (btrfs_is_free_space_inode(inode)) {
+	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		need_commit = 0;
 		ASSERT(current->journal_info);
 	}
@@ -5945,7 +5945,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	 * If we have a transaction open (can happen if we call truncate_block
 	 * from truncate), then we need FLUSH_LIMIT so we don't deadlock.
 	 */
-	if (btrfs_is_free_space_inode(inode)) {
+	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		flush = BTRFS_RESERVE_NO_FLUSH;
 		delalloc_lock = false;
 	} else if (current->journal_info) {
