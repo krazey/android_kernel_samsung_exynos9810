@@ -2388,7 +2388,6 @@ struct net_device *rtnl_create_link(struct net *net,
 	const char *ifname, unsigned char name_assign_type,
 	const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
-	int err;
 	struct net_device *dev;
 	unsigned int num_tx_queues = 1;
 	unsigned int num_rx_queues = 1;
@@ -2409,11 +2408,10 @@ struct net_device *rtnl_create_link(struct net *net,
 	if (num_rx_queues < 1 || num_rx_queues > 4096)
 		return ERR_PTR(-EINVAL);
 
-	err = -ENOMEM;
 	dev = alloc_netdev_mqs(ops->priv_size, ifname, name_assign_type,
 			       ops->setup, num_tx_queues, num_rx_queues);
 	if (!dev)
-		goto err;
+		return ERR_PTR(-ENOMEM);
 
 	dev_net_set(dev, net);
 	dev->rtnl_link_ops = ops;
@@ -2439,9 +2437,6 @@ struct net_device *rtnl_create_link(struct net *net,
 		dev_set_group(dev, nla_get_u32(tb[IFLA_GROUP]));
 
 	return dev;
-
-err:
-	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(rtnl_create_link);
 
