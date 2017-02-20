@@ -23,6 +23,7 @@
 #include <asm/cpu.h>
 #include <asm/apic.h>
 #include <asm/syscalls.h>
+#include <asm/desc.h>
 #include <linux/uaccess.h>
 #include <asm/mwait.h>
 #include <asm/fpu/internal.h>
@@ -66,6 +67,9 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct tss_struct, cpu_tss) 
 #endif
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
+
+DEFINE_PER_CPU(bool, need_tr_refresh);
+EXPORT_PER_CPU_SYMBOL_GPL(need_tr_refresh);
 
 /*
  * this gets called so that we can store lazy state into memory and copy the
@@ -180,6 +184,12 @@ static inline void switch_to_bitmap(struct thread_struct *prev,
 		 */
 		memcpy(tss->io_bitmap, next->io_bitmap_ptr,
 		       max(prev->io_bitmap_max, next->io_bitmap_max));
+
+		/*
+		 * Make sure that the TSS limit is correct for the CPU
+		 * to notice the IO bitmap.
+		 */
+		refresh_TR();
 	} else if (tifp & _TIF_IO_BITMAP) {
 		/*
 		 * Clear any possible leftover bits:
