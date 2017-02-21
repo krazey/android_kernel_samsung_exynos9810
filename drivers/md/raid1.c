@@ -1508,8 +1508,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 				   conf->mirrors[i].rdev->data_offset);
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_opf = bio_op(bio) |
-			(bio->bi_opf & (REQ_SYNC | REQ_PREFLUSH | REQ_FUA));
+		mbio->bi_opf = bio_op(bio) | (bio->bi_opf & (REQ_SYNC | REQ_FUA));
 		if (test_bit(FailFast, &conf->mirrors[i].rdev->flags) &&
 		    !test_bit(WriteMostly, &conf->mirrors[i].rdev->flags) &&
 		    conf->raid_disks - mddev->degraded > 1)
@@ -1564,6 +1563,11 @@ static void raid1_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct bio *split;
 	sector_t sectors;
+
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
+		md_flush_request(mddev, bio);
+		return;
+	}
 
 	/* if bio exceeds barrier unit boundary, split it */
 	do {
