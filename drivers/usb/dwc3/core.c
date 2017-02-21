@@ -1314,7 +1314,6 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 
 	dwc->maximum_speed = usb_get_maximum_speed(dev);
 	dwc->dr_mode = usb_get_dr_mode(dev);
-	dwc->suspend_clk_freq = of_usb_get_suspend_clk_freq(dev);
 	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_node);
 
 	ret = dwc3_get_option(dwc);
