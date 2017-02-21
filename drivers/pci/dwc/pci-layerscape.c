@@ -275,7 +275,7 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	if (!pci)
 		return -ENOMEM;
 
-	pcie->drvdata = match->data;
+	pcie->drvdata = of_device_get_match_data(dev);
 
 	pci->dev = dev;
 	pci->ops = pcie->drvdata->dw_pcie_ops;
