@@ -71,8 +71,7 @@ static inline unsigned int dax_radix_order(void *entry)
 		return PMD_SHIFT - PAGE_SHIFT;
 	return 0;
 }
-int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-		const struct iomap_ops *ops);
+int dax_iomap_pmd_fault(struct vm_fault *vmf, const struct iomap_ops *ops);
 #else
 static inline unsigned int dax_radix_order(void *entry)
 {

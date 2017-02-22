@@ -1409,10 +1409,9 @@ xfs_filemap_fault(
  */
 STATIC int
 xfs_filemap_pmd_fault(
-	struct vm_area_struct	*vma,
 	struct vm_fault		*vmf)
 {
-	struct inode		*inode = file_inode(vma->vm_file);
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			ret;
 
@@ -1423,11 +1422,11 @@ xfs_filemap_pmd_fault(
 
 	if (vmf->flags & FAULT_FLAG_WRITE) {
 		sb_start_pagefault(inode->i_sb);
-		file_update_time(vma->vm_file);
+		file_update_time(vmf->vma->vm_file);
 	}
 
 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-	ret = dax_iomap_pmd_fault(vma, vmf, &xfs_iomap_ops);
+	ret = dax_iomap_pmd_fault(vmf, &xfs_iomap_ops);
 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 
 	if (vmf->flags & FAULT_FLAG_WRITE)
