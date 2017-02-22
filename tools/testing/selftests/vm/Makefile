@@ -16,6 +16,7 @@ TEST_GEN_FILES += thuge-gen
 TEST_GEN_FILES += transhuge-stress
 TEST_GEN_FILES += userfaultfd
 TEST_GEN_FILES += userfaultfd_hugetlb
+TEST_GEN_FILES += userfaultfd_shmem
 TEST_GEN_FILES += mlock-random-test
 
 TEST_PROGS := run_vmtests
@@ -26,6 +27,9 @@ $(OUTPUT)/userfaultfd: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.
 
 $(OUTPUT)/userfaultfd_hugetlb: userfaultfd.c ../../../../usr/include/linux/kernel.h
 	$(CC) $(CFLAGS) -DHUGETLB_TEST -O2 -o $@ $< -lpthread
+
+$(OUTPUT)/userfaultfd_shmem: userfaultfd.c  ../../../../usr/include/linux/kernel.h
+	$(CC) $(CFLAGS) -DSHMEM_TEST -O2 -o $@ $< -lpthread
 
 $(OUTPUT)/mlock-random-test: LDLIBS += -lcap
 
