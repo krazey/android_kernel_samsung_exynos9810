@@ -1216,6 +1216,10 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	handle_t *handle = fs_data;
 	int res, res2, retries = 0;
 
+	res = ext4_convert_inline_data(inode);
+	if (res)
+		return res;
+
 	/*
 	 * If a journal handle was specified, then the encryption context is
 	 * being set on a new inode via inheritance and is part of a larger
