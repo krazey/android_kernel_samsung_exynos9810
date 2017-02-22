@@ -2256,7 +2256,12 @@ void blk_mq_release(struct request_queue *q)
 
 	kfree(q->queue_hw_ctx);
 
-	/* ctx kobj stays in queue_ctx */
+	/*
+	 * release .mq_kobj and sw queue's kobject now because
+	 * both share lifetime with request queue.
+	 */
+	blk_mq_sysfs_deinit(q);
+
 	free_percpu(q->queue_ctx);
 }
 
