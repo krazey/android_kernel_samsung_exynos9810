@@ -68,8 +68,8 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct tss_struct, cpu_tss) 
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
-DEFINE_PER_CPU(bool, need_tr_refresh);
-EXPORT_PER_CPU_SYMBOL_GPL(need_tr_refresh);
+DEFINE_PER_CPU(bool, __tss_limit_invalid);
+EXPORT_PER_CPU_SYMBOL_GPL(__tss_limit_invalid);
 
 /*
  * this gets called so that we can store lazy state into memory and copy the
@@ -189,7 +189,7 @@ static inline void switch_to_bitmap(struct thread_struct *prev,
 		 * Make sure that the TSS limit is correct for the CPU
 		 * to notice the IO bitmap.
 		 */
-		refresh_TR();
+		refresh_tss_limit();
 	} else if (tifp & _TIF_IO_BITMAP) {
 		/*
 		 * Clear any possible leftover bits:
