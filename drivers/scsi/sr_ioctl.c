@@ -199,10 +199,9 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 
 	memset(sense_buffer, 0, sizeof(sense_buffer));
 	result = scsi_execute(SDev, cgc->cmd, cgc->data_direction,
-			      cgc->buffer, cgc->buflen, sense_buffer,
-			      cgc->timeout, IOCTL_RETRIES, 0, NULL);
-
-	scsi_normalize_sense(sense_buffer, sizeof(sense_buffer), &sshdr);
+			      cgc->buffer, cgc->buflen,
+			      (unsigned char *)cgc->sense, &sshdr,
+			      cgc->timeout, IOCTL_RETRIES, 0, 0, NULL);
 
 	if (cgc->sense)
 		memcpy(cgc->sense, sense_buffer, sizeof(*cgc->sense));
