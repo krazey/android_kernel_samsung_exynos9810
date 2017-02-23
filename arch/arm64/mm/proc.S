@@ -148,7 +148,7 @@ ENDPROC(cpu_do_resume)
  */
 ENTRY(cpu_do_switch_mm)
 	mrs	x2, ttbr1_el1
-	pre_ttbr0_update_workaround x0, x1, x2
+	pre_ttbr0_update_workaround x0, x2, x3
 	mmid	x1, x1				// get mm->context.id
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	bfi	x0, x1, #48, #16		// set the ASID field in TTBR0
