@@ -390,7 +390,8 @@ err:
  * This function allocates part of contiguous memory on specific
  * contiguous memory area.
  */
-struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+		       gfp_t gfp_mask)
 {
 	unsigned long mask, offset;
 	unsigned long pfn = -1;
@@ -443,7 +444,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 		if (!is_rbin) {
 			mutex_lock(&cma_mutex);
 			ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
-					 GFP_KERNEL);
+					 gfp_mask);
 			mutex_unlock(&cma_mutex);
 		}
 #ifdef CONFIG_RBIN
