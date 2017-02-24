@@ -554,7 +554,8 @@ static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 }
 #endif /* !CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
 
-static int dax_dev_fault(struct vm_fault *vmf)
+static int dax_dev_huge_fault(struct vm_fault *vmf,
+		enum page_entry_size pe_size)
 {
 	int rc, id;
 	struct file *filp = vmf->vma->vm_file;
@@ -567,14 +568,14 @@ static int dax_dev_fault(struct vm_fault *vmf)
 
 	id = srcu_read_lock(&dax_srcu);
 	rcu_read_lock();
-	switch (vmf->flags & FAULT_FLAG_SIZE_MASK) {
-	case FAULT_FLAG_SIZE_PTE:
+	switch (pe_size) {
+	case PE_SIZE_PTE:
 		rc = __dax_dev_pte_fault(dax_dev, vmf);
 		break;
-	case FAULT_FLAG_SIZE_PMD:
+	case PE_SIZE_PMD:
 		rc = __dax_dev_pmd_fault(dax_dev, vmf);
 		break;
-	case FAULT_FLAG_SIZE_PUD:
+	case PE_SIZE_PUD:
 		rc = __dax_dev_pud_fault(dax_dev, vmf);
 		break;
 	default:
@@ -583,6 +584,11 @@ static int dax_dev_fault(struct vm_fault *vmf)
 	srcu_read_unlock(&dax_srcu, id);
 
 	return rc;
+}
+
+static int dax_dev_fault(struct vm_fault *vmf)
+{
+	return dax_dev_huge_fault(vmf, PE_SIZE_PTE);
 }
 
 static int dax_dev_split(struct vm_area_struct *vma, unsigned long addr)
@@ -598,7 +604,7 @@ static int dax_dev_split(struct vm_area_struct *vma, unsigned long addr)
 
 static const struct vm_operations_struct dax_dev_vm_ops = {
 	.fault = dax_dev_fault,
-	.huge_fault = dax_dev_fault,
+	.huge_fault = dax_dev_huge_fault,
 	.split = dax_dev_split,
 };
 
