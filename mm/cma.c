@@ -442,7 +442,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
 		if (!is_rbin) {
 			mutex_lock(&cma_mutex);
-			ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
+			ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
+					 GFP_KERNEL);
 			mutex_unlock(&cma_mutex);
 		}
 #ifdef CONFIG_RBIN
@@ -450,7 +451,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 			if (need_mutex)
 				mutex_lock(&rbin_mutex);
 			ret = alloc_contig_range_fast(pfn, pfn + count,
-							MIGRATE_RBIN);
+					 MIGRATE_RBIN);
 			if (need_mutex)
 				mutex_unlock(&rbin_mutex);
 		}
