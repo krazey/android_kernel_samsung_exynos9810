@@ -225,6 +225,22 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 }
 #endif
 
+#ifndef pte_savedwrite
+#define pte_savedwrite pte_write
+#endif
+
+#ifndef pte_mk_savedwrite
+#define pte_mk_savedwrite pte_mkwrite
+#endif
+
+#ifndef pmd_savedwrite
+#define pmd_savedwrite pmd_write
+#endif
+
+#ifndef pmd_mk_savedwrite
+#define pmd_mk_savedwrite pmd_mkwrite
+#endif
+
 #ifdef CONFIG_TIMA_LKMAUTH
 #ifdef CONFIG_TIMA_LKMAUTH_CODE_PROT
 static inline void ptep_set_nxprotect(struct mm_struct *mm, unsigned long address, pte_t *ptep)
