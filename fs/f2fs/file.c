@@ -30,24 +30,22 @@
 #include "trace.h"
 #include <trace/events/f2fs.h>
 
-static int f2fs_filemap_fault(struct vm_area_struct *vma,
-					struct vm_fault *vmf)
+static int f2fs_filemap_fault(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	int err;
 
 	down_read(&F2FS_I(inode)->i_mmap_sem);
-	err = filemap_fault(vma, vmf);
+	err = filemap_fault(vmf);
 	up_read(&F2FS_I(inode)->i_mmap_sem);
 
 	return err;
 }
 
-static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
-						struct vm_fault *vmf)
+static int f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn = { .node_changed = false };
 	int err;
@@ -61,7 +59,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 
 	f2fs_bug_on(sbi, f2fs_has_inline_data(inode));
 
-	file_update_time(vma->vm_file);
+	file_update_time(vmf->vma->vm_file);
 	down_read(&F2FS_I(inode)->i_mmap_sem);
 	lock_page(page);
 	if (unlikely(page->mapping != inode->i_mapping ||

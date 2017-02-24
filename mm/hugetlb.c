@@ -3221,7 +3221,7 @@ static int hugetlb_vm_op_split(struct vm_area_struct *vma, unsigned long addr)
  * hugegpage VMA.  do_page_fault() is supposed to trap this, so BUG is we get
  * this far.
  */
-static int hugetlb_vm_op_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int hugetlb_vm_op_fault(struct vm_fault *vmf)
 {
 	BUG();
 	return 0;

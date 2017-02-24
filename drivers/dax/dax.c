@@ -420,8 +420,7 @@ static phys_addr_t pgoff_to_phys(struct dax_dev *dax_dev, pgoff_t pgoff,
 	return -1;
 }
 
-static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
-		struct vm_fault *vmf)
+static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 {
 	struct device *dev = &dax_dev->dev;
 	struct dax_region *dax_region;
@@ -430,7 +429,7 @@ static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 	pfn_t pfn;
 	unsigned int fault_size = PAGE_SIZE;
 
-	if (check_vma(dax_dev, vma, __func__))
+	if (check_vma(dax_dev, vmf->vma, __func__))
 		return VM_FAULT_SIGBUS;
 
 	dax_region = dax_dev->region;
@@ -451,7 +450,7 @@ static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 
 	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	rc = vm_insert_mixed(vma, vmf->address, pfn);
+	rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
 
 	if (rc == -ENOMEM)
 		return VM_FAULT_OOM;
@@ -461,8 +460,9 @@ static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 	return VM_FAULT_NOPAGE;
 }
 
-static int dax_dev_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int dax_dev_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	int rc;
 	struct file *filp = vma->vm_file;
 	struct dax_dev *dax_dev = filp->private_data;
@@ -471,7 +471,7 @@ static int dax_dev_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
 			? "write" : "read", vma->vm_start, vma->vm_end);
 	rcu_read_lock();
-	rc = __dax_dev_fault(dax_dev, vma, vmf);
+	rc = __dax_dev_fault(dax_dev, vmf);
 	rcu_read_unlock();
 
 	return rc;

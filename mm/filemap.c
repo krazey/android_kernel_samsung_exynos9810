@@ -2283,7 +2283,6 @@ static struct file *do_async_mmap_readahead(struct vm_area_struct *vma,
 
 /**
  * filemap_fault - read in file data for page fault handling
- * @vma:	vma in which the fault was taken
  * @vmf:	struct vm_fault containing details of the fault
  *
  * filemap_fault() is invoked via the vma operations vector for a
@@ -2305,10 +2304,10 @@ static struct file *do_async_mmap_readahead(struct vm_area_struct *vma,
  *
  * We never return with VM_FAULT_RETRY and a bit from VM_FAULT_ERROR set.
  */
-int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int filemap_fault(struct vm_fault *vmf)
 {
 	int error;
-	struct file *file = vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct file *fpin = NULL;
 	struct address_space *mapping = file->f_mapping;
 	struct file_ra_state *ra = &file->f_ra;
@@ -2331,14 +2330,14 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		 * We found the page, so try async readahead before
 		 * waiting for the lock.
 		 */
-		fpin = do_async_mmap_readahead(vma, vmf->flags, ra,
+		fpin = do_async_mmap_readahead(vmf->vma, vmf->flags, ra,
 						file, page, offset);
 	} else if (!page) {
 		/* No page in the page cache at all */
 		count_vm_event(PGMAJFAULT);
-		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+		mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
 		ret = VM_FAULT_MAJOR;
-		fpin = do_sync_mmap_readahead(vma, vmf->flags, ra,
+		fpin = do_sync_mmap_readahead(vmf->vma, vmf->flags, ra,
 						file, offset);
 retry_find:
 		page = pagecache_get_page(mapping, offset,
@@ -2350,7 +2349,7 @@ retry_find:
 			return VM_FAULT_OOM;
 		}
 	}
-	if (!lock_page_maybe_drop_mmap(vma, vmf->flags, page, &fpin))
+	if (!lock_page_maybe_drop_mmap(vmf->vma, vmf->flags, page, &fpin))
 		goto out_retry;
 
 	/* Did it get truncated? */
@@ -2400,7 +2399,7 @@ page_not_uptodate:
 	 * and we need to check for errors.
 	 */
 	ClearPageError(page);
-	fpin = maybe_unlock_mmap_for_io(vma, vmf->flags, fpin);
+	fpin = maybe_unlock_mmap_for_io(vmf->vma, vmf->flags, fpin);
 	error = mapping->a_ops->readpage(file, page);
 	if (!error) {
 		wait_on_page_locked(page);
@@ -2518,14 +2517,14 @@ next:
 }
 EXPORT_SYMBOL(filemap_map_pages);
 
-int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+int filemap_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	int ret = VM_FAULT_LOCKED;
 
 	sb_start_pagefault(inode->i_sb);
-	file_update_time(vma->vm_file);
+	file_update_time(vmf->vma->vm_file);
 	lock_page(page);
 	if (page->mapping != inode->i_mapping) {
 		unlock_page(page);
