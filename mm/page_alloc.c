@@ -2872,110 +2872,120 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
 #endif
 }
 
+/* Remove page from the per-cpu list, caller must protect the list */
+static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
+			bool cold, struct per_cpu_pages *pcp,
+			struct list_head *list)
+{
+	struct page *page;
+
+	do {
+		if (list_empty(list)) {
+			pcp->count += rmqueue_bulk(zone, 0,
+					pcp->batch, list,
+					migratetype, cold);
+			if (unlikely(list_empty(list)))
+				return NULL;
+		}
+
+		if (cold)
+			page = list_last_entry(list, struct page, lru);
+		else
+			page = list_first_entry(list, struct page, lru);
+
+		list_del(&page->lru);
+		pcp->count--;
+	} while (check_new_pcp(page));
+
+	return page;
+}
+
+/* Lock and remove page from the per-cpu list */
+static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+			struct zone *zone, unsigned int order,
+			gfp_t gfp_flags, int migratetype,
+			int migratetype_rmqueue)
+{
+	struct per_cpu_pages *pcp;
+	struct list_head *list;
+	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+	struct page *page;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+	list = &pcp->lists[migratetype];
+	page = __rmqueue_pcplist(zone,  migratetype_rmqueue, cold, pcp, list);
+	if (page) {
+		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+		zone_statistics(preferred_zone, zone);
+	}
+	local_irq_restore(flags);
+	return page;
+}
+
 /*
  * Allocate a page from the given zone. Use pcplists for order-0 allocations.
  */
 static inline
-struct page *buffered_rmqueue(struct zone *preferred_zone,
+struct page *rmqueue(struct zone *preferred_zone,
 			struct zone *zone, unsigned int order,
 			gfp_t gfp_flags, unsigned int alloc_flags,
 			int migratetype)
 {
 	unsigned long flags;
-	struct page *page = NULL;
-	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+	struct page *page;
 	int migratetype_rmqueue = migratetype;
 
-#ifdef CONFIG_RBIN
+#ifdef CONFIG_CMA
 	if ((migratetype_rmqueue == MIGRATE_MOVABLE) &&
-			((gfp_flags & __GFP_RBIN) == __GFP_RBIN) &&
-			time_after(jiffies, INITIAL_JIFFIES + 20 * HZ)) {
-		migratetype_rmqueue = MIGRATE_RBIN;
-		test_and_set_mem_boost_timeout();
-	}
-	else if ((migratetype_rmqueue == MIGRATE_MOVABLE) &&
-		((gfp_flags & GFP_HIGHUSER_MOVABLE) == GFP_HIGHUSER_MOVABLE))
-		migratetype_rmqueue = MIGRATE_CMA;
-#else
-	if ((migratetype_rmqueue == MIGRATE_MOVABLE) &&
-		((gfp_flags & GFP_HIGHUSER_MOVABLE) == GFP_HIGHUSER_MOVABLE))
-		migratetype_rmqueue = MIGRATE_CMA;
+	    ((gfp_flags & (GFP_HIGHUSER_MOVABLE & ~__GFP_DIRECT_RECLAIM))
+	      == (GFP_HIGHUSER_MOVABLE & ~__GFP_DIRECT_RECLAIM)))
+	     migratetype_rmqueue = MIGRATE_CMA;
 #endif
-
-	local_irq_save(flags);
-
 	if (likely(order == 0)) {
-		struct per_cpu_pages *pcp;
-		struct list_head *list;
-
-		do {
-			pcp = &this_cpu_ptr(zone->pageset)->pcp;
-			list = &pcp->lists[migratetype];
-			if (list_empty(list)) {
-				pcp->count += rmqueue_bulk(zone, 0,
-						pcp->batch, list,
-						migratetype_rmqueue, cold);
-				if (unlikely(list_empty(list)))
-					goto failed;
-			}
-
-			if (cold)
-				page = list_last_entry(list, struct page, lru);
-			else
-				page = list_first_entry(list, struct page, lru);
-			/*
-			 * If the head or the tail page in the pcp list is CMA
-			 * page and the gfp flags does not have __GFP_CMA, try
-			 * allocation from free list. If a page in the pcp list
-			 * is CMA page, all pages in the pcp list is probabily
-			 * CMA pages because rmqueue_bulk() fills the list from
-			 * the free list of the same migratetype.
-			 */
-			if ((is_migrate_cma_page(page) &&
-				  (migratetype_rmqueue != MIGRATE_CMA)) ||
-				(is_migrate_rbin_page(page) &&
-				  !is_migrate_rbin_nolikely(migratetype_rmqueue)) ||
-				(!is_migrate_rbin_page(page) &&
-				  is_migrate_rbin_nolikely(migratetype_rmqueue))) {
-				page = NULL;
-				break;
-			} else {
-				list_del(&page->lru);
-				pcp->count--;
-			}
-		} while (check_new_pcp(page));
-	}
-
-	if (!page) {
+		page = rmqueue_pcplist(preferred_zone, zone, order,
+				gfp_flags, migratetype, migratetype_rmqueue);
 		/*
-		 * We most definitely don't want callers attempting to
-		 * allocate greater than order-1 page units with __GFP_NOFAIL.
+		 * Allocation with GFP_MOVABLE and !GFP_HIGHMEM will have
+		 * another chance of page allocation from the free list.
+		 * See the comment in __rmqueue_pcplist().
 		 */
-		WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
-		spin_lock(&zone->lock);
-
-		do {
-			page = NULL;
-			if (alloc_flags & ALLOC_HARDER) {
-				page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
-				if (page)
-					trace_mm_page_alloc_zone_locked(page, order, migratetype);
-			}
-			if (!page)
-				page = __rmqueue(zone, order, migratetype_rmqueue);
-		} while (page && check_new_pages(page, order));
-		spin_unlock(&zone->lock);
-		if (!page)
-			goto failed;
-		__mod_zone_freepage_state(zone, -(1 << order),
-					  get_pcppage_migratetype(page));
+#ifdef CONFIG_CMA
+		if (likely(page) || (migratetype_rmqueue != MIGRATE_MOVABLE))
+#endif
+			goto out;
 	}
+
+	/*
+	 * We most definitely don't want callers attempting to
+	 * allocate greater than order-1 page units with __GFP_NOFAIL.
+	 */
+	WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+	spin_lock_irqsave(&zone->lock, flags);
+
+	do {
+		page = NULL;
+		if (alloc_flags & ALLOC_HARDER) {
+			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+			if (page)
+				trace_mm_page_alloc_zone_locked(page, order, migratetype);
+		}
+		if (!page)
+			page = __rmqueue(zone, order, migratetype_rmqueue);
+	} while (page && check_new_pages(page, order));
+	spin_unlock(&zone->lock);
+	if (!page)
+		goto failed;
+	__mod_zone_freepage_state(zone, -(1 << order),
+				  get_pcppage_migratetype(page));
 
 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
 	zone_statistics(preferred_zone, zone);
 	local_irq_restore(flags);
 
-	VM_BUG_ON_PAGE(bad_range(zone, page), page);
+out:
+	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
 	return page;
 
 failed:
@@ -3296,7 +3306,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
 		}
 
 try_this_zone:
-		page = buffered_rmqueue(ac->preferred_zoneref->zone, zone, order,
+		page = rmqueue(ac->preferred_zoneref->zone, zone, order,
 				gfp_mask, alloc_flags, ac->migratetype);
 		if (page) {
 			prep_new_page(page, order, gfp_mask, alloc_flags);
