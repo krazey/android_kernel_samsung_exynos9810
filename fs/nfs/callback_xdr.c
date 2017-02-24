@@ -1071,6 +1071,7 @@ struct svc_version nfs4_callback_version1 = {
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
 	.vs_dispatch = NULL,
 	.vs_hidden = true,
+	.vs_need_cong_ctrl = true,
 };
 
 struct svc_version nfs4_callback_version4 = {
@@ -1080,4 +1081,5 @@ struct svc_version nfs4_callback_version4 = {
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
 	.vs_dispatch = NULL,
 	.vs_hidden = true,
+	.vs_need_cong_ctrl = true,
 };
