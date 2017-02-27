@@ -652,7 +652,6 @@ size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
 {
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
-	unsigned long flags;
 	unsigned int sg_flags = SG_MITER_ATOMIC;
 
 	if (to_buffer)
@@ -664,8 +663,6 @@ size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
 
 	if (!sg_miter_skip(&miter, skip))
 		return false;
-
-	local_irq_save(flags);
 
 	while ((offset < buflen) && sg_miter_next(&miter)) {
 		unsigned int len;
@@ -682,7 +679,6 @@ size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
 
 	sg_miter_stop(&miter);
 
-	local_irq_restore(flags);
 	return offset;
 }
 EXPORT_SYMBOL(sg_copy_buffer);
