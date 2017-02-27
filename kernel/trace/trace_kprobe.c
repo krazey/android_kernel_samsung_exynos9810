@@ -703,9 +703,11 @@ static int create_trace_kprobe(int argc, char **argv)
 			pr_info("Failed to parse either an address or a symbol.\n");
 			return ret;
 		}
-	} else if (is_return) {
-		pr_info("Return probe point must be a symbol.\n");
-		return -EINVAL;
+		if (offset && is_return &&
+		    !arch_function_offset_within_entry(offset)) {
+			pr_info("Given offset is not valid for return probe.\n");
+			return -EINVAL;
+		}
 	}
 	argc -= 2; argv += 2;
 
