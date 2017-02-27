@@ -83,6 +83,7 @@
 #include <linux/io.h>
 #include <linux/kaiser.h>
 #include <linux/cache.h>
+#include <linux/rodata_test.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -1142,9 +1143,10 @@ __setup("rodata=", set_debug_rodata);
 #ifdef CONFIG_STRICT_KERNEL_RWX
 static void mark_readonly(void)
 {
-	if (rodata_enabled)
+	if (rodata_enabled) {
 		mark_rodata_ro();
-	else
+		rodata_test();
+	} else
 		pr_info("Kernel memory protection disabled.\n");
 }
 #else
