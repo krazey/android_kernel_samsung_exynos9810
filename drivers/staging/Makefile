@@ -43,4 +43,3 @@ obj-$(CONFIG_BCM2835_VCHIQ)	+= vc04_services/
 obj-$(CONFIG_SEC_EXT)		+= samsung/
 obj-$(CONFIG_SEC_STI)		+= sti/
 obj-$(CONFIG_VNSWAP)		+= vnswap/
-obj-$(CONFIG_SND_BCM2835)	+= bcm2835-audio/

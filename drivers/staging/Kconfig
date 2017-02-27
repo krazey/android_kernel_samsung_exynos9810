@@ -108,6 +108,4 @@ source "drivers/staging/vnswap/Kconfig"
 
 source "drivers/staging/sti/Kconfig"
 
-source "drivers/staging/bcm2835-audio/Kconfig"
-
 endif # STAGING
