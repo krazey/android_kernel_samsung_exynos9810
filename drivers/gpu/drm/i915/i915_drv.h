@@ -890,6 +890,7 @@ enum intel_platform {
 	INTEL_BROXTON,
 	INTEL_KABYLAKE,
 	INTEL_GEMINILAKE,
+	INTEL_MAX_PLATFORMS
 };
 
 struct intel_device_info {
