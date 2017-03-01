@@ -1131,12 +1131,11 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 		}
 
 		CMD_FLAGS(sc) |= FNIC_IO_ABT_TERM_DONE;
+		CMD_ABTS_STATUS(sc) = hdr_status;
 
 		/* If the status is IO not found consider it as success */
 		if (hdr_status == FCPIO_IO_NOT_FOUND)
 			CMD_ABTS_STATUS(sc) = FCPIO_SUCCESS;
-		else
-			CMD_ABTS_STATUS(sc) = hdr_status;
 
 		if (!(CMD_FLAGS(sc) & (FNIC_IO_ABORTED | FNIC_IO_DONE)))
 			atomic64_inc(&misc_stats->no_icmnd_itmf_cmpls);
