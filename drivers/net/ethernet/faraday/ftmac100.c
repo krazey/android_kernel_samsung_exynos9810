@@ -1155,7 +1155,7 @@ err_alloc_etherdev:
 	return err;
 }
 
-static int __exit ftmac100_remove(struct platform_device *pdev)
+static int ftmac100_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct ftmac100 *priv;
@@ -1175,7 +1175,7 @@ static int __exit ftmac100_remove(struct platform_device *pdev)
 
 static struct platform_driver ftmac100_driver = {
 	.probe		= ftmac100_probe,
-	.remove		= __exit_p(ftmac100_remove),
+	.remove		= ftmac100_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 	},
