@@ -1161,6 +1161,9 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 		default:
 			break;
 		}
+
+		if (ret)
+			break;
 	}
 
 	kfree(orig);
