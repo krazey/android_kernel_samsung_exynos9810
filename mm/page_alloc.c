@@ -65,6 +65,7 @@
 #include <linux/page_owner.h>
 #include <linux/kthread.h>
 #include <linux/memcontrol.h>
+#include <linux/ftrace.h>
 #include <linux/psi.h>
 #include <linux/khugepaged.h>
 
@@ -6910,6 +6911,9 @@ unsigned long free_reserved_area(void *start, void *end, int poison, char *s)
 {
 	void *pos;
 	unsigned long pages = 0;
+
+	/* This may be .init text, inform ftrace to remove it */
+	ftrace_free_mem(start, end);
 
 	free_memsize_reserved(__pa(start), end - start);
 	start = (void *)PAGE_ALIGN((unsigned long)start);
