@@ -8189,7 +8189,7 @@ out:
 	return ret;
 }
 
-void __init trace_init(void)
+void __init early_trace_init(void)
 {
 	if (tracepoint_printk) {
 		tracepoint_print_iter =
@@ -8200,6 +8200,10 @@ void __init trace_init(void)
 			static_key_enable(&tracepoint_printk_key.key);
 	}
 	tracer_alloc_buffers();
+}
+
+void __init trace_init(void)
+{
 	trace_event_init();
 }
 
