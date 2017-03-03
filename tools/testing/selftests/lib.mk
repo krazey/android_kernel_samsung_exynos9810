@@ -10,6 +10,10 @@ ifeq (0,$(MAKELEVEL))
 OUTPUT := $(shell pwd)
 endif
 
+ifeq (0,$(MAKELEVEL))
+OUTPUT := $(shell pwd)
+endif
+
 TEST_GEN_PROGS := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_PROGS))
 TEST_GEN_FILES := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_FILES))
 
