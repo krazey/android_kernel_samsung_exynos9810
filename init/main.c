@@ -743,6 +743,8 @@ asmlinkage __visible void __init start_kernel(void)
 #endif
 #endif
 
+	ftrace_init();
+
 	/* trace_printk can be enabled here */
 	early_trace_init();
 
@@ -874,8 +876,6 @@ asmlinkage __visible void __init start_kernel(void)
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
 		efi_free_boot_services();
 	}
-
-	ftrace_init();
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
