@@ -183,34 +183,33 @@ static bool prz_ok(struct persistent_ram_zone *prz)
 			   persistent_ram_ecc_string(prz, NULL, 0));
 }
 
-static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
-				   int *count, struct timespec *time,
-				   char **buf, bool *compressed,
-				   ssize_t *ecc_notice_size,
-				   struct pstore_info *psi)
+static ssize_t ramoops_pstore_read(struct pstore_record *record)
 {
 	ssize_t size;
-	struct ramoops_context *cxt = psi->data;
+	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz = NULL;
 	int header_length = 0;
 
-	/* Ramoops headers provide time stamps for PSTORE_TYPE_DMESG, but
+	/*
+	 * Ramoops headers provide time stamps for PSTORE_TYPE_DMESG, but
 	 * PSTORE_TYPE_CONSOLE and PSTORE_TYPE_FTRACE don't currently have
 	 * valid time stamps, so it is initialized to zero.
 	 */
-	time->tv_sec = 0;
-	time->tv_nsec = 0;
-	*compressed = false;
+	record->time.tv_sec = 0;
+	record->time.tv_nsec = 0;
+	record->compressed = false;
 
 	/* Find the next valid persistent_ram_zone for DMESG */
 	while (cxt->dump_read_cnt < cxt->max_dump_cnt && !prz) {
 		prz = ramoops_get_next_prz(cxt->dprzs, &cxt->dump_read_cnt,
-					   cxt->max_dump_cnt, id, type,
+					   cxt->max_dump_cnt, &record->id,
+					   &record->type,
 					   PSTORE_TYPE_DMESG, 1);
 		if (!prz_ok(prz))
 			continue;
 		header_length = ramoops_read_kmsg_hdr(persistent_ram_old(prz),
-						      time, compressed);
+						      &record->time,
+						      &record->compressed);
 		/* Clear and skip this DMESG record if it has no valid header */
 		if (!header_length) {
 			persistent_ram_free_old(prz);
@@ -221,13 +220,18 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
-					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
+					   1, &record->id, &record->type,
+					   PSTORE_TYPE_CONSOLE, 0);
+
 	if (!prz_ok(prz)) {
 		while (cxt->ftrace_read_cnt < cxt->max_ftrace_cnt && !prz) {
 			prz = ramoops_get_next_prz(cxt->fprzs,
 					&cxt->ftrace_read_cnt,
-					cxt->max_ftrace_cnt, id, type,
+					cxt->max_ftrace_cnt,
+					&record->id,
+					&record->type,
 					PSTORE_TYPE_FTRACE, 0);
+
 			if (!prz_ok(prz))
 				continue;
 		}
@@ -235,21 +239,25 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->mprz, &cxt->pmsg_read_cnt,
-					   1, id, type, PSTORE_TYPE_PMSG, 0);
+					   1, &record->id, &record->type,
+					   PSTORE_TYPE_PMSG, 0);
 	if (!prz_ok(prz))
 		return 0;
 
 	size = persistent_ram_old_size(prz) - header_length;
 
 	/* ECC correction notice */
-	*ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
+	record->ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
-	*buf = kmalloc(size + *ecc_notice_size + 1, GFP_KERNEL);
-	if (*buf == NULL)
+	record->buf = kmalloc(size + record->ecc_notice_size + 1, GFP_KERNEL);
+	if (record->buf == NULL)
 		return -ENOMEM;
 
-	memcpy(*buf, (char *)persistent_ram_old(prz) + header_length, size);
-	persistent_ram_ecc_string(prz, *buf + size, *ecc_notice_size + 1);
+	memcpy(record->buf, (char *)persistent_ram_old(prz) + header_length,
+	       size);
+
+	persistent_ram_ecc_string(prz, record->buf + size,
+				  record->ecc_notice_size + 1);
 
 	return size;
 }
