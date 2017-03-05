@@ -349,12 +349,10 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 	struct vmpacket_descriptor desc;
 	u32 offset;
 	u32 packetlen;
-	int ret = 0;
 	struct hv_ring_buffer_info *inring_info = &channel->inbound;
 
 	if (buflen <= 0)
 		return -EINVAL;
-
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
@@ -366,7 +364,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 		 * No error is set when there is even no header, drivers are
 		 * supposed to analyze buffer_actual_len.
 		 */
-		return ret;
+		return 0;
 	}
 
 	init_cached_read_index(inring_info);
@@ -412,7 +410,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 
 	hv_signal_on_read(channel);
 
-	return ret;
+	return 0;
 }
 
 /*
