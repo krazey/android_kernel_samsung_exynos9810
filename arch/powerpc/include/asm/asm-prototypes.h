@@ -109,6 +109,8 @@ void early_setup_secondary(void);
 /* time */
 void accumulate_stolen_time(void);
 
+/* tracing */
 void _mcount(void);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
 
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */
