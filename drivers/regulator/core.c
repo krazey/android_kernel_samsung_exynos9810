@@ -1324,8 +1324,8 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		regulator->dev = dev;
 
 		/* Add a link to the device sysfs entry */
-		size = scnprintf(buf, REG_STR_SIZE, "%s-%s",
-				 dev->kobj.name, supply_name);
+		size = snprintf(buf, REG_STR_SIZE, "%s-%s",
+				dev->kobj.name, supply_name);
 		if (size >= REG_STR_SIZE)
 			goto overflow_err;
 
