@@ -629,7 +629,7 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 err_out:
 	set_sbi_flag(sbi, SBI_NEED_FSCK);
 	f2fs_msg(sbi->sb, KERN_WARNING,
-			"%s: orphan failed (ino=%x), run fsck to fix.",
+			"%s: orphan failed (ino=%x) by kernel, retry mount.",
 			__func__, ino);
 	return err;
 }
