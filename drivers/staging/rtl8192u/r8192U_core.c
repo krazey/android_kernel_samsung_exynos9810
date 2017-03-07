@@ -269,7 +269,7 @@ int write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 				 indx | 0xfe00, 0, usbdata, 1, 500);
 	kfree(usbdata);
 
-	if (status < 0){
+	if (status < 0) {
 		netdev_err(dev, "write_nic_byte_E TimeOut! status: %d\n",
 			   status);
 		return status;
@@ -2528,7 +2528,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			for (i = 0; i < 3; i++) {
 				if (bLoad_From_EEPOM) {
 					ret = eprom_read(dev, (EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
-					if ( ret < 0)
+					if (ret < 0)
 						return ret;
 					if (((EEPROM_TxPwIndex_OFDM_24G + i) % 2) == 0)
 						tmpValue = (u16)ret & 0x00ff;
