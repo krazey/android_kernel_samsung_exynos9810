@@ -59,7 +59,7 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 	struct page *page;
 	dma_addr_t dma;
 
-	for (order = frag_info->order; ;) {
+	for (order = priv->rx_page_order; ;) {
 		gfp_t gfp = _gfp;
 
 		if (order)
@@ -1229,7 +1229,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	 * This only works when num_frags == 1.
 	 */
 	if (priv->tx_ring_num[TX_XDP]) {
-		priv->frag_info[0].order = 0;
+		priv->rx_page_order = 0;
 		priv->frag_info[0].frag_size = eff_mtu;
 		priv->frag_info[0].frag_prefix_size = 0;
 		/* This will gain efficient xdp frame recycling at the
@@ -1243,7 +1243,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 		int buf_size = 0;
 
 		while (buf_size < eff_mtu) {
-			priv->frag_info[i].order = MLX4_EN_ALLOC_PREFER_ORDER;
 			priv->frag_info[i].frag_size =
 				(eff_mtu > buf_size + frag_sizes[i]) ?
 					frag_sizes[i] : eff_mtu - buf_size;
@@ -1255,6 +1254,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 			buf_size += priv->frag_info[i].frag_size;
 			i++;
 		}
+		priv->rx_page_order = MLX4_EN_ALLOC_PREFER_ORDER;
 		priv->dma_dir = PCI_DMA_FROMDEVICE;
 	}
 
