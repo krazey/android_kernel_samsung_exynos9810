@@ -159,12 +159,14 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	case NFT_CT_ZONE: {
 		const struct nf_conntrack_zone *zone = nf_ct_zone(ct);
+		u16 zoneid;
 
 		if (priv->dir < IP_CT_DIR_MAX)
-			*dest = nf_ct_zone_id(zone, priv->dir);
+			zoneid = nf_ct_zone_id(zone, priv->dir);
 		else
-			*dest = zone->id;
+			zoneid = zone->id;
 
+		nft_reg_store16(dest, zoneid);
 		return;
 	}
 #endif
@@ -205,7 +207,7 @@ static void nft_ct_set_zone_eval(const struct nft_expr *expr,
 	const struct nft_ct *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
 	enum ip_conntrack_info ctinfo;
-	u16 value = regs->data[priv->sreg];
+	u16 value = nft_reg_load16(&regs->data[priv->sreg]);
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(skb, &ctinfo);

@@ -151,7 +151,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 				nft_reg_store8(dest, PACKET_BROADCAST);
 			break;
 		case NFPROTO_IPV6:
-			*dest = PACKET_MULTICAST;
+			nft_reg_store8(dest, PACKET_MULTICAST);
 			break;
 		case NFPROTO_NETDEV:
 			switch (skb->protocol) {
