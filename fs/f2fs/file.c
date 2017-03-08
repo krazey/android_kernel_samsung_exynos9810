@@ -2382,6 +2382,12 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
 	if (err)
 		return err;
 
+	if (unlikely((range.start + range.len) >> PAGE_SHIFT >
+					sbi->max_file_blocks)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	err = f2fs_defragment_range(sbi, filp, &range);
 	mnt_drop_write_file(filp);
 
