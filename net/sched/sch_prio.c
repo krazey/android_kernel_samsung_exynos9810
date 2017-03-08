@@ -202,8 +202,11 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 		qdisc_destroy(child);
 	}
 
-	for (i = oldbands; i < q->bands; i++)
+	for (i = oldbands; i < q->bands; i++) {
 		q->queues[i] = queues[i];
+		if (q->queues[i] != &noop_qdisc)
+			qdisc_hash_add(q->queues[i], true);
+	}
 
 	sch_tree_unlock(sch);
 	/* Schedule qdisc when flow re-enabled */
@@ -255,7 +258,7 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		if (!new)
 			new = &noop_qdisc;
 		else
-			qdisc_hash_add(new);
+			qdisc_hash_add(new, true);
 	}
 
 	*old = qdisc_replace(sch, new, &q->queues[band]);
