@@ -349,6 +349,7 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	unsigned long csum_complete;
+	unsigned long rx_alloc_pages;
 	unsigned long xdp_drop;
 	unsigned long xdp_tx;
 	unsigned long xdp_tx_full;
