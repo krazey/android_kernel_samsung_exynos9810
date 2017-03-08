@@ -1434,6 +1434,9 @@ static int write_latency_timer(struct usb_serial_port *port)
 	int rv;
 	int l = priv->latency;
 
+	if (priv->chip_type == SIO || priv->chip_type == FT8U232AM)
+		return -EINVAL;
+
 	if (priv->flags & ASYNC_LOW_LATENCY)
 		l = 1;
 
@@ -1456,6 +1459,9 @@ static int read_latency_timer(struct usb_serial_port *port)
 	struct usb_device *udev = port->serial->dev;
 	unsigned char *buf;
 	int rv;
+
+	if (priv->chip_type == SIO || priv->chip_type == FT8U232AM)
+		return -EINVAL;
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf)
