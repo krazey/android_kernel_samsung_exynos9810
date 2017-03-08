@@ -589,40 +589,33 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 				    int length)
 {
 	struct skb_frag_struct *skb_frags_rx = skb_shinfo(skb)->frags;
-	int nr;
+	struct mlx4_en_frag_info *frag_info = priv->frag_info;
+	int nr, frag_size;
 	dma_addr_t dma;
 
 	/* Collect used fragments while replacing them in the HW descriptors */
-	for (nr = 0; nr < priv->num_frags; nr++) {
-		struct mlx4_en_frag_info *frag_info = &priv->frag_info[nr];
-		u32 next_frag_end = frags[nr].page_offset +
-				2 * frag_info->frag_stride;
+	for (nr = 0;;) {
+		frag_size = min_t(int, length, frag_info->frag_size);
 
-		if (length <= frag_info->frag_prefix_size)
-			break;
 		if (unlikely(!frags[nr].page))
 			goto fail;
 
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
-		if (next_frag_end > frags[nr].page_size)
-			dma_unmap_page(priv->ddev, frags[nr].dma,
-				       frags[nr].page_size, frag_info->dma_dir);
-		else
-			dma_sync_single_for_cpu(priv->ddev, dma,
-						frag_info->frag_size,
-						DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(priv->ddev, dma, frag_info->frag_size,
+					DMA_FROM_DEVICE);
 
 		__skb_fill_page_desc(skb, nr, frags[nr].page,
 				     frags[nr].page_offset,
-				     frag_info->frag_size);
+				     frag_size);
 
 		skb->truesize += frag_info->frag_stride;
 		frags[nr].page = NULL;
+		nr++;
+		length -= frag_size;
+		if (!length)
+			break;
+		frag_info++;
 	}
-	/* Adjust size of last fragment to match actual length */
-	if (nr > 0)
-		skb_frag_size_set(&skb_frags_rx[nr - 1],
-			length - priv->frag_info[nr - 1].frag_prefix_size);
 	return nr;
 
 fail:
@@ -1231,7 +1224,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	if (priv->tx_ring_num[TX_XDP]) {
 		priv->rx_page_order = 0;
 		priv->frag_info[0].frag_size = eff_mtu;
-		priv->frag_info[0].frag_prefix_size = 0;
 		/* This will gain efficient xdp frame recycling at the
 		 * expense of more costly truesize accounting
 		 */
@@ -1246,7 +1238,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 			priv->frag_info[i].frag_size =
 				(eff_mtu > buf_size + frag_sizes[i]) ?
 					frag_sizes[i] : eff_mtu - buf_size;
-			priv->frag_info[i].frag_prefix_size = buf_size;
 			priv->frag_info[i].frag_stride =
 				ALIGN(priv->frag_info[i].frag_size,
 				      SMP_CACHE_BYTES);
@@ -1266,10 +1257,9 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	       eff_mtu, priv->num_frags);
 	for (i = 0; i < priv->num_frags; i++) {
 		en_err(priv,
-		       "  frag:%d - size:%d prefix:%d stride:%d\n",
+		       "  frag:%d - size:%d stride:%d\n",
 		       i,
 		       priv->frag_info[i].frag_size,
-		       priv->frag_info[i].frag_prefix_size,
 		       priv->frag_info[i].frag_stride);
 	}
 }
