@@ -217,7 +217,7 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 		i->head = &up->list;
 		spin_unlock_irq(&i->lock);
 		ret = request_irq(up->port.irq, serial8250_interrupt,
-				  up->port.irqflags, "serial", i);
+				  up->port.irqflags, up->port.name, i);
 		if (ret < 0)
 			serial_do_unlink(i, up);
 	}
