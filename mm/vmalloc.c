@@ -89,12 +89,12 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
 	} while (pmd++, addr = next, addr != end);
 }
 
-static void vunmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end)
+static void vunmap_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end)
 {
 	pud_t *pud;
 	unsigned long next;
 
-	pud = pud_offset(pgd, addr);
+	pud = pud_offset(p4d, addr);
 	do {
 		next = pud_addr_end(addr, end);
 		if (pud_clear_huge(pud))
@@ -103,6 +103,22 @@ static void vunmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end)
 			continue;
 		vunmap_pmd_range(pud, addr, next);
 	} while (pud++, addr = next, addr != end);
+}
+
+static void vunmap_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end)
+{
+	p4d_t *p4d;
+	unsigned long next;
+
+	p4d = p4d_offset(pgd, addr);
+	do {
+		next = p4d_addr_end(addr, end);
+		if (p4d_clear_huge(p4d))
+			continue;
+		if (p4d_none_or_clear_bad(p4d))
+			continue;
+		vunmap_pud_range(p4d, addr, next);
+	} while (p4d++, addr = next, addr != end);
 }
 
 static void vunmap_page_range(unsigned long addr, unsigned long end)
@@ -116,7 +132,7 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		vunmap_pud_range(pgd, addr, next);
+		vunmap_p4d_range(pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
 
@@ -163,13 +179,13 @@ static int vmap_pmd_range(pud_t *pud, unsigned long addr,
 	return 0;
 }
 
-static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
+static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
 {
 	pud_t *pud;
 	unsigned long next;
 
-	pud = pud_alloc(&init_mm, pgd, addr);
+	pud = pud_alloc(&init_mm, p4d, addr);
 	if (!pud)
 		return -ENOMEM;
 	do {
@@ -177,6 +193,23 @@ static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
 		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
 			return -ENOMEM;
 	} while (pud++, addr = next, addr != end);
+	return 0;
+}
+
+static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
+		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+{
+	p4d_t *p4d;
+	unsigned long next;
+
+	p4d = p4d_alloc(&init_mm, pgd, addr);
+	if (!p4d)
+		return -ENOMEM;
+	do {
+		next = p4d_addr_end(addr, end);
+		if (vmap_pud_range(p4d, addr, next, prot, pages, nr))
+			return -ENOMEM;
+	} while (p4d++, addr = next, addr != end);
 	return 0;
 }
 
@@ -199,7 +232,7 @@ static int vmap_page_range_noflush(unsigned long start, unsigned long end,
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		err = vmap_pud_range(pgd, addr, next, prot, pages, &nr);
+		err = vmap_p4d_range(pgd, addr, next, prot, pages, &nr);
 		if (err)
 			return err;
 	} while (pgd++, addr = next, addr != end);
@@ -240,12 +273,23 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	unsigned long addr = (unsigned long) vmalloc_addr;
 	struct page *page = NULL;
 	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
 
 	/*
 	 * XXX we might need to change this if we add VIRTUAL_BUG_ON for
 	 * architectures that do not vmalloc module space
 	 */
 	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
+
+	if (pgd_none(*pgd))
+		return NULL;
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d))
+		return NULL;
+	pud = pud_offset(p4d, addr);
 
 	/*
 	 * Don't dereference bad PUD or PMD (below) entries. This will also
@@ -255,23 +299,19 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	 * not [unambiguously] associated with a struct page, so there is
 	 * no correct value to return for them.
 	 */
-	if (!pgd_none(*pgd)) {
-		pud_t *pud = pud_offset(pgd, addr);
-		WARN_ON_ONCE(pud_bad(*pud));
-		if (!pud_none(*pud) && !pud_bad(*pud)) {
-			pmd_t *pmd = pmd_offset(pud, addr);
-			WARN_ON_ONCE(pmd_bad(*pmd));
-			if (!pmd_none(*pmd) && !pmd_bad(*pmd)) {
-				pte_t *ptep, pte;
+	WARN_ON_ONCE(pud_bad(*pud));
+	if (pud_none(*pud) || pud_bad(*pud))
+		return NULL;
+	pmd = pmd_offset(pud, addr);
+	WARN_ON_ONCE(pmd_bad(*pmd));
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return NULL;
 
-				ptep = pte_offset_map(pmd, addr);
-				pte = *ptep;
-				if (pte_present(pte))
-					page = pte_page(pte);
-				pte_unmap(ptep);
-			}
-		}
-	}
+	ptep = pte_offset_map(pmd, addr);
+	pte = *ptep;
+	if (pte_present(pte))
+		page = pte_page(pte);
+	pte_unmap(ptep);
 	return page;
 }
 EXPORT_SYMBOL(vmalloc_to_page);
