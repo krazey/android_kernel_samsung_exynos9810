@@ -2383,10 +2383,12 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
 		return err;
 
 	if (unlikely((range.start + range.len) >> PAGE_SHIFT >
-					sbi->max_file_blocks)) {
-		err = -EINVAL;
-		goto out;
-	}
+					sbi->max_file_blocks))
+		return -EINVAL;
+
+	err = mnt_want_write_file(filp);
+	if (err)
+		return err;
 
 	err = f2fs_defragment_range(sbi, filp, &range);
 	mnt_drop_write_file(filp);
