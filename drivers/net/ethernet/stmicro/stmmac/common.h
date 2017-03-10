@@ -324,6 +324,9 @@ struct dma_features {
 	unsigned int number_tx_queues;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
+	/* TX and RX FIFO sizes */
+	unsigned int tx_fifo_size;
+	unsigned int rx_fifo_size;
 };
 
 /* RX Buffer size must be multiple of 4/8/16 bytes */
