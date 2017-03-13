@@ -1755,7 +1755,7 @@ static void exynos_pcie_host_init(struct pcie_port *pp)
 }
 
 #ifdef NCLK_OFF_CONTROL
-u32 exynos_pcie_readl_dbi(struct dw_pcie *pci, u32 reg)
+u32 exynos_pcie_readl_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg)
 {
 	struct pcie_port *pp = &pci->pp;
 	u32 val;
@@ -1763,7 +1763,8 @@ u32 exynos_pcie_readl_dbi(struct dw_pcie *pci, u32 reg)
 	return val;
 }
 
-void exynos_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val)
+void exynos_pcie_writel_dbi(struct dw_pcie *pci, void __iomem *base,
+				   u32 reg, u32 val)
 {
 	struct pcie_port *pp = &pci->pp;
 	exynos_pcie_wr_own_conf(pp, reg, 4, val);
