@@ -89,17 +89,13 @@ module_param(debug, int, 0600);
 /**
  *	struct gsm_mux_net	-	network interface
  *	@struct gsm_dlci* dlci
- *	@struct net_device_stats stats;
  *
  *	Created when net interface is initialized.
  **/
 struct gsm_mux_net {
 	struct kref ref;
 	struct gsm_dlci *dlci;
-	struct net_device_stats stats;
 };
-
-#define STATS(net) (((struct gsm_mux_net *)netdev_priv(net))->stats)
 
 /*
  *	Each block of data we have queued to go out is in the form of
@@ -2638,10 +2634,6 @@ static int gsm_mux_net_close(struct net_device *net)
 	return 0;
 }
 
-static struct net_device_stats *gsm_mux_net_get_stats(struct net_device *net)
-{
-	return &((struct gsm_mux_net *)netdev_priv(net))->stats;
-}
 static void dlci_net_free(struct gsm_dlci *dlci)
 {
 	if (!dlci->net) {
@@ -2685,8 +2677,8 @@ static int gsm_mux_net_start_xmit(struct sk_buff *skb,
 	muxnet_get(mux_net);
 
 	skb_queue_head(&dlci->skb_list, skb);
-	STATS(net).tx_packets++;
-	STATS(net).tx_bytes += skb->len;
+	net->stats.tx_packets++;
+	net->stats.tx_bytes += skb->len;
 	gsm_dlci_data_kick(dlci);
 	/* And tell the kernel when the last transmit started. */
 	netif_trans_update(net);
@@ -2701,7 +2693,7 @@ static void gsm_mux_net_tx_timeout(struct net_device *net)
 	dev_dbg(&net->dev, "Tx timed out.\n");
 
 	/* Update statistics */
-	STATS(net).tx_errors++;
+	net->stats.tx_errors++;
 }
 
 static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
@@ -2716,7 +2708,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	skb = dev_alloc_skb(size + NET_IP_ALIGN);
 	if (!skb) {
 		/* We got no receive buffer. */
-		STATS(net).rx_dropped++;
+		net->stats.rx_dropped++;
 		muxnet_put(mux_net);
 		return;
 	}
@@ -2730,8 +2722,8 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	netif_rx(skb);
 
 	/* update out statistics */
-	STATS(net).rx_packets++;
-	STATS(net).rx_bytes += size;
+	net->stats.rx_packets++;
+	net->stats.rx_bytes += size;
 	muxnet_put(mux_net);
 	return;
 }
@@ -2743,7 +2735,6 @@ static void gsm_mux_net_init(struct net_device *net)
 		.ndo_stop		= gsm_mux_net_close,
 		.ndo_start_xmit		= gsm_mux_net_start_xmit,
 		.ndo_tx_timeout		= gsm_mux_net_tx_timeout,
-		.ndo_get_stats		= gsm_mux_net_get_stats,
 	};
 
 	net->netdev_ops = &gsm_netdev_ops;
