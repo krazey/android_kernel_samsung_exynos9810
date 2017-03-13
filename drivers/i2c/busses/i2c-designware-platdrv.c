@@ -329,6 +329,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 
 	i2c_dw_remove_lock_support(dev);
 
+	i2c_dw_remove_lock_support(dev);
+
 	return 0;
 }
 
