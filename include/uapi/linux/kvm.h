@@ -892,6 +892,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_IMMEDIATE_EXIT 136
 #define KVM_CAP_MIPS_VZ 137
 #define KVM_CAP_MIPS_TE 138
+#define KVM_CAP_MIPS_64BIT 139
 #define KVM_CAP_S390_GS 140
 #define KVM_CAP_S390_BPB 152
 #define KVM_CAP_GET_MSR_FEATURES 153
