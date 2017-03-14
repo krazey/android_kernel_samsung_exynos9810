@@ -1284,7 +1284,7 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	}
 
 	ring->free_bds += txbds_processed;
-	ring->c_index = (ring->c_index + txbds_processed) & DMA_C_INDEX_MASK;
+	ring->c_index = c_index;
 
 	dev->stats.tx_packets += pkts_compl;
 	dev->stats.tx_bytes += bytes_compl;
@@ -1292,7 +1292,7 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	netdev_tx_completed_queue(netdev_get_tx_queue(dev, ring->queue),
 				  pkts_compl, bytes_compl);
 
-	return pkts_compl;
+	return txbds_processed;
 }
 
 static unsigned int bcmgenet_tx_reclaim(struct net_device *dev,
