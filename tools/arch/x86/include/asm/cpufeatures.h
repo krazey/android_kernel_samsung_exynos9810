@@ -100,7 +100,7 @@
 #define X86_FEATURE_XTOPOLOGY	( 3*32+22) /* cpu topology enum extensions */
 #define X86_FEATURE_TSC_RELIABLE ( 3*32+23) /* TSC is known to be reliable */
 #define X86_FEATURE_NONSTOP_TSC	( 3*32+24) /* TSC does not stop in C states */
-/* free, was #define X86_FEATURE_CLFLUSH_MONITOR ( 3*32+25) * "" clflush reqd with monitor */
+#define X86_FEATURE_CPUID	( 3*32+25) /* CPU has CPUID instruction itself */
 #define X86_FEATURE_EXTD_APICID	( 3*32+26) /* has extended APICID (8 bits) */
 #define X86_FEATURE_AMD_DCM     ( 3*32+27) /* multi-node processor */
 #define X86_FEATURE_APERFMPERF	( 3*32+28) /* APERFMPERF */
@@ -186,7 +186,7 @@
  *
  * Reuse free bits when adding new feature flags!
  */
-
+#define X86_FEATURE_RING3MWAIT	( 7*32+ 0) /* Ring 3 MONITOR/MWAIT */
 #define X86_FEATURE_CPB		( 7*32+ 2) /* AMD Core Performance Boost */
 #define X86_FEATURE_EPB		( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
 #define X86_FEATURE_INVPCID_SINGLE ( 7*32+ 4) /* Effectively INVPCID && CR4.PCIDE=1 */
@@ -360,5 +360,4 @@
 #define X86_BUG_SPECTRE_V2	X86_BUG(16) /* CPU is affected by Spectre variant 2 attack with indirect branches */
 #define X86_BUG_SPEC_STORE_BYPASS X86_BUG(17) /* CPU is affected by speculative store bypass attack */
 #define X86_BUG_L1TF		X86_BUG(18) /* CPU is affected by L1 Terminal Fault */
-
 #endif /* _ASM_X86_CPUFEATURES_H */
