@@ -556,6 +556,8 @@ struct bcmgenet_skb_cb {
 struct bcmgenet_tx_ring {
 	spinlock_t	lock;		/* ring lock */
 	struct napi_struct napi;	/* NAPI per tx queue */
+	unsigned long	packets;
+	unsigned long	bytes;
 	unsigned int	index;		/* ring index */
 	unsigned int	queue;		/* queue index */
 	struct enet_cb	*cbs;		/* tx ring buffer control block*/
@@ -574,6 +576,10 @@ struct bcmgenet_tx_ring {
 
 struct bcmgenet_rx_ring {
 	struct napi_struct napi;	/* Rx NAPI struct */
+	unsigned long	bytes;
+	unsigned long	packets;
+	unsigned long	errors;
+	unsigned long	dropped;
 	unsigned int	index;		/* Rx ring index */
 	struct enet_cb	*cbs;		/* Rx ring buffer control block */
 	unsigned int	size;		/* Rx ring size */
