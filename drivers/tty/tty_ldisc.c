@@ -691,8 +691,8 @@ int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 	retval = tty_ldisc_open(tty, ld);
 	if (retval) {
 		if (!WARN_ON(disc == N_TTY)) {
-			tty_ldisc_put(tty->ldisc);
-			tty->ldisc = NULL;
+			tty_ldisc_put(ld);
+			ld = NULL;
 		}
 	}
 
