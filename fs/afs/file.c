@@ -211,7 +211,13 @@ static int __afs_page_filler(struct key *key, struct page *page)
 			fscache_uncache_page(vnode->cache, page);
 #endif
 			BUG_ON(PageFsCache(page));
-			goto error;
+
+			if (ret == -EINTR ||
+			    ret == -ENOMEM ||
+			    ret == -ERESTARTSYS ||
+			    ret == -EAGAIN)
+				goto error;
+			goto io_error;
 		}
 
 		SetPageUptodate(page);
@@ -230,10 +236,12 @@ static int __afs_page_filler(struct key *key, struct page *page)
 	_leave(" = 0");
 	return 0;
 
+io_error:
+	SetPageError(page);
+	goto error;
 enomem:
 	ret = -ENOMEM;
 error:
-	SetPageError(page);
 	unlock_page(page);
 	_leave(" = %d", ret);
 	return ret;
