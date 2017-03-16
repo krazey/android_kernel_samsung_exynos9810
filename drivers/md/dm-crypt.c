@@ -1046,7 +1046,6 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	struct bio_vec bv_in = bio_iter_iovec(ctx->bio_in, ctx->iter_in);
 	struct bio_vec bv_out = bio_iter_iovec(ctx->bio_out, ctx->iter_out);
 	struct dm_crypt_request *dmreq;
-	unsigned int data_len = 1 << SECTOR_SHIFT;
 	u8 *iv, *org_iv, *tag_iv, *tag;
 	uint64_t *sector;
 	int r = 0;
@@ -1059,6 +1058,8 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 
 	dmreq = dmreq_of_req(cc, req);
 	dmreq->iv_sector = ctx->cc_sector;
+	if (test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags))
+		sector_div(dmreq->iv_sector, cc->sector_size >> SECTOR_SHIFT);
 	dmreq->ctx = ctx;
 
 	*org_tag_of_dmreq(cc, dmreq) = tag_offset;
@@ -1079,13 +1080,13 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	sg_init_table(dmreq->sg_in, 4);
 	sg_set_buf(&dmreq->sg_in[0], sector, sizeof(uint64_t));
 	sg_set_buf(&dmreq->sg_in[1], org_iv, cc->iv_size);
-	sg_set_page(&dmreq->sg_in[2], bv_in.bv_page, data_len, bv_in.bv_offset);
+	sg_set_page(&dmreq->sg_in[2], bv_in.bv_page, cc->sector_size, bv_in.bv_offset);
 	sg_set_buf(&dmreq->sg_in[3], tag, cc->integrity_tag_size);
 
 	sg_init_table(dmreq->sg_out, 4);
 	sg_set_buf(&dmreq->sg_out[0], sector, sizeof(uint64_t));
 	sg_set_buf(&dmreq->sg_out[1], org_iv, cc->iv_size);
-	sg_set_page(&dmreq->sg_out[2], bv_out.bv_page, data_len, bv_out.bv_offset);
+	sg_set_page(&dmreq->sg_out[2], bv_out.bv_page, cc->sector_size, bv_out.bv_offset);
 	sg_set_buf(&dmreq->sg_out[3], tag, cc->integrity_tag_size);
 
 	if (cc->iv_gen_ops) {
@@ -1107,14 +1108,14 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	aead_request_set_ad(req, sizeof(uint64_t) + cc->iv_size);
 	if (bio_data_dir(ctx->bio_in) == WRITE) {
 		aead_request_set_crypt(req, dmreq->sg_in, dmreq->sg_out,
-				       data_len, iv);
+				       cc->sector_size, iv);
 		r = crypto_aead_encrypt(req);
 		if (cc->integrity_tag_size + cc->integrity_iv_size != cc->on_disk_tag_size)
 			memset(tag + cc->integrity_tag_size + cc->integrity_iv_size, 0,
 			       cc->on_disk_tag_size - (cc->integrity_tag_size + cc->integrity_iv_size));
 	} else {
 		aead_request_set_crypt(req, dmreq->sg_in, dmreq->sg_out,
-				       data_len + cc->integrity_tag_size, iv);
+				       cc->sector_size + cc->integrity_tag_size, iv);
 		r = crypto_aead_decrypt(req);
 	}
 
@@ -1125,8 +1126,8 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	if (!r && cc->iv_gen_ops && cc->iv_gen_ops->post)
 		r = cc->iv_gen_ops->post(cc, org_iv, dmreq);
 
-	bio_advance_iter(ctx->bio_in, &ctx->iter_in, data_len);
-	bio_advance_iter(ctx->bio_out, &ctx->iter_out, data_len);
+	bio_advance_iter(ctx->bio_in, &ctx->iter_in, cc->sector_size);
+	bio_advance_iter(ctx->bio_out, &ctx->iter_out, cc->sector_size);
 
 	return r;
 }
@@ -1140,10 +1141,13 @@ static int crypt_convert_block_skcipher(struct crypt_config *cc,
 	struct bio_vec bv_out = bio_iter_iovec(ctx->bio_out, ctx->iter_out);
 	struct scatterlist *sg_in, *sg_out;
 	struct dm_crypt_request *dmreq;
-	unsigned int data_len = 1 << SECTOR_SHIFT;
 	u8 *iv, *org_iv, *tag_iv;
 	uint64_t *sector;
 	int r = 0;
+
+	/* Reject unexpected unaligned bio. */
+	if (unlikely(bv_in.bv_offset & (cc->sector_size - 1)))
+		return -EIO;
 
 	dmreq = dmreq_of_req(cc, req);
 	dmreq->iv_sector = ctx->cc_sector;
@@ -1165,10 +1169,10 @@ static int crypt_convert_block_skcipher(struct crypt_config *cc,
 	sg_out = &dmreq->sg_out[0];
 
 	sg_init_table(sg_in, 1);
-	sg_set_page(sg_in, bv_in.bv_page, data_len, bv_in.bv_offset);
+	sg_set_page(sg_in, bv_in.bv_page, cc->sector_size, bv_in.bv_offset);
 
 	sg_init_table(sg_out, 1);
-	sg_set_page(sg_out, bv_out.bv_page, data_len, bv_out.bv_offset);
+	sg_set_page(sg_out, bv_out.bv_page, cc->sector_size, bv_out.bv_offset);
 
 	if (cc->iv_gen_ops) {
 		/* For READs use IV stored in integrity metadata */
@@ -1196,8 +1200,8 @@ static int crypt_convert_block_skcipher(struct crypt_config *cc,
 	if (!r && cc->iv_gen_ops && cc->iv_gen_ops->post)
 		r = cc->iv_gen_ops->post(cc, org_iv, dmreq);
 
-	bio_advance_iter(ctx->bio_in, &ctx->iter_in, data_len);
-	bio_advance_iter(ctx->bio_out, &ctx->iter_out, data_len);
+	bio_advance_iter(ctx->bio_in, &ctx->iter_in, cc->sector_size);
+	bio_advance_iter(ctx->bio_out, &ctx->iter_out, cc->sector_size);
 
 	return r;
 }
@@ -1314,7 +1318,7 @@ static int crypt_convert(struct crypt_config *cc,
 		case -EINPROGRESS:
 			ctx->r.req = NULL;
 			ctx->cc_sector += sector_step;
-			tag_offset++;
+			tag_offset += sector_step;
 			continue;
 		/*
 		 * The request was already processed (synchronously).
@@ -1322,7 +1326,7 @@ static int crypt_convert(struct crypt_config *cc,
 		case 0:
 			atomic_dec(&ctx->cc_pending);
 			ctx->cc_sector += sector_step;
-			tag_offset++;
+			tag_offset += sector_step;
 			cond_resched();
 			continue;
 		/*
@@ -2396,10 +2400,11 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 	struct crypt_config *cc = ti->private;
 	struct dm_arg_set as;
 	static struct dm_arg _args[] = {
-		{0, 5, "Invalid number of feature args"},
+		{0, 6, "Invalid number of feature args"},
 	};
 	unsigned int opt_params, val;
 	const char *opt_string, *sval;
+	char dummy;
 	int ret;
 
 	/* Optional parameters */
@@ -2442,7 +2447,16 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			cc->cipher_auth = kstrdup(sval, GFP_KERNEL);
 			if (!cc->cipher_auth)
 				return -ENOMEM;
-		}  else {
+		} else if (sscanf(opt_string, "sector_size:%u%c", &cc->sector_size, &dummy) == 1) {
+			if (cc->sector_size < (1 << SECTOR_SHIFT) ||
+			    cc->sector_size > 4096 ||
+			    (1 << ilog2(cc->sector_size) != cc->sector_size)) {
+				ti->error = "Invalid feature value for sector_size";
+				return -EINVAL;
+			}
+		} else if (!strcasecmp(opt_string, "iv_large_sectors"))
+			set_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags);
+		else {
 			ti->error = "Invalid feature arguments";
 			return -EINVAL;
 		}
@@ -2678,12 +2692,13 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 		unsigned tag_len = cc->on_disk_tag_size * bio_sectors(bio);
 
 		if (unlikely(tag_len > KMALLOC_MAX_SIZE) ||
-		    unlikely(!(io->integrity_metadata = kmalloc(tag_len,
+		    unlikely(!(io->integrity_metadata = kzalloc(tag_len,
 				GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
 			if (bio_sectors(bio) > cc->tag_pool_max_sectors)
 				dm_accept_partial_bio(bio, cc->tag_pool_max_sectors);
 			io->integrity_metadata = mempool_alloc(cc->tag_pool, GFP_NOIO);
 			io->integrity_metadata_from_pool = true;
+			memset(io->integrity_metadata, 0, cc->tag_pool_max_sectors * (1 << SECTOR_SHIFT));
 		}
 	}
 
@@ -2746,6 +2761,10 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" iv_large_sectors");
 			if (cc->on_disk_tag_size)
 				DMEMIT(" integrity:%u:%s", cc->on_disk_tag_size, cc->cipher_auth);
+			if (cc->sector_size != (1 << SECTOR_SHIFT))
+				DMEMIT(" sector_size:%d", cc->sector_size);
+			if (test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags))
+				DMEMIT(" iv_large_sectors");
 		}
 
 		break;
@@ -2838,6 +2857,12 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	limits->max_segment_size = PAGE_SIZE;
 
+	if (cc->sector_size != (1 << SECTOR_SHIFT)) {
+		limits->logical_block_size = cc->sector_size;
+		limits->physical_block_size = cc->sector_size;
+		blk_limits_io_min(limits, cc->sector_size);
+	}
+
 	limits->logical_block_size =
 		max_t(unsigned short, limits->logical_block_size, cc->sector_size);
 	limits->physical_block_size =
@@ -2847,7 +2872,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 16, 0},
+	.version = {1, 17, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
