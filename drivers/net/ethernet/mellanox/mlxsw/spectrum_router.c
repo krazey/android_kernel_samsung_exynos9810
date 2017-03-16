@@ -45,6 +45,7 @@
 #include <net/neighbour.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
+#include <net/fib_rules.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -2511,6 +2512,7 @@ struct mlxsw_sp_fib_event_work {
 	struct work_struct work;
 	union {
 		struct fib_entry_notifier_info fen_info;
+		struct fib_rule_notifier_info fr_info;
 		struct fib_nh_notifier_info fnh_info;
 	};
 	struct mlxsw_sp *mlxsw_sp;
@@ -2522,6 +2524,7 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 	struct mlxsw_sp_fib_event_work *fib_work =
 		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
+	struct fib_rule *rule;
 	bool replace, append;
 	int err;
 
@@ -2545,7 +2548,10 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
-		mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		rule = fib_work->fr_info.rule;
+		if (!fib4_rule_default(rule))
+			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		fib_rule_put(rule);
 		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
 	case FIB_EVENT_NH_DEL:
@@ -2587,6 +2593,11 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		 * freed while work is queued. Release it afterwards.
 		 */
 		fib_info_hold(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		memcpy(&fib_work->fr_info, ptr, sizeof(fib_work->fr_info));
+		fib_rule_get(fib_work->fr_info.rule);
 		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
 	case FIB_EVENT_NH_DEL:
