@@ -252,6 +252,20 @@ extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
 
 #include <asm/pgtable-invert.h>
 
-#endif /* !__ASSEMBLY__ */
+#define gup_fast_permitted gup_fast_permitted
+static inline bool gup_fast_permitted(unsigned long start, int nr_pages,
+		int write)
+{
+	unsigned long len, end;
 
+	len = (unsigned long)nr_pages << PAGE_SHIFT;
+	end = start + len;
+	if (end < start)
+		return false;
+	if (end >> __VIRTUAL_MASK_SHIFT)
+		return false;
+	return true;
+}
+
+#endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_PGTABLE_64_H */
