@@ -2020,8 +2020,7 @@ out:
 	return ret;
 }
 
-static int qman_query_fq_np(struct qman_fq *fq,
-			    struct qm_mcr_queryfq_np *np)
+int qman_query_fq_np(struct qman_fq *fq, struct qm_mcr_queryfq_np *np)
 {
 	union qm_mc_command *mcc;
 	union qm_mc_result *mcr;
@@ -2047,6 +2046,7 @@ out:
 	put_affine_portal();
 	return ret;
 }
+EXPORT_SYMBOL(qman_query_fq_np);
 
 static int qman_query_cgr(struct qman_cgr *cgr,
 			  struct qm_mcr_querycgr *cgrd)
