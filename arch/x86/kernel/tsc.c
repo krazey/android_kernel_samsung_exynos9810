@@ -329,7 +329,7 @@ unsigned long long sched_clock(void)
 	return paravirt_sched_clock();
 }
 
-static inline bool using_native_sched_clock(void)
+bool using_native_sched_clock(void)
 {
 	return pv_time_ops.sched_clock == native_sched_clock;
 }
@@ -337,7 +337,7 @@ static inline bool using_native_sched_clock(void)
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
 
-static inline bool using_native_sched_clock(void) { return true; }
+bool using_native_sched_clock(void) { return true; }
 #endif
 
 int check_tsc_unstable(void)
