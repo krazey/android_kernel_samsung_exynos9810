@@ -190,8 +190,6 @@ struct s5p_aes_dev {
 	struct crypto_queue		queue;
 	bool				busy;
 	spinlock_t			lock;
-
-	struct samsung_aes_variant	*variant;
 };
 
 static struct s5p_aes_dev *s5p_dev;
@@ -858,7 +856,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	}
 
 	pdata->busy = false;
-	pdata->variant = variant;
 	pdata->dev = dev;
 	platform_set_drvdata(pdev, pdata);
 	s5p_dev = pdata;
