@@ -529,8 +529,7 @@ static int crb_acpi_remove(struct acpi_device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int crb_pm_runtime_suspend(struct device *dev)
+static int __maybe_unused crb_pm_runtime_suspend(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
@@ -538,7 +537,7 @@ static int crb_pm_runtime_suspend(struct device *dev)
 	return crb_go_idle(dev, priv);
 }
 
-static int crb_pm_runtime_resume(struct device *dev)
+static int __maybe_unused crb_pm_runtime_resume(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
@@ -546,7 +545,7 @@ static int crb_pm_runtime_resume(struct device *dev)
 	return crb_cmd_ready(dev, priv);
 }
 
-static int crb_pm_suspend(struct device *dev)
+static int __maybe_unused crb_pm_suspend(struct device *dev)
 {
 	int ret;
 
@@ -557,7 +556,7 @@ static int crb_pm_suspend(struct device *dev)
 	return crb_pm_runtime_suspend(dev);
 }
 
-static int crb_pm_resume(struct device *dev)
+static int __maybe_unused crb_pm_resume(struct device *dev)
 {
 	int ret;
 
@@ -567,8 +566,6 @@ static int crb_pm_resume(struct device *dev)
 
 	return tpm_pm_resume(dev);
 }
-
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops crb_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(crb_pm_suspend, crb_pm_resume)
