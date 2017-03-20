@@ -110,6 +110,8 @@
 
 #define SCM_TIMESTAMPING_OPT_STATS	54
 
+#define SO_MEMINFO		55
+
 #define SO_COOKIE		57
 
 #endif /* _UAPI_ASM_SOCKET_H */

@@ -88,6 +88,8 @@
 
 #define SCM_TIMESTAMPING_OPT_STATS	0x0038
 
+#define SO_MEMINFO		0x0039
+
 #define SO_COOKIE		0x003b
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
