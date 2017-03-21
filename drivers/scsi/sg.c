@@ -618,7 +618,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	if (retval)
 		return retval;
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
+	if (unlikely(uaccess_kernel()))
 		return -EINVAL;
 
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
