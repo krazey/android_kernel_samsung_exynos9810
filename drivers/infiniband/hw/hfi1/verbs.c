@@ -1546,6 +1546,7 @@ static const char * const driver_cntr_names[] = {
 	"DRIVER_EgrHdrFull"
 };
 
+static DEFINE_MUTEX(cntr_names_lock); /* protects the *_cntr_names bufers */
 static const char **dev_cntr_names;
 static const char **port_cntr_names;
 static int num_driver_cntrs = ARRAY_SIZE(driver_cntr_names);
@@ -1600,6 +1601,7 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 {
 	int i, err;
 
+	mutex_lock(&cntr_names_lock);
 	if (!cntr_names_initialized) {
 		struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
 
@@ -1608,8 +1610,10 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 				      num_driver_cntrs,
 				      &num_dev_cntrs,
 				      &dev_cntr_names);
-		if (err)
+		if (err) {
+			mutex_unlock(&cntr_names_lock);
 			return NULL;
+		}
 
 		for (i = 0; i < num_driver_cntrs; i++)
 			dev_cntr_names[num_dev_cntrs + i] =
@@ -1623,10 +1627,12 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 		if (err) {
 			kfree(dev_cntr_names);
 			dev_cntr_names = NULL;
+			mutex_unlock(&cntr_names_lock);
 			return NULL;
 		}
 		cntr_names_initialized = 1;
 	}
+	mutex_unlock(&cntr_names_lock);
 
 	if (!port_num)
 		return rdma_alloc_hw_stats_struct(
@@ -1845,9 +1851,13 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	del_timer_sync(&dev->mem_timer);
 	verbs_txreq_exit(dev);
 
+	mutex_lock(&cntr_names_lock);
 	kfree(dev_cntr_names);
 	kfree(port_cntr_names);
+	dev_cntr_names = NULL;
+	port_cntr_names = NULL;
 	cntr_names_initialized = 0;
+	mutex_unlock(&cntr_names_lock);
 }
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
