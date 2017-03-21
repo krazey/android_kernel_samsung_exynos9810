@@ -1029,6 +1029,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
 		s_last = qp->s_last;
+		trace_hfi1_qp_send_completion(qp, wqe, s_last);
 		if (++s_last >= qp->s_size)
 			s_last = 0;
 		qp->s_last = s_last;
@@ -1080,6 +1081,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 
 		rvt_put_swqe(wqe);
 		s_last = qp->s_last;
+		trace_hfi1_qp_send_completion(qp, wqe, s_last);
 		if (++s_last >= qp->s_size)
 			s_last = 0;
 		qp->s_last = s_last;
