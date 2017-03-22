@@ -1571,9 +1571,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	xen_initial_gdt = &per_cpu(gdt_page, 0);
 
-	/* GDT can only be remapped RO */
-	pg_fixmap_gdt_flags = PAGE_KERNEL_RO;
-
 	xen_smp_init();
 
 #ifdef CONFIG_ACPI_NUMA
