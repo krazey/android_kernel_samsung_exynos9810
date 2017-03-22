@@ -1337,8 +1337,8 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	}
 
 	gpu->event[event].fence = fence;
-	submit->fence = fence->seqno;
-	gpu->active_fence = submit->fence;
+	submit->fence = dma_fence_get(fence);
+	gpu->active_fence = submit->fence->seqno;
 
 	if (gpu->lastctx != cmdbuf->ctx) {
 		gpu->mmu->flush_seq++;
