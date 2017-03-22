@@ -1876,5 +1876,4 @@ static int __init hash64_debugfs(void)
 	return 0;
 }
 machine_device_initcall(pseries, hash64_debugfs);
-
 #endif /* CONFIG_DEBUG_FS */
