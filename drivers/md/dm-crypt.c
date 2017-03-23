@@ -1059,7 +1059,7 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	dmreq = dmreq_of_req(cc, req);
 	dmreq->iv_sector = ctx->cc_sector;
 	if (test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags))
-		sector_div(dmreq->iv_sector, cc->sector_size >> SECTOR_SHIFT);
+		dmreq->iv_sector >>= cc->sector_shift;
 	dmreq->ctx = ctx;
 
 	*org_tag_of_dmreq(cc, dmreq) = tag_offset;
@@ -2447,13 +2447,14 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			cc->cipher_auth = kstrdup(sval, GFP_KERNEL);
 			if (!cc->cipher_auth)
 				return -ENOMEM;
-		} else if (sscanf(opt_string, "sector_size:%u%c", &cc->sector_size, &dummy) == 1) {
+		} else if (sscanf(opt_string, "sector_size:%hu%c", &cc->sector_size, &dummy) == 1) {
 			if (cc->sector_size < (1 << SECTOR_SHIFT) ||
 			    cc->sector_size > 4096 ||
-			    (1 << ilog2(cc->sector_size) != cc->sector_size)) {
+			    (cc->sector_size & (cc->sector_size - 1))) {
 				ti->error = "Invalid feature value for sector_size";
 				return -EINVAL;
 			}
+			cc->sector_shift = __ffs(cc->sector_size) - SECTOR_SHIFT;
 		} else if (!strcasecmp(opt_string, "iv_large_sectors"))
 			set_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags);
 		else {
