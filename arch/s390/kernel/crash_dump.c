@@ -450,6 +450,20 @@ static void *nt_final(void *ptr)
 }
 
 /*
+ * Initialize final note (needed for /proc/vmcore code)
+ */
+static void *nt_final(void *ptr)
+{
+	Elf64_Nhdr *note;
+
+	note = (Elf64_Nhdr *) ptr;
+	note->n_namesz = 0;
+	note->n_descsz = 0;
+	note->n_type = 0;
+	return PTR_ADD(ptr, sizeof(Elf64_Nhdr));
+}
+
+/*
  * Initialize ELF header (new kernel)
  */
 static void *ehdr_init(Elf64_Ehdr *ehdr, int mem_chunk_cnt)
