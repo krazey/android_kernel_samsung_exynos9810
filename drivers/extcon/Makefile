@@ -14,6 +14,7 @@ else
 obj-$(CONFIG_EXTCON_MADERA)	+= extcon-madera_ptt.o
 endif
 obj-$(CONFIG_EXTCON_INTEL_INT3496) += extcon-intel-int3496.o
+obj-$(CONFIG_EXTCON_INTEL_CHT_WC) += extcon-intel-cht-wc.o
 obj-$(CONFIG_EXTCON_MAX14577)	+= extcon-max14577.o
 obj-$(CONFIG_EXTCON_MAX3355)	+= extcon-max3355.o
 obj-$(CONFIG_EXTCON_MAX77693)	+= extcon-max77693.o
