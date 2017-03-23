@@ -282,6 +282,7 @@ SECTIONS
 	}
 
 	PECOFF_EDATA_PADDING
+	__pecoff_data_rawsize = ABSOLUTE(. - __initdata_begin);
 	_edata = .;
 
 	BSS_SECTION(0, 0, 0)
@@ -302,6 +303,8 @@ SECTIONS
 	. += PAGE_SIZE;
 #endif
 #endif
+
+	__pecoff_data_size = ABSOLUTE(. - __initdata_begin);
 	_end = .;
 
 	STABS_DEBUG
