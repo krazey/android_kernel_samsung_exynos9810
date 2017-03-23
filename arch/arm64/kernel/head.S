@@ -95,20 +95,14 @@ _head:
 	.quad	0xecefecef			// Magic number for proca ta
 #endif
 	.quad	0				// reserved
-	.byte	0x41				// Magic number, "ARM\x64"
-	.byte	0x52
-	.byte	0x4d
-	.byte	0x64
+	.ascii	"ARM\x64"			// Magic number
 #ifdef CONFIG_EFI
 	.long	pe_header - _head		// Offset to the PE header.
-#else
-	.word	0				// reserved
-#endif
 
-#ifdef CONFIG_EFI
-	.align 3
 pe_header:
 	__EFI_PE_HEADER
+#else
+	.long	0				// reserved
 #endif
 
 	__INIT
