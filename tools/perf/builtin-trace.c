@@ -1692,7 +1692,7 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 		char *f = realloc(ttrace->filename.name, filename_len + 1);
 
 		if (f == NULL)
-				goto out;
+			goto out;
 
 		ttrace->filename.namelen = filename_len;
 		ttrace->filename.name = f;
