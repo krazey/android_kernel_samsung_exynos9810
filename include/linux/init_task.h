@@ -236,6 +236,12 @@ extern struct cred init_cred;
 # define INIT_TASK_TI(tsk)
 #endif
 
+#ifdef CONFIG_SECURITY
+#define INIT_TASK_SECURITY .security = NULL,
+#else
+#define INIT_TASK_SECURITY
+#endif
+
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
@@ -314,6 +320,7 @@ extern struct cred init_cred;
 	INIT_VTIME(tsk)							\
 	INIT_NUMA_BALANCING(tsk)					\
 	INIT_KASAN(tsk)							\
+	INIT_TASK_SECURITY						\
 	INIT_LIVEPATCH(tsk)						\
 	INIT_INTEGRITY(tsk)						\
 }

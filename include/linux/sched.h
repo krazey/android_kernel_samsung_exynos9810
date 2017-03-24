@@ -1253,6 +1253,10 @@ struct task_struct {
 	/* A live task holds one reference: */
 	atomic_t			stack_refcount;
 #endif
+#ifdef CONFIG_SECURITY
+	/* Used by LSM modules for access restriction: */
+	void				*security;
+#endif
 #ifdef CONFIG_LIVEPATCH
 	int patch_state;
 #endif
