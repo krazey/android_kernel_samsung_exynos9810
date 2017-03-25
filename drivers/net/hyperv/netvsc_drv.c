@@ -1152,7 +1152,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 	struct netvsc_device *ndev = rcu_dereference(ndc->nvdev);
-	struct rndis_device *rndis_dev = ndev->extension;
+	struct rndis_device *rndis_dev;
 	int i;
 
 	if (!ndev)
@@ -1161,6 +1161,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;	/* Toeplitz */
 
+	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
 			indir[i] = rndis_dev->ind_table[i];
@@ -1177,7 +1178,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 	struct netvsc_device *ndev = rtnl_dereference(ndc->nvdev);
-	struct rndis_device *rndis_dev = ndev->extension;
+	struct rndis_device *rndis_dev;
 	int i;
 
 	if (!ndev)
@@ -1186,6 +1187,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
+	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
 			if (indir[i] >= dev->num_rx_queues)
