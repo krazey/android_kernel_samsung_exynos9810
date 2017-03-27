@@ -520,12 +520,12 @@ intel_ring_wrap(const struct intel_ring *ring, u32 pos)
 	return pos & (ring->size - 1);
 }
 
-intel_ring_offset(struct drm_i915_gem_request *req, void *addr)
+intel_ring_offset(const struct drm_i915_gem_request *req, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
 	u32 offset = addr - req->ring->vaddr;
 	GEM_BUG_ON(offset > req->ring->size);
-	return offset & (req->ring->size - 1);
+	return intel_ring_wrap(req->ring, offset);
 }
 
 void intel_ring_update_space(struct intel_ring *ring);
