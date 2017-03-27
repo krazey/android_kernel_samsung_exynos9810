@@ -120,6 +120,7 @@ struct hidpp_battery {
 	char name[64];
 	int status;
 	int level;
+	bool online;
 };
 
 struct hidpp_device {
@@ -695,7 +696,6 @@ static int hidpp20_batterylevel_map_status_level(u8 data[3], int *level,
 						 int *next_level)
 {
 	int status;
-	int level_override;
 
 	*level = data[0];
 	*next_level = data[1];
@@ -707,35 +707,27 @@ static int hidpp20_batterylevel_map_status_level(u8 data[3], int *level,
 	switch (data[2]) {
 		case 0: /* discharging (in use) */
 			status = POWER_SUPPLY_STATUS_DISCHARGING;
-			level_override = 0;
 			break;
 		case 1: /* recharging */
 			status = POWER_SUPPLY_STATUS_CHARGING;
-			level_override = 80;
 			break;
 		case 2: /* charge in final stage */
 			status = POWER_SUPPLY_STATUS_CHARGING;
-			level_override = 90;
 			break;
 		case 3: /* charge complete */
 			status = POWER_SUPPLY_STATUS_FULL;
-			level_override = 100;
+			*level = 100;
 			break;
 		case 4: /* recharging below optimal speed */
 			status = POWER_SUPPLY_STATUS_CHARGING;
-			level_override = 50;
 			break;
 		/* 5 = invalid battery type
 		   6 = thermal error
 		   7 = other charging error */
 		default:
 			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-			level_override = 0;
 			break;
 	}
-
-	if (level_override != 0 && *level == 0)
-		*level = level_override;
 
 	return status;
 }
@@ -790,6 +782,9 @@ static int hidpp20_query_battery_info(struct hidpp_device *hidpp)
 
 	hidpp->battery.status = status;
 	hidpp->battery.level = level;
+	/* the capacity is only available when discharging or full */
+	hidpp->battery.online = status == POWER_SUPPLY_STATUS_DISCHARGING ||
+				status == POWER_SUPPLY_STATUS_FULL;
 
 	return 0;
 }
@@ -808,6 +803,10 @@ static int hidpp20_battery_event(struct hidpp_device *hidpp,
 	status = hidpp20_batterylevel_map_status_level(report->fap.params,
 						       &level, &next_level);
 
+	/* the capacity is only available when discharging or full */
+	hidpp->battery.online = status == POWER_SUPPLY_STATUS_DISCHARGING ||
+				status == POWER_SUPPLY_STATUS_FULL;
+
 	changed = level != hidpp->battery.level ||
 		  status != hidpp->battery.status;
 
@@ -822,6 +821,7 @@ static int hidpp20_battery_event(struct hidpp_device *hidpp,
 }
 
 static enum power_supply_property hidpp_battery_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_SCOPE,
@@ -846,6 +846,9 @@ static int hidpp_battery_get_property(struct power_supply *psy,
 			break;
 		case POWER_SUPPLY_PROP_SCOPE:
 			val->intval = POWER_SUPPLY_SCOPE_DEVICE;
+			break;
+		case POWER_SUPPLY_PROP_ONLINE:
+			val->intval = hidpp->battery.online;
 			break;
 		case POWER_SUPPLY_PROP_MODEL_NAME:
 			if (!strncmp(hidpp->name, "Logitech ", 9))
@@ -2438,8 +2441,14 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 	struct input_dev *input;
 	char *name, *devm_name;
 
-	if (!connected)
+	if (!connected) {
+		if (hidpp->battery.ps) {
+			hidpp->battery.online = false;
+			hidpp->battery.status = POWER_SUPPLY_STATUS_UNKNOWN;
+			power_supply_changed(hidpp->battery.ps);
+		}
 		return;
+	}
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
 		ret = wtp_connect(hdev, connected);
