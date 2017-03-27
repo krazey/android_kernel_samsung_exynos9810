@@ -2489,7 +2489,7 @@ static void setup_system_wide(int forks)
 	}
 }
 
-int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_stat(int argc, const char **argv)
 {
 	const char * const stat_usage[] = {
 		"perf stat [<options>] [<command>]",
