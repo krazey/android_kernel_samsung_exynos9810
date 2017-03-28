@@ -804,7 +804,6 @@ static void blk_release_queue(struct kobject *kobj)
 	struct request_queue *q =
 		container_of(kobj, struct request_queue, kobj);
 
-	wbt_exit(q);
 	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags))
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
@@ -946,6 +945,9 @@ void blk_unregister_queue(struct gendisk *disk)
 		return;
 
 	queue_flag_clear_unlocked(QUEUE_FLAG_REGISTERED, q);
+
+	wbt_exit(q);
+
 
 	if (q->mq_ops)
 		blk_mq_unregister_dev(disk_to_dev(disk), q);
