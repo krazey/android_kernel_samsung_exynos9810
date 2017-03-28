@@ -163,6 +163,8 @@ static inline bool is_of_node(const struct fwnode_handle *fwnode)
 			NULL;						\
 	})
 
+#define of_fwnode_handle(node) (&(node)->fwnode)
+
 static inline bool of_have_populated_dt(void)
 {
 	return of_root != NULL;
@@ -607,6 +609,8 @@ static inline struct device_node *of_find_node_with_property(
 {
 	return NULL;
 }
+
+#define of_fwnode_handle(node) NULL
 
 static inline bool of_have_populated_dt(void)
 {
