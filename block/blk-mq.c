@@ -1503,8 +1503,6 @@ static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
 		return;
 	}
 
-	__blk_mq_requeue_request(rq);
-
 	if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
 		*cookie = BLK_QC_T_NONE;
 		rq->errors = -EIO;
@@ -1512,6 +1510,7 @@ static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
 		return;
 	}
 
+	__blk_mq_requeue_request(rq);
 insert:
 	blk_mq_sched_insert_request(rq, false, true, false, may_sleep);
 }
