@@ -29,6 +29,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/mdio.h>
+#include <linux/phy.h>
 #include <net/ip6_checksum.h>
 #include <net/vxlan.h>
 #include <linux/interrupt.h>
