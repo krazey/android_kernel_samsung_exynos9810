@@ -519,10 +519,8 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
 	unsigned long events;
 	int ret;
-
 	vgpu->vdev.iommu_notifier.notifier_call = intel_vgpu_iommu_notifier;
 	vgpu->vdev.group_notifier.notifier_call = intel_vgpu_group_notifier;
-
 	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
 	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY, &events,
 				&vgpu->vdev.iommu_notifier);
@@ -531,7 +529,6 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 			ret);
 		goto out;
 	}
-
 	events = VFIO_GROUP_NOTIFY_SET_KVM;
 	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY, &events,
 				&vgpu->vdev.group_notifier);
@@ -540,9 +537,18 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 			ret);
 		goto undo_iommu;
 	}
+	ret = kvmgt_guest_init(mdev);
+	if (ret)
+		goto undo_group;
 
-	return kvmgt_guest_init(mdev);
+	intel_gvt_ops->vgpu_activate(vgpu);
 
+	atomic_set(&vgpu->vdev.released, 0);
+	return ret;
+
+undo_group:
+	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+					&vgpu->vdev.group_notifier);
 undo_iommu:
 	vfio_unregister_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
 					&vgpu->vdev.iommu_notifier);
@@ -553,25 +559,24 @@ out:
 static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 {
 	struct kvmgt_guest_info *info;
-
+	int ret;
 	if (!handle_valid(vgpu->handle))
 		return;
+	if (atomic_cmpxchg(&vgpu->vdev.released, 0, 1))
+		return;
 
-	vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_IOMMU_NOTIFY,
+	intel_gvt_ops->vgpu_deactivate(vgpu);
+
+	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_IOMMU_NOTIFY,
 					&vgpu->vdev.iommu_notifier);
-	vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_GROUP_NOTIFY,
+	WARN(ret, "vfio_unregister_notifier for iommu failed: %d\n", ret);
+	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_GROUP_NOTIFY,
 					&vgpu->vdev.group_notifier);
-
+	WARN(ret, "vfio_unregister_notifier for group failed: %d\n", ret);
 	info = (struct kvmgt_guest_info *)vgpu->handle;
 	kvmgt_guest_exit(info);
+	vgpu->vdev.kvm = NULL;
 	vgpu->handle = 0;
-}
-
-static void intel_vgpu_release(struct mdev_device *mdev)
-{
-	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
-
-	__intel_vgpu_release(vgpu);
 }
 
 static void intel_vgpu_release_work(struct work_struct *work)
