@@ -55,7 +55,7 @@ static inline void switch_mmu_context(struct mm_struct *prev,
 	return switch_slb(tsk, next);
 }
 
-extern int __init_new_context(void);
+extern int hash__alloc_context_id(void);
 extern void __destroy_context(int context_id);
 static inline void mmu_context_init(void) { }
 #else
