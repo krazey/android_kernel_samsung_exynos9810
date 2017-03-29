@@ -82,4 +82,7 @@ void __net_exit tipc_topsrv_exit_net(struct net *net);
 void tipc_subscrp_put(struct tipc_subscription *subscription);
 void tipc_subscrp_get(struct tipc_subscription *subscription);
 
+void tipc_subscrp_put(struct tipc_subscription *subscription);
+void tipc_subscrp_get(struct tipc_subscription *subscription);
+
 #endif
