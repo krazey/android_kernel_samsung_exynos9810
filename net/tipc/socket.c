@@ -2546,6 +2546,16 @@ static int tipc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 }
 
+static int tipc_socketpair(struct socket *sock1, struct socket *sock2)
+{
+	struct tipc_sock *tsk2 = tipc_sk(sock2->sk);
+	struct tipc_sock *tsk1 = tipc_sk(sock1->sk);
+
+	tipc_sk_finish_conn(tsk1, tsk2->portid, 0);
+	tipc_sk_finish_conn(tsk2, tsk1->portid, 0);
+	return 0;
+}
+
 /* Protocol switches for the various types of TIPC sockets */
 
 static const struct proto_ops msg_ops = {
@@ -2575,7 +2585,7 @@ static const struct proto_ops packet_ops = {
 	.release	= tipc_release,
 	.bind		= tipc_bind,
 	.connect	= tipc_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
@@ -2596,7 +2606,7 @@ static const struct proto_ops stream_ops = {
 	.release	= tipc_release,
 	.bind		= tipc_bind,
 	.connect	= tipc_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
