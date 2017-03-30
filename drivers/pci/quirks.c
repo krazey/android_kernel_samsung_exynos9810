@@ -4178,6 +4178,9 @@ static int pci_quirk_cavium_acs(struct pci_dev *dev, u16 acs_flags)
 	if (!((dev->device >= 0xa000) && (dev->device <= 0xa0ff)))
 		return -ENOTTY;
 
+	if (!((dev->device >= 0xa000) && (dev->device <= 0xa0ff)))
+		return -ENOTTY;
+
 	return acs_flags ? 0 : 1;
 }
 
