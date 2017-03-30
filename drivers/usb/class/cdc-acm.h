@@ -97,6 +97,9 @@ struct acm {
 	struct acm_rb read_buffers[ACM_NR];
 	int rx_buflimit;
 	spinlock_t read_lock;
+	u8 *notification_buffer;			/* to reassemble fragmented notifications */
+	unsigned int nb_index;
+	unsigned int nb_size;
 	int write_used;					/* number of non-empty write buffers */
 	int transmitting;
 	spinlock_t write_lock;
