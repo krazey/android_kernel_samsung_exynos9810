@@ -454,7 +454,8 @@ static int osd_probe(struct device *dev)
 	/* hold one more reference to the scsi_device that will get released
 	 * in __release, in case a logout is happening while fs is mounted
 	 */
-	scsi_device_get(scsi_device);
+	if (scsi_device_get(scsi_device))
+		goto err_put_disk;
 	osd_dev_init(&oud->od, scsi_device);
 
 	/* allocate a disk and set it up */
@@ -473,7 +474,7 @@ static int osd_probe(struct device *dev)
 	error = __detect_osd(oud);
 	if (error) {
 		OSD_ERR("osd detection failed, non-compatible OSD device\n");
-		goto err_free_osd;
+		goto err_put_sdev;
 	}
 
 	/* init the char-device for communication with user-mode */
@@ -495,6 +496,10 @@ static int osd_probe(struct device *dev)
 	OSD_INFO("osd_probe %s\n", disk->disk_name);
 	return 0;
 
+err_put_sdev:
+	scsi_device_put(scsi_device);
+err_put_disk:
+	put_disk(disk);
 err_free_osd:
 	put_device(&oud->class_dev);
 err_retract_minor:
