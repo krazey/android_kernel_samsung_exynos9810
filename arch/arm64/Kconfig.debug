@@ -100,6 +100,10 @@ config DEBUG_EFI
 	  the kernel that are only useful when using a debug build of the
 	  UEFI firmware
 
+config ARM64_RELOC_TEST
+	depends on m
+	tristate "Relocation testing module"
+
 comment "Samsung Rooting Restriction Feature"
 config SEC_RESTRICT_ROOTING
        bool "Samsung Rooting Restriction Feature"
