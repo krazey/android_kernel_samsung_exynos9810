@@ -13,7 +13,7 @@ LDLIBS += -lcap -lelf
 
 TEST_GEN_PROGS = test_verifier test_maps test_lru_map test_progs
 
-TEST_GEN_FILES = test_pkt_access.o test_xdp.o
+TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o
 
 test_objs = test_tag test_lpm_map
 
