@@ -330,7 +330,7 @@ static void exynos_adc_v1_start_conv(struct exynos_adc *info,
 
 static irqreturn_t exynos_adc_v1_isr(int irq, void *dev_id)
 {
-	struct exynos_adc *info = (struct exynos_adc *)dev_id;
+	struct exynos_adc *info = dev_id;
 	u32 mask = info->data->mask;
 
 	/* Read value */
@@ -541,7 +541,7 @@ static void exynos_adc_v3_exit_hw(struct exynos_adc *info)
 
 static irqreturn_t exynos_adc_v3_isr(int irq, void *dev_id)
 {
-	struct exynos_adc *info = (struct exynos_adc *)dev_id;
+	struct exynos_adc *info = dev_id;
 	u32 mask = info->data->mask;
 
 	/* Read value */
