@@ -930,8 +930,8 @@ static int is_valid_clean_head(struct hnae_ring *ring, int h)
 
 /* netif_tx_lock will turn down the performance, set only when necessary */
 #ifdef CONFIG_NET_POLL_CONTROLLER
-#define NETIF_TX_LOCK(ring) spin_lock(&ring->lock)
-#define NETIF_TX_UNLOCK(ring) spin_unlock(&ring->lock)
+#define NETIF_TX_LOCK(ring) spin_lock(&(ring)->lock)
+#define NETIF_TX_UNLOCK(ring) spin_unlock(&(ring)->lock)
 #else
 #define NETIF_TX_LOCK(ring)
 #define NETIF_TX_UNLOCK(ring)
