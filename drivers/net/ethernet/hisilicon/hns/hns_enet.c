@@ -930,12 +930,13 @@ static int is_valid_clean_head(struct hnae_ring *ring, int h)
 
 /* netif_tx_lock will turn down the performance, set only when necessary */
 #ifdef CONFIG_NET_POLL_CONTROLLER
-#define NETIF_TX_LOCK(ndev) netif_tx_lock(ndev)
-#define NETIF_TX_UNLOCK(ndev) netif_tx_unlock(ndev)
+#define NETIF_TX_LOCK(ring) spin_lock(&ring->lock)
+#define NETIF_TX_UNLOCK(ring) spin_unlock(&ring->lock)
 #else
-#define NETIF_TX_LOCK(ndev)
-#define NETIF_TX_UNLOCK(ndev)
+#define NETIF_TX_LOCK(ring)
+#define NETIF_TX_UNLOCK(ring)
 #endif
+
 /* reclaim all desc in one budget
  * return error or number of desc left
  */
@@ -949,13 +950,13 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 	int head;
 	int bytes, pkts;
 
-	NETIF_TX_LOCK(ndev);
+	NETIF_TX_LOCK(ring);
 
 	head = readl_relaxed(ring->io_base + RCB_REG_HEAD);
 	rmb(); /* make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean) {
-		NETIF_TX_UNLOCK(ndev);
+		NETIF_TX_UNLOCK(ring);
 		return 0; /* no data to poll */
 	}
 
@@ -963,7 +964,7 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 		netdev_err(ndev, "wrong head (%d, %d-%d)\n", head,
 			   ring->next_to_use, ring->next_to_clean);
 		ring->stats.io_err_cnt++;
-		NETIF_TX_UNLOCK(ndev);
+		NETIF_TX_UNLOCK(ring);
 		return -EIO;
 	}
 
@@ -978,7 +979,7 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 	ring->stats.tx_pkts += pkts;
 	ring->stats.tx_bytes += bytes;
 
-	NETIF_TX_UNLOCK(ndev);
+	NETIF_TX_UNLOCK(ring);
 
 	dev_queue = netdev_get_tx_queue(ndev, ring_data->queue_index);
 	netdev_tx_completed_queue(dev_queue, pkts, bytes);
@@ -1039,7 +1040,7 @@ static void hns_nic_tx_clr_all_bufs(struct hns_nic_ring_data *ring_data)
 	int head;
 	int bytes, pkts;
 
-	NETIF_TX_LOCK(ndev);
+	NETIF_TX_LOCK(ring);
 
 	head = ring->next_to_use; /* ntu :soft setted ring position*/
 	bytes = 0;
@@ -1047,7 +1048,7 @@ static void hns_nic_tx_clr_all_bufs(struct hns_nic_ring_data *ring_data)
 	while (head != ring->next_to_clean)
 		hns_nic_reclaim_one_desc(ring, &bytes, &pkts);
 
-	NETIF_TX_UNLOCK(ndev);
+	NETIF_TX_UNLOCK(ring);
 
 	dev_queue = netdev_get_tx_queue(ndev, ring_data->queue_index);
 	netdev_tx_reset_queue(dev_queue);
