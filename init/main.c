@@ -1184,6 +1184,7 @@ static int __ref kernel_init(void *unused)
 #endif /* CONFIG_SEC_GPIO_DVS */
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
+	ftrace_free_init_mem();
 #ifndef CONFIG_DEFERRED_INITCALLS
 	free_initmem();
 #endif
