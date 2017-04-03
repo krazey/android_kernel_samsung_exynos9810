@@ -161,13 +161,13 @@ reset:
 	/* Install stub vectors */
 	adr_l	x5, __hyp_stub_vectors
 	msr	vbar_el2, x5
-	b	exit
+	mov	x0, xzr
+	eret
 
 1:	/* Bad stub call */
 	ldr	x0, =HVC_STUB_ERR
-
-exit:
 	eret
+
 ENDPROC(__kvm_handle_stub_hvc)
 
 	.ltorg
