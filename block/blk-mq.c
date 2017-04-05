@@ -1925,6 +1925,8 @@ static void blk_mq_exit_hctx(struct request_queue *q,
 				       hctx->fq->flush_rq, hctx_idx,
 				       flush_start_tag + hctx_idx);
 
+	blk_mq_sched_exit_hctx(q, hctx, hctx_idx);
+
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
 
@@ -1991,9 +1993,12 @@ static int blk_mq_init_hctx(struct request_queue *q,
 	    set->ops->init_hctx(hctx, set->driver_data, hctx_idx))
 		goto free_bitmap;
 
+	if (blk_mq_sched_init_hctx(q, hctx, hctx_idx))
+		goto exit_hctx;
+
 	hctx->fq = blk_alloc_flush_queue(q, hctx->numa_node, set->cmd_size);
 	if (!hctx->fq)
-		goto exit_hctx;
+		goto sched_exit_hctx;
 
 	if (set->ops->init_request &&
 	    set->ops->init_request(set->driver_data,
@@ -2008,6 +2013,8 @@ static int blk_mq_init_hctx(struct request_queue *q,
 
  free_fq:
 	kfree(hctx->fq);
+ sched_exit_hctx:
+	blk_mq_sched_exit_hctx(q, hctx, hctx_idx);
  exit_hctx:
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
