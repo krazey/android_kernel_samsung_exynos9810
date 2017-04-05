@@ -1581,10 +1581,14 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 	offset = (bio->bi_iter.bi_sector &
 		  (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
 
-	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_WRITE_ZEROES:
 		zram_bio_discard(zram, index, offset, bio);
 		bio_endio(bio);
 		return;
+	default:
+		break;
 	}
 
 	bio_for_each_segment(bvec, bio, iter) {
@@ -1963,6 +1967,8 @@ static int zram_add(void)
 	zram->disk->queue->limits.max_sectors = SECTORS_PER_PAGE;
 	zram->disk->queue->limits.chunk_sectors = 0;
 	blk_queue_max_discard_sectors(zram->disk->queue, UINT_MAX);
+	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, zram->disk->queue);
+
 	/*
 	 * zram_bio_discard() will clear all logical blocks if logical block
 	 * size is identical with physical block size(PAGE_SIZE). But if it is
@@ -1972,10 +1978,7 @@ static int zram_add(void)
 	 * zeroed.
 	 */
 	if (ZRAM_LOGICAL_BLOCK_SIZE == PAGE_SIZE)
-		zram->disk->queue->limits.discard_zeroes_data = 1;
-	else
-		zram->disk->queue->limits.discard_zeroes_data = 0;
-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, zram->disk->queue);
+		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
 
 	zram->disk->queue->backing_dev_info->capabilities |=
 					BDI_CAP_STABLE_WRITES;
