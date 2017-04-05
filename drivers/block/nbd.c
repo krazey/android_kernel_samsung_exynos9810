@@ -984,7 +984,6 @@ static int __init nbd_init(void)
 		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, disk->queue);
 		disk->queue->limits.discard_granularity = 512;
 		blk_queue_max_discard_sectors(disk->queue, UINT_MAX);
-		disk->queue->limits.discard_zeroes_data = 0;
 		blk_queue_max_hw_sectors(disk->queue, 65536);
 		disk->queue->limits.max_sectors = 256;
 	}
