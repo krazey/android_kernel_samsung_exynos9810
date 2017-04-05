@@ -211,12 +211,33 @@ static bool is_el1_instruction_abort(unsigned int esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
 }
 
+static inline bool is_permission_fault(unsigned int esr, struct pt_regs *regs,
+				       unsigned long addr)
+{
+	unsigned int ec       = ESR_ELx_EC(esr);
+	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
+
+	if (ec != ESR_ELx_EC_DABT_CUR && ec != ESR_ELx_EC_IABT_CUR)
+		return false;
+
+	if (fsc_type == ESR_ELx_FSC_PERM)
+		return true;
+
+	if (addr < USER_DS && system_uses_ttbr0_pan())
+		return fsc_type == ESR_ELx_FSC_FAULT &&
+			(regs->pstate & PSR_PAN_BIT);
+
+	return false;
+}
+
 /*
  * The kernel tried to access some page that wasn't present.
  */
 static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 			      struct pt_regs *regs)
 {
+	const char *msg;
+
 	/*
 	 * Are we prepared to handle this kernel fault?
 	 * We are almost certainly not prepared to handle instruction faults.
@@ -232,10 +253,24 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	 * No handler, we'll have to terminate things with extreme prejudice.
 	 */
 	bust_spinlocks(1);
+
+
+	if (is_permission_fault(esr, regs, addr)) {
+		if (esr & ESR_ELx_WNR)
+			msg = "write to read-only memory";
+		else
+			msg = "read from unreadable memory";
+	} else if (addr < PAGE_SIZE) {
+		msg = "NULL pointer dereference";
+	} else {
+		msg = "paging request";
+	}
+
 	if (show_do_kernel_fault_ratelimited())
 		pr_auto(ASL1, "Unable to handle kernel %s at virtual address %08lx\n",
 			 (addr < PAGE_SIZE) ? "NULL pointer dereference" :
 			 "paging request", addr);
+
 #ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
 	sec_debug_set_extra_info_fault(KERNEL_FAULT, addr, regs);
 #endif
@@ -330,21 +365,6 @@ out:
 	return fault;
 }
 
-static inline bool is_permission_fault(unsigned int esr, struct pt_regs *regs)
-{
-	unsigned int ec       = ESR_ELx_EC(esr);
-	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
-
-	if (ec != ESR_ELx_EC_DABT_CUR && ec != ESR_ELx_EC_IABT_CUR)
-		return false;
-
-	if (system_uses_ttbr0_pan())
-		return fsc_type == ESR_ELx_FSC_FAULT &&
-			(regs->pstate & PSR_PAN_BIT);
-	else
-		return fsc_type == ESR_ELx_FSC_PERM;
-}
-
 static bool is_el0_instruction_abort(unsigned int esr)
 {
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
@@ -382,7 +402,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (addr < TASK_SIZE && is_permission_fault(esr, regs)) {
+	if (addr < TASK_SIZE && is_permission_fault(esr, regs, addr)) {
 #ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
 		if (regs->orig_addr_limit == KERNEL_DS) {
