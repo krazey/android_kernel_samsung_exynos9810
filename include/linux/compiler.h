@@ -474,6 +474,11 @@ unsigned long read_word_at_a_time(const void *addr)
 # define __no_randomize_layout
 #endif
 
+#ifndef randomized_struct_fields_start
+# define randomized_struct_fields_start
+# define randomized_struct_fields_end
+#endif
+
 /*
  * Tell gcc if a function is cold. The compiler will assume any path
  * directly leading to the call is unlikely.
