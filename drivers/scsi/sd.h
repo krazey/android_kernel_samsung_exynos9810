@@ -112,6 +112,7 @@ struct scsi_disk {
         unsigned        rc_basis: 2;
         unsigned        zoned: 2;
         unsigned        urswrz : 1;
+	unsigned	ignore_medium_access_errors : 1;
 #if defined(CONFIG_UFS_SRPMB)
 	struct rpmb_irq_ctx *rpmb_ctx;
 #endif
