@@ -1594,7 +1594,7 @@ void scsi_softirq_done(struct request *rq)
 			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
 			break;
 		default:
-			scsi_eh_scmd_add(cmd, 0);
+			scsi_eh_scmd_add(cmd);
 			break;
 	}
 }
