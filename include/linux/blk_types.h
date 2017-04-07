@@ -126,6 +126,9 @@ struct bio {
 #define BIO_REFFED	9	/* bio has elevated ->bi_cnt */
 #define BIO_THROTTLED	9	/* This bio has already been subjected to
 				 * throttling rules. Don't do it again. */
+#define BIO_TRACE_COMPLETION 10	/* bio_endio() should trace the final completion
+				 * of this bio. */
+
 #ifdef CONFIG_JOURNAL_DATA_TAG
 /* XXX Be carefull not to touch BIO_RESET_BITS */
 #define BIO_JOURNAL    9       /* bio contains journal data */
