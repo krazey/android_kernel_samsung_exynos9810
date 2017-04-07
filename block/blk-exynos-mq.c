@@ -805,12 +805,8 @@ bool blk_mq_get_driver_tag(struct request *rq, struct blk_mq_hw_ctx **hctx,
 	if (blk_mq_hctx_stopped(data.hctx))
 		return false;
 
-	if (rq->tag != -1) {
-done:
-		if (hctx)
-			*hctx = data.hctx;
-		return true;
-	}
+	if (rq->tag != -1)
+		goto done;
 
 	if (blk_mq_tag_is_reserved(data.hctx->sched_tags, rq->internal_tag))
 		data.flags |= BLK_MQ_REQ_RESERVED;
@@ -818,10 +814,12 @@ done:
 	rq->tag = blk_mq_get_tag(&data);
 	if (rq->tag >= 0) {
 		data.hctx->tags->rqs[rq->tag] = rq;
-		goto done;
 	}
 
-	return false;
+done:
+	if (hctx)
+		*hctx = data.hctx;
+	return rq->tag != -1;
 }
 
 static void blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
@@ -901,13 +899,16 @@ static bool blk_mq_dispatch_wait_add(struct blk_mq_hw_ctx *hctx)
 	return true;
 }
 
-bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
+bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 {
-	struct request_queue *q = hctx->queue;
+	struct blk_mq_hw_ctx *hctx;
 	struct request *rq;
 	LIST_HEAD(driver_list);
 	struct list_head *dptr;
 	int queued, ret = BLK_MQ_RQ_QUEUE_OK;
+
+	if (list_empty(list))
+		return false;
 
 	/*
 	 * Start off with dptr being NULL, so we start the first request
@@ -919,7 +920,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	 * Now process all the entries, sending them to the driver.
 	 */
 	queued = 0;
-	while (!list_empty(list)) {
+	do {
 		struct blk_mq_queue_data bd;
 
 		rq = list_first_entry(list, struct request, queuelist);
@@ -976,7 +977,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 		 */
 		if (!dptr && list->next != list->prev)
 			dptr = &driver_list;
-	}
+	} while (!list_empty(list));
 
 	hctx->dispatched[queued_to_index(queued)]++;
 
