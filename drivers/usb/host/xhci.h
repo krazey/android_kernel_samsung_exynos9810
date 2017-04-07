@@ -2174,6 +2174,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
 int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1);
+void xhci_hc_died(struct xhci_hcd *xhci);
 int xhci_hub_check_speed(struct usb_hcd *hcd);
 int xhci_check_usbl2_support(struct usb_hcd *hcd);
 
