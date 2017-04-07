@@ -509,9 +509,6 @@ struct qeth_qdio_info {
 #define QETH_TR_MAC_NC       0xc000 /* non-canonical */
 #define QETH_TR_MAC_C        0x0300 /* canonical */
 
-#define DEFAULT_ADD_HHLEN 0
-#define MAX_ADD_HHLEN 1024
-
 /**
  * buffer stuff for read channel
  */
@@ -642,7 +639,6 @@ struct qeth_reply {
 	atomic_t refcnt;
 };
 
-
 struct qeth_card_blkt {
 	int time_total;
 	int inter_packet;
@@ -683,7 +679,6 @@ struct qeth_card_options {
 	struct qeth_ipa_info ipa6;
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	int fake_broadcast;
-	int add_hhlen;
 	int layer2;
 	int performance_stats;
 	int rx_sg_cb;
