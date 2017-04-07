@@ -467,6 +467,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "failed to create xhci-plat attributes\n");
 
+	device_enable_async_suspend(&pdev->dev);
+
 	return 0;
 
 
