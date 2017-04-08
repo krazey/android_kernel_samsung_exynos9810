@@ -432,6 +432,8 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 			HID_USAGE_SENSOR_PROP_SENSITIVITY_ABS,
 			 &st->sensitivity);
 
+	st->raw_hystersis = -1;
+
 	sensor_hub_input_get_attribute_info(hsdev,
 					    HID_INPUT_REPORT, usage_id,
 					    HID_USAGE_SENSOR_TIME_TIMESTAMP,
