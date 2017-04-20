@@ -192,7 +192,6 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 #endif
 	rq->special = NULL;
 	/* tag was already set */
-	rq->errors = 0;
 	rq->extra_len = 0;
 
 	INIT_LIST_HEAD(&rq->timeout_list);
@@ -593,8 +592,7 @@ void blk_mq_abort_requeue_list(struct request_queue *q)
 
 		rq = list_first_entry(&rq_list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		rq->errors = -EIO;
-		blk_mq_end_request(rq, rq->errors);
+		blk_mq_end_request(rq, -EIO);
 	}
 }
 EXPORT_SYMBOL(blk_mq_abort_requeue_list);
@@ -859,8 +857,7 @@ static void blk_mq_process_rq_list(struct blk_mq_hw_ctx *hctx)
 		default:
 			pr_err("blk-mq: bad return on queue: %d\n", ret);
 		case BLK_MQ_RQ_QUEUE_ERROR:
-			rq->errors = -EIO;
-			blk_mq_end_request(rq, rq->errors);
+			blk_mq_end_request(rq, -EIO);
 			break;
 		}
 
@@ -1291,8 +1288,7 @@ static void blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie)
 
 	if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
 		*cookie = BLK_QC_T_NONE;
-		rq->errors = -EIO;
-		blk_mq_end_request(rq, rq->errors);
+		blk_mq_end_request(rq, -EIO);
 		return;
 	}
 

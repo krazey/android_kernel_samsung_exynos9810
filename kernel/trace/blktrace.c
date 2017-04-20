@@ -770,8 +770,8 @@ void blk_trace_shutdown(struct request_queue *q)
 
 /**
  * blk_add_trace_rq - Add a trace for a request oriented action
- * @q:		queue the io is for
  * @rq:		the source request
+ * @error:	return status to log
  * @nr_bytes:	number of completed bytes
  * @what:	the action
  *
@@ -779,13 +779,13 @@ void blk_trace_shutdown(struct request_queue *q)
  *     Records an action against a request. Will log the bio offset + size.
  *
  **/
-static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
+static void blk_add_trace_rq(struct request *rq, int error,
 			     unsigned int nr_bytes, u32 what)
 {
 	struct blk_trace *bt;
 
 	rcu_read_lock();
-	bt = rcu_dereference(q->blk_trace);
+	bt = rcu_dereference(rq->blk_trace);
 	if (likely(!bt)) {
 		rcu_read_unlock();
 		return;
@@ -797,7 +797,7 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 		what |= BLK_TC_ACT(BLK_TC_FS);
 
 	__blk_add_trace(bt, blk_rq_trace_sector(rq), nr_bytes, req_op(rq),
-			rq->cmd_flags, what, rq->errors, 0, NULL);
+			rq->cmd_flags, what, error, 0, NULL);
 
 	rcu_read_unlock();
 }
@@ -805,28 +805,26 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 static void blk_add_trace_rq_insert(void *ignore,
 				    struct request_queue *q, struct request *rq)
 {
-	blk_add_trace_rq(q, rq, blk_rq_bytes(rq), BLK_TA_INSERT);
+	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_INSERT);
 }
 
 static void blk_add_trace_rq_issue(void *ignore,
 				   struct request_queue *q, struct request *rq)
 {
-	blk_add_trace_rq(q, rq, blk_rq_bytes(rq), BLK_TA_ISSUE);
+	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_ISSUE);
 }
 
 static void blk_add_trace_rq_requeue(void *ignore,
 				     struct request_queue *q,
 				     struct request *rq)
 {
-	blk_add_trace_rq(q, rq, blk_rq_bytes(rq), BLK_TA_REQUEUE);
+	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_REQUEUE);
 }
 
-static void blk_add_trace_rq_complete(void *ignore,
-				      struct request_queue *q,
-				      struct request *rq,
-				      unsigned int nr_bytes)
+static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
+			int error, unsigned int nr_bytes)
 {
-	blk_add_trace_rq(q, rq, nr_bytes, BLK_TA_COMPLETE);
+	blk_add_trace_rq(rq, error, nr_bytes, BLK_TA_COMPLETE);
 }
 
 /**
@@ -1050,7 +1048,7 @@ static void blk_add_trace_rq_remap(void *ignore,
 	r.sector_from = cpu_to_be64(from);
 
 	__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq),
-			rq_data_dir(rq), 0, BLK_TA_REMAP, !!rq->errors,
+			rq_data_dir(rq), 0, BLK_TA_REMAP, 0,
 			sizeof(r), &r);
 	rcu_read_unlock();
 }
@@ -1080,7 +1078,7 @@ void blk_add_driver_data(struct request_queue *q,
 	}
 
 	__blk_add_trace(bt, blk_rq_trace_sector(rq), blk_rq_bytes(rq), 0, 0,
-				BLK_TA_DRV_DATA, rq->errors, len, data);
+				BLK_TA_DRV_DATA, 0, len, data);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);
