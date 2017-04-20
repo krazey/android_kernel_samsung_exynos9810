@@ -70,6 +70,7 @@ struct nbd_device {
 struct nbd_cmd {
 	struct nbd_device *nbd;
 	struct list_head list;
+	int status;
 };
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -134,16 +135,14 @@ static void nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
 		nbd_size_update(nbd, bdev);
 }
 
-static void nbd_end_request(struct nbd_cmd *cmd)
+static void nbd_complete_rq(struct request *req)
 {
-	struct nbd_device *nbd = cmd->nbd;
-	struct request *req = blk_mq_rq_from_pdu(cmd);
-	int error = req->errors ? -EIO : 0;
+	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(req);
 
-	dev_dbg(nbd_to_dev(nbd), "request %p: %s\n", cmd,
-		error ? "failed" : "done");
+	dev_dbg(nbd_to_dev(cmd->nbd), "request %p: %s\n", cmd,
+		cmd->status ? "failed" : "done");
 
-	blk_mq_complete_request(req, error);
+	blk_mq_end_request(req, cmd->status);
 }
 
 /*
@@ -191,7 +190,7 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 		sockfd_put(sock);
 	}
 
-	req->errors++;
+	cmd->status = -EIO;
 	dev_err(nbd_to_dev(nbd), "Connection timed out, shutting down connection\n");
 	return BLK_EH_HANDLED;
 }
@@ -390,7 +389,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd)
 	if (ntohl(reply.error)) {
 		dev_err(disk_to_dev(nbd->disk), "Other side returned error (%d)\n",
 			ntohl(reply.error));
-		req->errors++;
+		cmd->status = -EIO;
 		return cmd;
 	}
 
@@ -404,7 +403,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd)
 			if (result <= 0) {
 				dev_err(disk_to_dev(nbd->disk), "Receive data failed (result %d)\n",
 					result);
-				req->errors++;
+				cmd->status = -EIO;
 				return cmd;
 			}
 			dev_dbg(nbd_to_dev(nbd), "request %p: got %d bytes data\n",
@@ -452,7 +451,7 @@ static int nbd_thread_recv(struct nbd_device *nbd, struct block_device *bdev)
 			break;
 		}
 
-		nbd_end_request(cmd);
+		blk_mq_complete_request(blk_mq_rq_from_pdu(cmd), 0);
 	}
 
 	nbd_size_clear(nbd, bdev);
@@ -468,8 +467,8 @@ static void nbd_clear_req(struct request *req, void *data, bool reserved)
 	if (!blk_mq_request_started(req))
 		return;
 	cmd = blk_mq_rq_to_pdu(req);
-	req->errors++;
-	nbd_end_request(cmd);
+	cmd->status = -EIO;
+	blk_mq_complete_request(req, 0);
 }
 
 static void nbd_clear_que(struct nbd_device *nbd)
@@ -502,7 +501,7 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd)
 		goto error_out;
 	}
 
-	req->errors = 0;
+	cmd->status = 0;
 
 	mutex_lock(&nbd->tx_lock);
 	nbd->task_send = current;
@@ -515,8 +514,8 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd)
 
 	if (nbd_send_cmd(nbd, cmd) != 0) {
 		dev_err(disk_to_dev(nbd->disk), "Request send failed\n");
-		req->errors++;
-		nbd_end_request(cmd);
+		cmd->status = -EIO;
+		blk_mq_complete_request(req, 0);
 	}
 
 	nbd->task_send = NULL;
@@ -525,8 +524,8 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd)
 	return;
 
 error_out:
-	req->errors++;
-	nbd_end_request(cmd);
+	cmd->status = -EIO;
+	blk_mq_complete_request(req, 0);
 }
 
 static int nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -895,6 +894,7 @@ static int nbd_init_request(void *data, struct request *rq,
 
 static struct blk_mq_ops nbd_mq_ops = {
 	.queue_rq	= nbd_queue_rq,
+	.complete	= nbd_complete_rq,
 	.init_request	= nbd_init_request,
 	.timeout	= nbd_xmit_timeout,
 };
