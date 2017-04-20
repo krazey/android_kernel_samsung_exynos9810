@@ -74,7 +74,7 @@ void nvme_cancel_request(struct request *req, void *data, bool reserved)
 	status = NVME_SC_ABORT_REQ;
 	if (blk_queue_dying(req->q))
 		status |= NVME_SC_DNR;
-	blk_mq_complete_request(req, status);
+	blk_mq_complete_request(req);
 }
 EXPORT_SYMBOL_GPL(nvme_cancel_request);
 

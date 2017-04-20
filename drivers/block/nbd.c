@@ -451,7 +451,7 @@ static int nbd_thread_recv(struct nbd_device *nbd, struct block_device *bdev)
 			break;
 		}
 
-		blk_mq_complete_request(blk_mq_rq_from_pdu(cmd), 0);
+		blk_mq_complete_request(blk_mq_rq_from_pdu(cmd));
 	}
 
 	nbd_size_clear(nbd, bdev);
@@ -468,7 +468,7 @@ static void nbd_clear_req(struct request *req, void *data, bool reserved)
 		return;
 	cmd = blk_mq_rq_to_pdu(req);
 	cmd->status = -EIO;
-	blk_mq_complete_request(req, 0);
+	blk_mq_complete_request(req);
 }
 
 static void nbd_clear_que(struct nbd_device *nbd)
