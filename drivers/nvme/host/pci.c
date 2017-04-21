@@ -2009,6 +2009,8 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	quirks |= check_dell_samsung_bug(pdev);
 
+	quirks |= check_dell_samsung_bug(pdev);
+
 	result = nvme_init_ctrl(&dev->ctrl, &pdev->dev, &nvme_pci_ctrl_ops,
 			quirks);
 	if (result)
