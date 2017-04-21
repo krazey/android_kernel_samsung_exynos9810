@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Backward compatibility
 asflags-y  += $(EXTRA_AFLAGS)
 ccflags-y  += $(EXTRA_CFLAGS)
