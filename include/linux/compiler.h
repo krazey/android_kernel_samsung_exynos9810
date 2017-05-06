@@ -466,6 +466,14 @@ unsigned long read_word_at_a_time(const void *addr)
 # define __latent_entropy
 #endif
 
+#ifndef __randomize_layout
+# define __randomize_layout __designated_init
+#endif
+
+#ifndef __no_randomize_layout
+# define __no_randomize_layout
+#endif
+
 /*
  * Tell gcc if a function is cold. The compiler will assume any path
  * directly leading to the call is unlikely.
