@@ -17,7 +17,10 @@ Contents:
    driver-api/index
    media/index
    gpu/index
-   80211/index
+   security/index
+   sound/index
+   crypto/index
+   filesystems/index
 
 This section describes CPU vulnerabilities and their mitigations.
 
