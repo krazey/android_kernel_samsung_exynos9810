@@ -83,7 +83,7 @@ struct nbd_device {
 struct nbd_cmd {
 	struct nbd_device *nbd;
 	struct completion send_complete;
-	int status;
+	blk_status_t status;
 };
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -193,7 +193,7 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 
 	dev_err(nbd_to_dev(nbd), "Connection timed out, shutting down connection\n");
 	set_bit(NBD_TIMEDOUT, &nbd->runtime_flags);
-	cmd->status = -EIO;
+	cmd->status = -BLK_STS_IOERR;
 
 	mutex_lock(&nbd->config_lock);
 	sock_shutdown(nbd);
@@ -433,7 +433,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 	if (ntohl(reply.error)) {
 		dev_err(disk_to_dev(nbd->disk), "Other side returned error (%d)\n",
 			ntohl(reply.error));
-		cmd->status = -EIO;
+		cmd->status = BLK_STS_IOERR;
 		return cmd;
 	}
 
@@ -449,7 +449,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 			if (result <= 0) {
 				dev_err(disk_to_dev(nbd->disk), "Receive data failed (result %d)\n",
 					result);
-				cmd->status = -EIO;
+				cmd->status = BLK_STS_IOERR;
 				return cmd;
 			}
 			dev_dbg(nbd_to_dev(nbd), "request %p: got %d bytes data\n",
@@ -519,7 +519,7 @@ static void nbd_clear_req(struct request *req, void *data, bool reserved)
 	if (!blk_mq_request_started(req))
 		return;
 	cmd = blk_mq_rq_to_pdu(req);
-	cmd->status = -EIO;
+	cmd->status = BLK_STS_IOERR;
 	blk_mq_complete_request(req);
 }
 
@@ -551,7 +551,7 @@ static int nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 		return -EINVAL;
 	}
 
-	cmd->status = 0;
+	cmd->status = BLK_STS_OK;
 
 	nsock = nbd->socks[index];
 	mutex_lock(&nsock->tx_lock);

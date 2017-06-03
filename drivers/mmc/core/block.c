@@ -716,7 +716,7 @@ static int ioctl_do_sanitize(struct mmc_card *card)
 	if (!mmc_can_sanitize(card)) {
 			pr_warn("%s: %s - SANITIZE is not supported\n",
 				mmc_hostname(card->host), __func__);
-			err = -EOPNOTSUPP;
+			status = BLK_STS_NOTSUPP;
 			goto out;
 	}
 
@@ -1759,9 +1759,10 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_card *card = md->queue.card;
 	unsigned int from, nr, arg;
 	int err = 0, type = MMC_BLK_DISCARD;
+	blk_status_t status = BLK_STS_OK;
 
 	if (!mmc_can_erase(card)) {
-		err = -EOPNOTSUPP;
+		status = BLK_STS_NOTSUPP;
 		goto fail;
 	}
 
@@ -1787,10 +1788,12 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 		if (!err)
 			err = mmc_erase(card, from, nr, arg);
 	} while (err == -EIO && !mmc_blk_reset(md, card->host, type));
-	if (!err)
+	if (err)
+		status = BLK_STS_IOERR;
+	else
 		mmc_blk_reset_success(md, type);
 fail:
-	blk_end_request(req, err, blk_rq_bytes(req));
+	blk_end_request(req, status, blk_rq_bytes(req));
 }
 
 static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
@@ -1800,9 +1803,10 @@ static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
 	struct mmc_card *card = md->queue.card;
 	unsigned int from, nr, arg;
 	int err = 0, type = MMC_BLK_SECDISCARD;
+	blk_status_t status = BLK_STS_OK;
 
 	if (!(mmc_can_secure_erase_trim(card))) {
-		err = -EOPNOTSUPP;
+		status = BLK_STS_NOTSUPP;
 		goto out;
 	}
 
@@ -1829,8 +1833,10 @@ retry:
 	err = mmc_erase(card, from, nr, arg);
 	if (err == -EIO)
 		goto out_retry;
-	if (err)
+	if (err) {
+		status = BLK_STS_IOERR;
 		goto out;
+	}
 
 	if (arg == MMC_SECURE_TRIM1_ARG) {
 		if (card->quirks & MMC_QUIRK_INAND_CMD38) {
@@ -1845,8 +1851,10 @@ retry:
 		err = mmc_erase(card, from, nr, MMC_SECURE_TRIM2_ARG);
 		if (err == -EIO)
 			goto out_retry;
-		if (err)
+		if (err) {
+			status = BLK_STS_IOERR;
 			goto out;
+		}
 	}
 
 out_retry:
@@ -1855,7 +1863,7 @@ out_retry:
 	if (!err)
 		mmc_blk_reset_success(md, type);
 out:
-	blk_end_request(req, err, blk_rq_bytes(req));
+	blk_end_request(req, status, blk_rq_bytes(req));
 }
 
 static void mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
@@ -1865,8 +1873,6 @@ static void mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 	int ret = 0;
 
 	ret = mmc_flush_cache(card);
-	if (ret)
-		ret = -EIO;
 
 #ifdef CONFIG_MMC_SIMULATE_MAX_SPEED
 	else if (atomic_read(&mq->cache_size)) {
@@ -1885,7 +1891,7 @@ static void mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 		}
 	}
 #endif
-	blk_end_request_all(req, ret);
+	blk_end_request_all(req, ret ? BLK_STS_IOERR : BLK_STS_OK);
 }
 
 /*
@@ -2191,13 +2197,10 @@ static bool mmc_blk_rw_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 		u32 blocks;
 		int err;
 
-		err = mmc_sd_num_wr_blocks(card, &blocks);
-		if (err)
-			req_pending = old_req_pending;
-		else
-			req_pending = blk_end_request(req, 0, blocks << 9);
-	} else {
-		req_pending = blk_end_request(req, 0, brq->data.bytes_xfered);
+		blocks = mmc_sd_num_wr_blocks(card);
+		if (blocks != (u32)-1) {
+			ret = blk_end_request(req, BLK_STS_OK, blocks << 9);
+		}
 	}
 	return req_pending;
 }
@@ -2206,7 +2209,7 @@ static void mmc_blk_rw_cmd_abort(struct mmc_card *card, struct request *req)
 {
 	if (mmc_card_removed(card))
 		req->rq_flags |= RQF_QUIET;
-	while (blk_end_request(req, -EIO, blk_rq_cur_bytes(req)));
+	while (blk_end_request(req, BLK_STS_IOERR, blk_rq_cur_bytes(req)));
 }
 
 /**
@@ -2224,7 +2227,7 @@ static void mmc_blk_rw_try_restart(struct mmc_queue *mq, struct request *req)
 	 */
 	if (mmc_card_removed(mq->card)) {
 		req->rq_flags |= RQF_QUIET;
-		blk_end_request_all(req, -EIO);
+		blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 	/* Else proceed and try to restart the current async request */
@@ -2302,7 +2305,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 
 			mmc_blk_simulate_delay(mq, rqc, waitfor);
 
-			req_pending = blk_end_request(old_req, 0,
+			req_pending = blk_end_request(old_req, BLK_STS_OK,
 						      brq->data.bytes_xfered);
 
 			/*
@@ -2368,7 +2371,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			 * time, so we only reach here after trying to
 			 * read a single sector.
 			 */
-			req_pending = blk_end_request(old_req, -EIO,
+			req_pending = blk_end_request(old_req, BLK_STS_IOERR,
 						      brq->data.blksz);
 			if (!req_pending) {
 				mmc_blk_rw_try_restart(mq, new_req);
@@ -2420,7 +2423,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	ret = mmc_blk_part_switch(card, md);
 	if (ret) {
 		if (req) {
-			blk_end_request_all(req, -EIO);
+			blk_end_request_all(req, BLK_STS_IOERR);
 		}
 		goto out;
 	}
