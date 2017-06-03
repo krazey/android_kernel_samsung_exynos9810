@@ -927,7 +927,7 @@ static int sdfat_file_fsync(struct file *filp, int datasync)
 /*************************************************************************
  * MORE FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
 static void sdfat_writepage_end_io(struct bio *bio)
 {
 	__sdfat_writepage_end_io(bio, blk_status_to_errno(bio->bi_status));

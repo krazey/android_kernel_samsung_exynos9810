@@ -86,9 +86,9 @@ struct btrfs_root;
 struct btrfs_io_bio;
 struct io_failure_record;
 
-typedef	int (extent_submit_bio_hook_t)(struct inode *inode, struct bio *bio,
-				       int mirror_num, unsigned long bio_flags,
-				       u64 bio_offset);
+typedef	blk_status_t (extent_submit_bio_hook_t)(struct inode *inode,
+		struct bio *bio, int mirror_num, unsigned long bio_flags,
+		u64 bio_offset);
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,

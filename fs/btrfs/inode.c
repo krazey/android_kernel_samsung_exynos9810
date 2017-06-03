@@ -846,13 +846,12 @@ retry:
 				NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 				PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
 				PAGE_SET_WRITEBACK);
-		ret = btrfs_submit_compressed_write(inode,
+		if (btrfs_submit_compressed_write(inode,
 				    async_extent->start,
 				    async_extent->ram_size,
 				    ins.objectid,
 				    ins.offset, async_extent->pages,
-				    async_extent->nr_pages);
-		if (ret) {
+				    async_extent->nr_pages)) {
 			struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 			struct page *p = async_extent->pages[0];
 			const u64 start = async_extent->start;
@@ -1929,12 +1928,12 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static int __btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
-				    int mirror_num, unsigned long bio_flags,
-				    u64 bio_offset)
+static blk_status_t __btrfs_submit_bio_start(struct inode *inode,
+		struct bio *bio, int mirror_num, unsigned long bio_flags,
+		u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret = 0;
+	blk_status_t ret = 0;
 
 	ret = btrfs_csum_one_bio(root, inode, bio, 0, 0);
 	BUG_ON(ret); /* -ENOMEM */
@@ -1949,16 +1948,16 @@ static int __btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static int __btrfs_submit_bio_done(struct inode *inode, struct bio *bio,
-			  int mirror_num, unsigned long bio_flags,
-			  u64 bio_offset)
+static blk_status_t __btrfs_submit_bio_done(struct inode *inode,
+		struct bio *bio, int mirror_num, unsigned long bio_flags,
+		u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret;
+	blk_status_t ret;
 
 	ret = btrfs_map_bio(root, bio, mirror_num, 1);
 	if (ret) {
-		bio->bi_error = ret;
+		bio->bi_status = ret;
 		bio_endio(bio);
 	}
 	return ret;
@@ -1968,13 +1967,13 @@ static int __btrfs_submit_bio_done(struct inode *inode, struct bio *bio,
  * extent_io.c submission hook. This does the right thing for csum calculation
  * on write, or reading the csums from the tree before a read
  */
-static int btrfs_submit_bio_hook(struct inode *inode, struct bio *bio,
+static blk_status_t btrfs_submit_bio_hook(struct inode *inode, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags,
 			  u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	enum btrfs_wq_endio_type metadata = BTRFS_WQ_ENDIO_DATA;
-	int ret = 0;
+	blk_status_t ret = 0;
 	int skip_sum;
 	int async = !atomic_read(&BTRFS_I(inode)->sync_writers);
 
@@ -2020,8 +2019,8 @@ mapit:
 	ret = btrfs_map_bio(root, bio, mirror_num, 0);
 
 out:
-	if (ret < 0) {
-		bio->bi_error = ret;
+	if (ret) {
+		bio->bi_status = ret;
 		bio_endio(bio);
 	}
 	return ret;
@@ -8075,7 +8074,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
 	struct bio_vec *bvec;
 	int i;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		goto end;
 
 	ASSERT(bio->bi_vcnt == 1);
@@ -8156,7 +8155,7 @@ static void btrfs_retry_endio(struct bio *bio)
 	int ret;
 	int i;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		goto end;
 
 	uptodate = 1;
@@ -8184,8 +8183,8 @@ end:
 	bio_put(bio);
 }
 
-static int __btrfs_subio_endio_read(struct inode *inode,
-				    struct btrfs_io_bio *io_bio, int err)
+static blk_status_t __btrfs_subio_endio_read(struct inode *inode,
+		struct btrfs_io_bio *io_bio, blk_status_t err)
 {
 	struct btrfs_fs_info *fs_info;
 	struct bio_vec *bvec;
@@ -8227,7 +8226,7 @@ try_again:
 				io_bio->mirror_num,
 				btrfs_retry_endio, &done);
 		if (ret) {
-			err = ret;
+			err = errno_to_blk_status(ret);
 			goto next;
 		}
 
@@ -8254,8 +8253,8 @@ next:
 	return err;
 }
 
-static int btrfs_subio_endio_read(struct inode *inode,
-				  struct btrfs_io_bio *io_bio, int err)
+static blk_status_t btrfs_subio_endio_read(struct inode *inode,
+		struct btrfs_io_bio *io_bio, blk_status_t err)
 {
 	bool skip_csum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
@@ -8275,7 +8274,7 @@ static void btrfs_endio_direct_read(struct bio *bio)
 	struct inode *inode = dip->inode;
 	struct bio *dio_bio;
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
-	int err = bio->bi_error;
+	blk_status_t err = bio->bi_status;
 
 	if (dip->flags & BTRFS_DIO_ORIG_BIO_SUBMITTED)
 		err = btrfs_subio_endio_read(inode, io_bio, err);
@@ -8286,11 +8285,11 @@ static void btrfs_endio_direct_read(struct bio *bio)
 
 	kfree(dip);
 
-	dio_bio->bi_error = bio->bi_error;
-	dio_end_io(dio_bio, bio->bi_error);
+	dio_bio->bi_status = bio->bi_status;
+	dio_end_io(dio_bio, bio->bi_status);
 
 	if (io_bio->end_io)
-		io_bio->end_io(io_bio, err);
+		io_bio->end_io(io_bio, blk_status_to_errno(err));
 	bio_put(bio);
 }
 
@@ -8337,20 +8336,20 @@ static void btrfs_endio_direct_write(struct bio *bio)
 	btrfs_endio_direct_write_update_ordered(dip->inode,
 						dip->logical_offset,
 						dip->bytes,
-						!bio->bi_error);
+						!bio->bi_status);
 
 	kfree(dip);
 
-	dio_bio->bi_error = bio->bi_error;
-	dio_end_io(dio_bio, bio->bi_error);
+	dio_bio->bi_status = bio->bi_status;
+	dio_end_io(dio_bio, bio->bi_status);
 	bio_put(bio);
 }
 
-static int __btrfs_submit_bio_start_direct_io(struct inode *inode,
+static blk_status_t __btrfs_submit_bio_start_direct_io(struct inode *inode,
 				    struct bio *bio, int mirror_num,
 				    unsigned long bio_flags, u64 offset)
 {
-	int ret;
+	blk_status_t ret;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	ret = btrfs_csum_one_bio(root, inode, bio, offset, 1);
 	BUG_ON(ret); /* -ENOMEM */
@@ -8360,7 +8359,7 @@ static int __btrfs_submit_bio_start_direct_io(struct inode *inode,
 static void btrfs_end_dio_bio(struct bio *bio)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
-	int err = bio->bi_error;
+	blk_status_t err = bio->bi_status;
 
 	if (err)
 		btrfs_warn(BTRFS_I(dip->inode)->root->fs_info,
@@ -8389,7 +8388,7 @@ static void btrfs_end_dio_bio(struct bio *bio)
 	if (dip->errors) {
 		bio_io_error(dip->orig_bio);
 	} else {
-		dip->dio_bio->bi_error = 0;
+		dip->dio_bio->bi_status = 0;
 		bio_endio(dip->orig_bio);
 	}
 out:
@@ -8406,7 +8405,7 @@ static struct bio *btrfs_dio_bio_alloc(struct block_device *bdev,
 	return bio;
 }
 
-static inline int btrfs_lookup_and_bind_dio_csum(struct btrfs_root *root,
+static inline blk_status_t btrfs_lookup_and_bind_dio_csum(struct btrfs_root *root,
 						 struct inode *inode,
 						 struct btrfs_dio_private *dip,
 						 struct bio *bio,
@@ -8414,7 +8413,7 @@ static inline int btrfs_lookup_and_bind_dio_csum(struct btrfs_root *root,
 {
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	struct btrfs_io_bio *orig_io_bio = btrfs_io_bio(dip->orig_bio);
-	int ret;
+	blk_status_t ret;
 
 	/*
 	 * We load all the csum data we need when we submit
@@ -8445,7 +8444,7 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 	struct btrfs_dio_private *dip = bio->bi_private;
 	bool write = bio_op(bio) == REQ_OP_WRITE;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret;
+	blk_status_t ret;
 
 	if (async_submit)
 		async_submit = !atomic_read(&BTRFS_I(inode)->sync_writers);
@@ -8689,7 +8688,7 @@ free_ordered:
 	 * callbacks - they require an allocated dip and a clone of dio_bio.
 	 */
 	if (io_bio && dip) {
-		io_bio->bi_error = -EIO;
+		io_bio->bi_status = BLK_STS_IOERR;
 		bio_endio(io_bio);
 		/*
 		 * The end io callbacks free our dip, do the final put on io_bio
@@ -8708,7 +8707,7 @@ free_ordered:
 			unlock_extent(&BTRFS_I(inode)->io_tree, file_offset,
 			      file_offset + dio_bio->bi_iter.bi_size - 1);
 
-		dio_bio->bi_error = -EIO;
+		dio_bio->bi_status = BLK_STS_IOERR;
 		/*
 		 * Releases and cleans up our dio_bio, no need to bio_put()
 		 * nor bio_endio()/bio_io_error() against dio_bio.

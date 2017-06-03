@@ -90,7 +90,7 @@ struct btrfs_end_io_wq {
 	bio_end_io_t *end_io;
 	void *private;
 	struct btrfs_fs_info *info;
-	int error;
+	blk_status_t status;
 	enum btrfs_wq_endio_type metadata;
 	struct list_head list;
 	struct btrfs_work work;
@@ -134,7 +134,7 @@ struct async_submit_bio {
 	 */
 	u64 bio_offset;
 	struct btrfs_work work;
-	int error;
+	blk_status_t status;
 };
 
 /*
@@ -654,7 +654,7 @@ static void end_workqueue_bio(struct bio *bio)
 	btrfs_work_func_t func;
 
 	fs_info = end_io_wq->info;
-	end_io_wq->error = bio->bi_error;
+	end_io_wq->status = bio->bi_status;
 
 	if (bio_op(bio) == REQ_OP_WRITE) {
 		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_METADATA) {
@@ -691,19 +691,19 @@ static void end_workqueue_bio(struct bio *bio)
 	btrfs_queue_work(wq, &end_io_wq->work);
 }
 
-int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			enum btrfs_wq_endio_type metadata)
 {
 	struct btrfs_end_io_wq *end_io_wq;
 
 	end_io_wq = kmem_cache_alloc(btrfs_end_io_wq_cache, GFP_NOFS);
 	if (!end_io_wq)
-		return -ENOMEM;
+		return BLK_STS_RESOURCE;
 
 	end_io_wq->private = bio->bi_private;
 	end_io_wq->end_io = bio->bi_end_io;
 	end_io_wq->info = info;
-	end_io_wq->error = 0;
+	end_io_wq->status = 0;
 	end_io_wq->bio = bio;
 	end_io_wq->metadata = metadata;
 
@@ -723,14 +723,14 @@ unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info)
 static void run_one_async_start(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
-	int ret;
+	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
 	ret = async->submit_bio_start(async->inode, async->bio,
 				      async->mirror_num, async->bio_flags,
 				      async->bio_offset);
 	if (ret)
-		async->error = ret;
+		async->status = ret;
 }
 
 static void run_one_async_done(struct btrfs_work *work)
@@ -753,8 +753,8 @@ static void run_one_async_done(struct btrfs_work *work)
 		wake_up(&fs_info->async_submit_wait);
 
 	/* If an error occurred we just want to clean up the bio and move on */
-	if (async->error) {
-		async->bio->bi_error = async->error;
+	if (async->status) {
+		async->bio->bi_status = async->status;
 		bio_endio(async->bio);
 		return;
 	}
@@ -771,18 +771,17 @@ static void run_one_async_free(struct btrfs_work *work)
 	kfree(async);
 }
 
-int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
-			struct bio *bio, int mirror_num,
-			unsigned long bio_flags,
-			u64 bio_offset,
-			extent_submit_bio_hook_t *submit_bio_start,
-			extent_submit_bio_hook_t *submit_bio_done)
+blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info,
+		struct inode *inode, struct bio *bio, int mirror_num,
+		unsigned long bio_flags, u64 bio_offset,
+		extent_submit_bio_hook_t *submit_bio_start,
+		extent_submit_bio_hook_t *submit_bio_done)
 {
 	struct async_submit_bio *async;
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
-		return -ENOMEM;
+		return BLK_STS_RESOURCE;
 
 	async->inode = inode;
 	async->bio = bio;
@@ -796,7 +795,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->bio_flags = bio_flags;
 	async->bio_offset = bio_offset;
 
-	async->error = 0;
+	async->status = 0;
 
 	atomic_inc(&fs_info->nr_async_submits);
 
@@ -814,7 +813,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	return 0;
 }
 
-static int btree_csum_one_bio(struct bio *bio)
+static blk_status_t btree_csum_one_bio(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	struct btrfs_root *root;
@@ -827,12 +826,12 @@ static int btree_csum_one_bio(struct bio *bio)
 			break;
 	}
 
-	return ret;
+	return errno_to_blk_status(ret);
 }
 
-static int __btree_submit_bio_start(struct inode *inode, struct bio *bio,
-				    int mirror_num, unsigned long bio_flags,
-				    u64 bio_offset)
+static blk_status_t __btree_submit_bio_start(struct inode *inode,
+		struct bio *bio, int mirror_num, unsigned long bio_flags,
+		u64 bio_offset)
 {
 	/*
 	 * when we're called for a write, we're already in the async
@@ -841,11 +840,11 @@ static int __btree_submit_bio_start(struct inode *inode, struct bio *bio,
 	return btree_csum_one_bio(bio);
 }
 
-static int __btree_submit_bio_done(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags,
-				 u64 bio_offset)
+static blk_status_t __btree_submit_bio_done(struct inode *inode,
+		struct bio *bio, int mirror_num, unsigned long bio_flags,
+		u64 bio_offset)
 {
-	int ret;
+	blk_status_t ret;
 
 	/*
 	 * when we're called for a write, we're already in the async
@@ -853,7 +852,7 @@ static int __btree_submit_bio_done(struct inode *inode, struct bio *bio,
 	 */
 	ret = btrfs_map_bio(BTRFS_I(inode)->root, bio, mirror_num, 1);
 	if (ret) {
-		bio->bi_error = ret;
+		bio->bi_status = ret;
 		bio_endio(bio);
 	}
 	return ret;
@@ -870,12 +869,12 @@ static int check_async_write(struct inode *inode, unsigned long bio_flags)
 	return 1;
 }
 
-static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
+static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
 				 u64 bio_offset)
 {
 	int async = check_async_write(inode, bio_flags);
-	int ret;
+	blk_status_t ret;
 
 	if (bio_op(bio) != REQ_OP_WRITE) {
 		/*
@@ -909,7 +908,7 @@ static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 	return 0;
 
 out_w_error:
-	bio->bi_error = ret;
+	bio->bi_status = ret;
 	bio_endio(bio);
 	return ret;
 }
@@ -1716,7 +1715,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	end_io_wq = container_of(work, struct btrfs_end_io_wq, work);
 	bio = end_io_wq->bio;
 
-	bio->bi_error = end_io_wq->error;
+	bio->bi_status = end_io_wq->status;
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
 	bio_endio(bio);
@@ -3406,10 +3405,10 @@ static void btrfs_end_empty_barrier(struct bio *bio)
  * any device where the flush fails with eopnotsupp are flagged as not-barrier
  * capable
  */
-static int write_dev_flush(struct btrfs_device *device, int wait)
+static blk_status_t write_dev_flush(struct btrfs_device *device, int wait)
 {
 	struct bio *bio;
-	int ret = 0;
+	blk_status_t ret = 0;
 
 	if (device->nobarriers)
 		return 0;
@@ -3421,8 +3420,8 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 
 		wait_for_completion(&device->flush_wait);
 
-		if (bio->bi_error) {
-			ret = bio->bi_error;
+		if (bio->bi_status) {
+			ret = bio->bi_status;
 			btrfs_dev_stat_inc_and_print(device,
 				BTRFS_DEV_STAT_FLUSH_ERRS);
 		}
@@ -3441,7 +3440,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 	device->flush_bio = NULL;
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
 	if (!bio)
-		return -ENOMEM;
+		return BLK_STS_RESOURCE;
 
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
@@ -3466,7 +3465,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	struct btrfs_device *dev;
 	int errors_send = 0;
 	int errors_wait = 0;
-	int ret;
+	blk_status_t ret;
 
 	/* send down all the barriers */
 	head = &info->fs_devices->devices;

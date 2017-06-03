@@ -62,7 +62,7 @@ static struct workqueue_struct *deferred_remove_workqueue;
  */
 struct dm_io {
 	struct mapped_device *md;
-	int error;
+	blk_status_t status;
 	atomic_t io_count;
 	struct bio *bio;
 	unsigned long start_time;
@@ -767,10 +767,10 @@ static int __noflush_suspending(struct mapped_device *md)
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
-static void dec_pending(struct dm_io *io, int error)
+static void dec_pending(struct dm_io *io, blk_status_t error)
 {
 	unsigned long flags;
-	int io_error;
+	blk_status_t io_error;
 	struct bio *bio;
 	struct mapped_device *md = io->md;
 	unsigned long start_time = 0;
@@ -779,13 +779,14 @@ static void dec_pending(struct dm_io *io, int error)
 	/* Push-back supersedes any I/O errors */
 	if (unlikely(error)) {
 		spin_lock_irqsave(&io->endio_lock, flags);
-		if (!(io->error > 0 && __noflush_suspending(md)))
-			io->error = error;
+		if (!(io->status == BLK_STS_DM_REQUEUE &&
+				__noflush_suspending(md)))
+			io->status = error;
 		spin_unlock_irqrestore(&io->endio_lock, flags);
 	}
 
 	if (atomic_dec_and_test(&io->io_count)) {
-		if (io->error == DM_ENDIO_REQUEUE) {
+		if (io->status == BLK_STS_DM_REQUEUE) {
 			/*
 			 * Target requested pushing back the I/O.
 			 */
@@ -794,18 +795,18 @@ static void dec_pending(struct dm_io *io, int error)
 				bio_list_add_head(&md->deferred, io->bio);
 			else
 				/* noflush suspend was interrupted. */
-				io->error = -EIO;
+				io->status = BLK_STS_IOERR;
 			spin_unlock_irqrestore(&md->deferred_lock, flags);
 		}
 
-		io_error = io->error;
+		io_error = io->status;
 		bio = io->bio;
 		start_time = io->start_time;
 		stats_aux = io->stats_aux;
 		free_io(md, io);
 		end_io_acct(md, bio, start_time, &stats_aux);
 
-		if (io_error == DM_ENDIO_REQUEUE)
+		if (io_error == BLK_STS_DM_REQUEUE)
 			return;
 
 		if ((bio->bi_opf & REQ_PREFLUSH) && bio->bi_iter.bi_size) {
@@ -819,7 +820,7 @@ static void dec_pending(struct dm_io *io, int error)
 			/* done with normal IO or empty flush */
 			trace_block_bio_complete(md->queue, bio, io_error);
 			if (io_error)
-				bio->bi_error = io_error;
+				bio->bi_status = io_error;
 			bio_endio(bio);
 		}
 	}
@@ -835,16 +836,15 @@ void disable_write_same(struct mapped_device *md)
 
 static void clone_endio(struct bio *bio)
 {
-	int error = bio->bi_error;
-	int r = error;
+	blk_status_t error = bio->bi_status;
 	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
 
 	if (endio) {
-		r = endio(tio->ti, bio, error);
-		if (r < 0 || r == DM_ENDIO_REQUEUE)
+		int r = endio(tio->ti, bio, error);
+		if (r < 0 || r == BLK_STS_DM_REQUEUE)
 			/*
 			 * error and requeue request are handled
 			 * in dec_pending().
@@ -859,7 +859,7 @@ static void clone_endio(struct bio *bio)
 		}
 	}
 
-	if (unlikely(r == -EREMOTEIO && (bio_op(bio) == REQ_OP_WRITE_SAME) &&
+	if (unlikely(error == -EREMOTEIO && (bio_op(bio) == REQ_OP_WRITE_SAME) &&
 		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
 		disable_write_same(md);
 
@@ -1065,9 +1065,9 @@ static void __map_bio(struct dm_target_io *tio)
 				      tio->io->bio->bi_bdev->bd_dev, sector);
 
 		generic_make_request(clone);
-	} else if (r < 0 || r == DM_MAPIO_REQUEUE) {
+	} else if (r < 0 || r == BLK_STS_DM_REQUEUE) {
 		/* error the io and bail out, or requeue it if needed */
-		dec_pending(tio->io, r);
+		dec_pending(tio->io, BLK_STS_DM_REQUEUE);
 		free_tio(tio);
 	} else if (r != DM_MAPIO_SUBMITTED) {
 		DMWARN("unimplemented target map return value: %d", r);
@@ -1312,7 +1312,7 @@ static void __split_and_process_bio(struct mapped_device *md,
 	ci.map = map;
 	ci.md = md;
 	ci.io = alloc_io(md);
-	ci.io->error = 0;
+	ci.io->status = 0;
 	atomic_set(&ci.io->io_count, 1);
 	ci.io->bio = bio;
 	ci.io->md = md;

@@ -257,7 +257,7 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 	}
 	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
 		if (bio_sectors(bio) != 0)
-			bio->bi_error = -EROFS;
+			bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return BLK_QC_T_NONE;
 	}
@@ -720,8 +720,8 @@ static void super_written(struct bio *bio)
 	struct md_rdev *rdev = bio->bi_private;
 	struct mddev *mddev = rdev->mddev;
 
-	if (bio->bi_error) {
-		printk("md: super_written gets error=%d\n", bio->bi_error);
+	if (bio->bi_status) {
+		printk("md: super_written gets error=%d\n", bio->bi_status);
 		md_error(mddev, rdev);
 	}
 
@@ -782,7 +782,7 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 
 	submit_bio_wait(bio);
 
-	ret = !bio->bi_error;
+	ret = !bio->bi_status;
 	bio_put(bio);
 	return ret;
 }

@@ -579,7 +579,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 	mpio->pgpath = pgpath;
 	mpio->nr_bytes = nr_bytes;
 
-	bio->bi_error = 0;
+	bio->bi_status = 0;
 	bio->bi_bdev = pgpath->path.dev->bdev;
 	bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 
@@ -636,7 +636,7 @@ static void process_queued_bios(struct work_struct *work)
 	while ((bio = bio_list_pop(&bios))) {
 		r = __multipath_map_bio(m, bio, get_mpio_from_bio(bio));
 		if (r < 0 || r == DM_MAPIO_REQUEUE) {
-			bio->bi_error = r;
+			bio->bi_status = BLK_STS_DM_REQUEUE;
 			bio_endio(bio);
 		} else if (r == DM_MAPIO_REMAPPED)
 			generic_make_request(bio);
@@ -1546,7 +1546,7 @@ static int do_end_io_bio(struct multipath *m, struct bio *clone,
 	if (!atomic_read(&m->nr_valid_paths)) {
 		if (!test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 			if (!must_push_back_bio(m))
-				return -EIO;
+				return BLK_STS_IOERR;
 			return DM_ENDIO_REQUEUE;
 		}
 	}

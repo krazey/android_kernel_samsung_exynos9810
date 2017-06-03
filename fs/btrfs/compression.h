@@ -38,12 +38,12 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 			      unsigned long *pg_index,
 			      unsigned long *pg_offset);
 
-int btrfs_submit_compressed_write(struct inode *inode, u64 start,
+blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
 				  unsigned long compressed_len,
 				  struct page **compressed_pages,
 				  unsigned long nr_pages);
-int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 void btrfs_clear_biovec_end(struct bio_vec *bvec, int vcnt,
 				   unsigned long pg_index,

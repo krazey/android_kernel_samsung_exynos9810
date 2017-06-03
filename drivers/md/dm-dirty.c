@@ -109,7 +109,7 @@ static void dirty_finish_io(struct dm_dirty_io *io, struct bio *bio)
 	bio_endio(bio);
 }
 
-static void dirty_hash(struct bio *bio, int error)
+static void dirty_hash(struct bio *bio, blk_status_t status)
 {
 	struct bio_vec *iovec;
 	int i, ret;
@@ -124,7 +124,7 @@ static void dirty_hash(struct bio *bio, int error)
 	struct dm_verity *v = io->v;
 	unsigned short idx = io->iter.bi_idx;
 
-	bio->bi_error = error;
+	bio->bi_status = status;
 
 	/* At this point only WRITE bios and non-error bios are allowed.
 	 * bio_data_dir() and error should have been checked before.
@@ -215,7 +215,7 @@ static void dirty_end_io(struct bio *bio)
 {
 	struct dm_dirty_io *io = bio->bi_private;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		/* If there was an error writing the data, do not recalculate the hash.
 		 * Just go ahead and finish the bio
 		 */

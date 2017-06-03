@@ -345,7 +345,8 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int flakey_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t error)
 {
 	struct flakey_c *fc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
@@ -363,7 +364,7 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 			 * Error read during the down_interval if drop_writes
 			 * wasn't configured.
 			 */
-			return -EIO;
+			return BLK_STS_IOERR;
 		}
 	}
 

@@ -34,6 +34,9 @@ typedef u8 __bitwise blk_status_t;
 #define BLK_STS_RESOURCE	((__force blk_status_t)9)
 #define BLK_STS_IOERR		((__force blk_status_t)10)
 
+/* hack for device mapper, don't use elsewhere: */
+#define BLK_STS_DM_REQUEUE    ((__force blk_status_t)11)
+
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
@@ -42,7 +45,7 @@ struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
 	unsigned short		bi_write_hint;
-	int			bi_error;
+	blk_status_t		bi_status;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
 						 * accessors.

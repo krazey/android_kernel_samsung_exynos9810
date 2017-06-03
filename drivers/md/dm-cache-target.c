@@ -916,7 +916,7 @@ static void writethrough_endio(struct bio *bio)
 
 	dm_unhook_bio(&pb->hook_info, bio);
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		bio_endio(bio);
 		return;
 	}
@@ -1284,7 +1284,7 @@ static void overwrite_endio(struct bio *bio)
 
 	dm_unhook_bio(&pb->hook_info, bio);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		mg->err = true;
 
 	mg->requeue_holder = false;
@@ -2214,7 +2214,7 @@ static void requeue_deferred_bios(struct cache *cache)
 	bio_list_init(&cache->deferred_bios);
 
 	while ((bio = bio_list_pop(&bios))) {
-		bio->bi_error = DM_ENDIO_REQUEUE;
+		bio->bi_status = BLK_STS_DM_REQUEUE;
 		bio_endio(bio);
 	}
 }
@@ -3140,7 +3140,8 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	return r;
 }
 
-static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int cache_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t error)
 {
 	struct cache *cache = ti->private;
 	unsigned long flags;

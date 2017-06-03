@@ -59,7 +59,7 @@ struct dm_crypt_io {
 	struct convert_context ctx;
 
 	atomic_t io_pending;
-	int error;
+	blk_status_t error;
 	sector_t sector;
 
 	struct rb_node rb_node;
@@ -939,7 +939,7 @@ static void crypt_free_req(struct crypt_config *cc,
 /*
  * Encrypt / decrypt data from one bio to another one (can be the same one)
  */
-static int crypt_convert(struct crypt_config *cc,
+static blk_status_t crypt_convert(struct crypt_config *cc,
 			 struct convert_context *ctx)
 {
 	unsigned int sector_step = cc->sector_size >> SECTOR_SHIFT;
@@ -1095,7 +1095,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->cc;
 	struct bio *base_bio = io->base_bio;
-	int error = io->error;
+	blk_status_t error = io->error;
 
 	if (!atomic_dec_and_test(&io->io_pending))
 		return;
@@ -1103,7 +1103,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 	if (io->ctx.req)
 		crypt_free_req(cc, io->ctx.req, base_bio);
 
-	base_bio->bi_error = error;
+	base_bio->bi_status = error;
 	bio_endio(base_bio);
 }
 
@@ -1129,7 +1129,7 @@ static void crypt_endio(struct bio *clone)
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->cc;
 	unsigned rw = bio_data_dir(clone);
-	int error;
+	blk_status_t error;
 
 	/*
 	 * free the processed pages
@@ -1137,7 +1137,7 @@ static void crypt_endio(struct bio *clone)
 	if (rw == WRITE)
 		crypt_free_buffer_pages(cc, clone);
 
-	error = clone->bi_error;
+	error = clone->bi_status;
 	bio_put(clone);
 
 	if (rw == READ && !error) {
@@ -1191,7 +1191,7 @@ static void kcryptd_io_read_work(struct work_struct *work)
 
 	crypt_inc_pending(io);
 	if (kcryptd_io_read(io, GFP_NOIO))
-		io->error = -ENOMEM;
+		io->error = BLK_STS_RESOURCE;
 	crypt_dec_pending(io);
 }
 
@@ -1277,7 +1277,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	sector_t sector;
 	struct rb_node **rbp, *parent;
 
-	if (unlikely(io->error < 0)) {
+	if (unlikely(io->error)) {
 		crypt_free_buffer_pages(cc, clone);
 		bio_put(clone);
 		crypt_dec_pending(io);
@@ -1318,7 +1318,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	struct bio *clone;
 	int crypt_finished;
 	sector_t sector = io->sector;
-	int r;
+	blk_status_t r;
 
 	/*
 	 * Prevent io from disappearing until this function completes.
@@ -1328,7 +1328,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 	clone = crypt_alloc_buffer(io, io->base_bio->bi_iter.bi_size);
 	if (unlikely(!clone)) {
-		io->error = -EIO;
+		io->error = BLK_STS_IOERR;
 		goto dec;
 	}
 
@@ -1340,7 +1340,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	crypt_inc_pending(io);
 	r = crypt_convert(cc, &io->ctx);
 	if (r)
-		io->error = -EIO;
+		io->error = BLK_STS_IOERR;
 	crypt_finished = atomic_dec_and_test(&io->ctx.cc_pending);
 
 	/* Encryption was already finished, submit io now */
@@ -1361,7 +1361,7 @@ static void kcryptd_crypt_read_done(struct dm_crypt_io *io)
 static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->cc;
-	int r = 0;
+	blk_status_t r;
 
 	crypt_inc_pending(io);
 
@@ -1369,8 +1369,8 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 			   io->sector);
 
 	r = crypt_convert(cc, &io->ctx);
-	if (r < 0)
-		io->error = -EIO;
+	if (r)
+		io->error = BLK_STS_IOERR;
 
 	if (atomic_dec_and_test(&io->ctx.cc_pending))
 		kcryptd_crypt_read_done(io);
@@ -1400,7 +1400,7 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 		error = cc->iv_gen_ops->post(cc, iv_of_dmreq(cc, dmreq), dmreq);
 
 	if (error < 0)
-		io->error = -EIO;
+		io->error = BLK_STS_IOERR;
 
 	crypt_free_req(cc, req_of_dmreq(cc, dmreq), io->base_bio);
 

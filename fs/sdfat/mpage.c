@@ -177,7 +177,7 @@ static inline void __sdfat_set_bio_size(struct bio *bio, unsigned int size)
 /*************************************************************************
  * MORE FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
 static void  mpage_write_end_io(struct bio *bio)
 {
 	__mpage_write_end_io(bio, blk_status_to_errno(bio->bi_status));

@@ -262,8 +262,8 @@ static void rrpc_end_sync_bio(struct bio *bio)
 {
 	struct completion *waiting = bio->bi_private;
 
-	if (bio->bi_error)
-		pr_err("nvm: gc request failed (%u).\n", bio->bi_error);
+	if (bio->bi_status)
+		pr_err("nvm: gc request failed (%u).\n", bio->bi_status);
 
 	complete(waiting);
 }
@@ -345,7 +345,7 @@ try:
 			goto finished;
 		}
 		wait_for_completion_io(&wait);
-		if (bio->bi_error) {
+		if (bio->bi_status) {
 			rrpc_inflight_laddr_release(rrpc, rqd);
 			goto finished;
 		}
@@ -371,7 +371,7 @@ try:
 		wait_for_completion_io(&wait);
 
 		rrpc_inflight_laddr_release(rrpc, rqd);
-		if (bio->bi_error)
+		if (bio->bi_status)
 			goto finished;
 
 		bio_reset(bio);

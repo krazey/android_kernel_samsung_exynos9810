@@ -120,15 +120,21 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
+<<<<<<< HEAD
 u32 btrfs_csum_data(char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, char *result);
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+=======
+u32 btrfs_csum_data(const char *data, u32 seed, size_t len);
+void btrfs_csum_final(u32 crc, u8 *result);
+blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+>>>>>>> 4e4cbee93d56 (block: switch bios to blk_status_t)
 			enum btrfs_wq_endio_type metadata);
-int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
-			struct bio *bio, int mirror_num,
-			unsigned long bio_flags, u64 bio_offset,
-			extent_submit_bio_hook_t *submit_bio_start,
-			extent_submit_bio_hook_t *submit_bio_done);
+blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info,
+		struct inode *inode, struct bio *bio, int mirror_num,
+		unsigned long bio_flags, u64 bio_offset,
+		extent_submit_bio_hook_t *submit_bio_start,
+		extent_submit_bio_hook_t *submit_bio_done);
 unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
 int btrfs_write_tree_block(struct extent_buffer *buf);
 int btrfs_wait_tree_block_writeback(struct extent_buffer *buf);

@@ -304,8 +304,8 @@ static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	if (!parent->bi_error)
-		parent->bi_error = bio->bi_error;
+	if (!parent->bi_status)
+		parent->bi_status = bio->bi_status;
 	bio_put(bio);
 	return parent;
 }
@@ -933,7 +933,7 @@ static void submit_bio_wait_endio(struct bio *bio)
 {
 	struct submit_bio_ret *ret = bio->bi_private;
 
-	ret->error = bio->bi_error;
+	ret->error = blk_status_to_errno(bio->bi_status);
 	complete(&ret->event);
 }
 
