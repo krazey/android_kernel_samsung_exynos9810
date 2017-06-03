@@ -226,7 +226,7 @@ static struct mtip_cmd *mtip_cmd_from_tag(struct driver_data *dd,
  *	None
  */
 static void mtip_async_complete(struct mtip_port *port,
-				int tag, struct mtip_cmd *cmd, int status)
+				int tag, struct mtip_cmd *cmd, blk_status_t status)
 {
 	struct driver_data *dd = port->dd;
 	struct request *rq;
@@ -575,7 +575,7 @@ static void print_tags(struct driver_data *dd,
  *	None
  */
 static void mtip_completion(struct mtip_port *port,
-			    int tag, struct mtip_cmd *command, int status)
+			    int tag, struct mtip_cmd *command, blk_status_t status)
 {
 	struct completion *waiting = command->comp_data;
 	if (unlikely(status == PORT_IRQ_TF_ERR))
@@ -588,7 +588,7 @@ static void mtip_completion(struct mtip_port *port,
 }
 
 static void mtip_null_completion(struct mtip_port *port,
-			    int tag, struct mtip_cmd *command, int status)
+			    int tag, struct mtip_cmd *command, blk_status_t status)
 {
 }
 
@@ -739,7 +739,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 						fail_reason : "unknown");
 					if (cmd->comp_func) {
 						cmd->comp_func(port, tag,
-							cmd, -ENODATA);
+							cmd, BLK_STS_MEDIUM);
 					}
 					continue;
 				}
@@ -2927,7 +2927,7 @@ static void mtip_abort_cmd(struct request *req, void *data,
 	dbg_printk(MTIP_DRV_NAME " Aborting request, tag = %d\n", req->tag);
 
 	clear_bit(req->tag, dd->port->cmds_to_issue);
-	cmd->status = -EIO;
+	cmd->status = BLK_STS_IOERR;
 	mtip_softirq_done_fn(req);
 }
 
@@ -3771,7 +3771,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		int err;
 
 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
-		blk_mq_end_request(rq, err);
+		blk_mq_end_request(rq, err ? BLK_STS_IOERR : BLK_STS_OK);
 		return 0;
 	}
 
@@ -4111,14 +4111,14 @@ static void mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
 	struct mtip_cmd *cmd;
 
 	if (likely(!reserv)) {
-		cmd->status = -ENODEV;
+		cmd->status = BLK_STS_IOERR;
 		blk_mq_complete_request(rq);
 	} else if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &dd->port->flags)) {
 
 		cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);
 		if (cmd->comp_func)
 			cmd->comp_func(dd->port, MTIP_TAG_INTERNAL,
-					cmd, -ENODEV);
+					cmd, BLK_STS_IOERR);
 	}
 }
 

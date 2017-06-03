@@ -774,7 +774,7 @@ static int pf_ready(void)
 
 static struct request_queue *pf_queue;
 
-static void pf_end_request(int err)
+static void pf_end_request(blk_status_t err)
 {
 	if (pf_req && !__blk_end_request_cur(pf_req, err))
 		pf_req = NULL;
@@ -797,7 +797,7 @@ repeat:
 	pf_count = blk_rq_cur_sectors(pf_req);
 
 	if (pf_block + pf_count > get_capacity(pf_req->rq_disk)) {
-		pf_end_request(-EIO);
+		pf_end_request(BLK_STS_IOERR);
 		goto repeat;
 	}
 
@@ -812,7 +812,7 @@ repeat:
 		pi_do_claimed(pf_current->pi, do_pf_write);
 	else {
 		pf_busy = 0;
-		pf_end_request(-EIO);
+		pf_end_request(BLK_STS_IOERR);
 		goto repeat;
 	}
 }
@@ -839,7 +839,7 @@ static int pf_next_buf(void)
 	return 0;
 }
 
-static inline void next_request(int err)
+static inline void next_request(blk_status_t err)
 {
 	unsigned long saved_flags;
 
@@ -867,7 +867,7 @@ static void do_pf_read_start(void)
 			pi_do_claimed(pf_current->pi, do_pf_read_start);
 			return;
 		}
-		next_request(-EIO);
+		next_request(BLK_STS_IOERR);
 		return;
 	}
 	pf_mask = STAT_DRQ;
@@ -886,7 +886,7 @@ static void do_pf_read_drq(void)
 				pi_do_claimed(pf_current->pi, do_pf_read_start);
 				return;
 			}
-			next_request(-EIO);
+			next_request(BLK_STS_IOERR);
 			return;
 		}
 		pi_read_block(pf_current->pi, pf_buf, 512);
@@ -913,7 +913,7 @@ static void do_pf_write_start(void)
 			pi_do_claimed(pf_current->pi, do_pf_write_start);
 			return;
 		}
-		next_request(-EIO);
+		next_request(BLK_STS_IOERR);
 		return;
 	}
 
@@ -926,7 +926,7 @@ static void do_pf_write_start(void)
 				pi_do_claimed(pf_current->pi, do_pf_write_start);
 				return;
 			}
-			next_request(-EIO);
+			next_request(BLK_STS_IOERR);
 			return;
 		}
 		pi_write_block(pf_current->pi, pf_buf, 512);
@@ -946,7 +946,7 @@ static void do_pf_write_done(void)
 			pi_do_claimed(pf_current->pi, do_pf_write_start);
 			return;
 		}
-		next_request(-EIO);
+		next_request(BLK_STS_IOERR);
 		return;
 	}
 	pi_disconnect(pf_current->pi);

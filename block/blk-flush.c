@@ -163,7 +163,7 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
  */
 static bool blk_flush_complete_seq(struct request *rq,
 				   struct blk_flush_queue *fq,
-				   unsigned int seq, int error)
+				   unsigned int seq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
@@ -215,7 +215,7 @@ static bool blk_flush_complete_seq(struct request *rq,
 	return kicked | queued;
 }
 
-static void flush_end_io(struct request *flush_rq, int error)
+static void flush_end_io(struct request *flush_rq, blk_status_t error)
 {
 	struct request_queue *q = flush_rq->q;
 	struct list_head *running;
@@ -334,7 +334,7 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	return blk_flush_queue_rq(flush_rq, false);
 }
 
-static void flush_data_end_io(struct request *rq, int error)
+static void flush_data_end_io(struct request *rq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
@@ -375,7 +375,7 @@ static void flush_data_end_io(struct request *rq, int error)
 		blk_run_queue_async(q);
 }
 
-static void mq_flush_data_end_io(struct request *rq, int error)
+static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx;

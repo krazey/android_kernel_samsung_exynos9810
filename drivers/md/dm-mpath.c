@@ -1453,22 +1453,15 @@ static void activate_path_work(struct work_struct *work)
 	activate_or_offline_path(pgpath);
 }
 
-static int noretry_error(int error)
+static int noretry_error(blk_status_t error)
 {
 	switch (error) {
-	case -EBADE:
-		/*
-		 * EBADE signals an reservation conflict.
-		 * We shouldn't fail the path here as we can communicate with
-		 * the target.  We should failover to the next path, but in
-		 * doing so we might be causing a ping-pong between paths.
-		 * So just return the reservation conflict error.
-		 */
-	case -EOPNOTSUPP:
-	case -EREMOTEIO:
-	case -EILSEQ:
-	case -ENODATA:
-	case -ENOSPC:
+	case BLK_STS_NOTSUPP:
+	case BLK_STS_NOSPC:
+	case BLK_STS_TARGET:
+	case BLK_STS_NEXUS:
+	case BLK_STS_MEDIUM:
+	case BLK_STS_RESOURCE:
 		return 1;
 	}
 
@@ -1480,7 +1473,7 @@ static int noretry_error(int error)
  * end_io handling
  */
 static int do_end_io(struct multipath *m, struct request *clone,
-		     int error, struct dm_mpath_io *mpio)
+		     blk_status_t error, struct dm_mpath_io *mpio)
 {
 	/*
 	 * We don't queue any clone request inside the multipath target
@@ -1507,7 +1500,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	if (!atomic_read(&m->nr_valid_paths)) {
 		if (!test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 			if (!must_push_back_rq(m))
-				r = -EIO;
+				r = BLK_STS_IOERR;
 		}
 	}
 
@@ -1515,7 +1508,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 }
 
 static int multipath_end_io(struct dm_target *ti, struct request *clone,
-			    int error, union map_info *map_context)
+			    blk_status_t error, union map_info *map_context)
 {
 	struct multipath *m = ti->private;
 	struct dm_mpath_io *mpio = get_mpio(map_context);
@@ -1537,7 +1530,7 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 }
 
 static int do_end_io_bio(struct multipath *m, struct bio *clone,
-			 int error, struct dm_mpath_io *mpio)
+			 blk_status_t error, struct dm_mpath_io *mpio)
 {
 	unsigned long flags;
 
@@ -1570,7 +1563,7 @@ static int do_end_io_bio(struct multipath *m, struct bio *clone,
 	return DM_ENDIO_INCOMPLETE;
 }
 
-static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int error)
+static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, blk_status_t error)
 {
 	struct multipath *m = ti->private;
 	struct dm_mpath_io *mpio = get_mpio_from_bio(clone);

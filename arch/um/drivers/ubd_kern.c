@@ -463,7 +463,7 @@ static void ubd_handler(void)
 			return;
 		}
 
-		blk_end_request(req->req, 0, req->length);
+		blk_end_request(req->req, BLK_STS_OK, req->length);
 		kfree(req);
 	}
 	reactivate_fd(thread_fd, UBD_IRQ);
