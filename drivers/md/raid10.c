@@ -313,7 +313,7 @@ static void raid_end_bio_io(struct r10bio *r10_bio)
 	} else
 		done = 1;
 	if (!test_bit(R10BIO_Uptodate, &r10_bio->state))
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 	if (done) {
 		bio_endio(bio);
 		/*
@@ -366,7 +366,7 @@ static int find_bio_disk(struct r10conf *conf, struct r10bio *r10_bio,
 
 static void raid10_end_read_request(struct bio *bio)
 {
-	int uptodate = !bio->bi_error;
+	int uptodate = !bio->bi_status;
 	struct r10bio *r10_bio = bio->bi_private;
 	int slot, dev;
 	struct md_rdev *rdev;
@@ -454,7 +454,7 @@ static void raid10_end_write_request(struct bio *bio)
 	struct bio *to_put = NULL;
 	bool discard_error;
 
-	discard_error = bio->bi_error && bio_op(bio) == REQ_OP_DISCARD;
+	discard_error = bio->bi_status && bio_op(bio) == REQ_OP_DISCARD;
 
 	dev = find_bio_disk(conf, r10_bio, bio, &slot, &repl);
 
@@ -468,7 +468,7 @@ static void raid10_end_write_request(struct bio *bio)
 	/*
 	 * this branch is our 'one mirror IO has finished' event handler:
 	 */
-	if (bio->bi_error && !discard_error) {
+	if (bio->bi_status && !discard_error) {
 		if (repl)
 			/* Never record new bad blocks to replacement,
 			 * just fail it.
@@ -1956,7 +1956,7 @@ static void end_sync_read(struct bio *bio)
 	} else
 		d = find_bio_disk(conf, r10_bio, bio, NULL, NULL);
 
-	if (!bio->bi_error)
+	if (!bio->bi_status)
 		set_bit(R10BIO_Uptodate, &r10_bio->state);
 	else
 		/* The write handler will notice the lack of
@@ -2023,7 +2023,7 @@ static void end_sync_write(struct bio *bio)
 	else
 		rdev = conf->mirrors[d].rdev;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		if (repl)
 			md_error(mddev, rdev);
 		else {
@@ -2071,7 +2071,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 
 	/* find the first device with a block */
 	for (i=0; i<conf->copies; i++)
-		if (!r10_bio->devs[i].bio->bi_error)
+		if (!r10_bio->devs[i].bio->bi_status)
 			break;
 
 	if (i == conf->copies)
@@ -2096,7 +2096,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 			continue;
 		d = r10_bio->devs[i].devnum;
 		rdev = conf->mirrors[d].rdev;
-		if (!r10_bio->devs[i].bio->bi_error) {
+		if (!r10_bio->devs[i].bio->bi_status) {
 			/* We know that the bi_io_vec layout is the same for
 			 * both 'first' and 'i', so we just compare them.
 			 * All vec entries are PAGE_SIZE;
@@ -2741,7 +2741,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 			if (r10_bio->devs[m].bio == NULL ||
 				r10_bio->devs[m].bio->bi_end_io == NULL)
 				continue;
-			if (!r10_bio->devs[m].bio->bi_error) {
+			if (!r10_bio->devs[m].bio->bi_status) {
 				rdev_clear_badblocks(
 					rdev,
 					r10_bio->devs[m].addr,
@@ -2758,7 +2758,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 				r10_bio->devs[m].repl_bio->bi_end_io == NULL)
 				continue;
 
-			if (!r10_bio->devs[m].repl_bio->bi_error) {
+			if (!r10_bio->devs[m].repl_bio->bi_status) {
 				rdev_clear_badblocks(
 					rdev,
 					r10_bio->devs[m].addr,
@@ -2784,7 +2784,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 					r10_bio->devs[m].addr,
 					r10_bio->sectors, 0);
 				rdev_dec_pending(rdev, conf->mddev);
-			} else if (bio != NULL && bio->bi_error) {
+			} else if (bio != NULL && bio->bi_status) {
 				fail = true;
 				if (!narrow_write_error(r10_bio, m)) {
 					md_error(conf->mddev, rdev);
@@ -3388,7 +3388,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 			bio = r10_bio->devs[i].bio;
 			bio_reset(bio);
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 			rcu_read_lock();
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev == NULL || test_bit(Faulty, &rdev->flags)) {
@@ -3432,7 +3432,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			/* Need to set up for writing to the replacement */
 			bio = r10_bio->devs[i].repl_bio;
 			bio_reset(bio);
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 
 			sector = r10_bio->devs[i].addr;
 			bio->bi_next = biolist;
@@ -3509,7 +3509,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 		if (bio->bi_end_io == end_sync_read) {
 			md_sync_acct(bio->bi_bdev, nr_sectors);
-			bio->bi_error = 0;
+			bio->bi_status = 0;
 			generic_make_request(bio);
 		}
 	}
@@ -4530,7 +4530,7 @@ read_more:
 	read_bio->bi_end_io = end_sync_read;
 	bio_set_op_attrs(read_bio, REQ_OP_READ, 0);
 	read_bio->bi_flags &= (~0UL << BIO_RESET_BITS);
-	read_bio->bi_error = 0;
+	read_bio->bi_status = 0;
 	read_bio->bi_vcnt = 0;
 	read_bio->bi_iter.bi_size = 0;
 	r10_bio->master_bio = read_bio;
@@ -4783,7 +4783,7 @@ static void end_reshape_write(struct bio *bio)
 		rdev = conf->mirrors[d].rdev;
 	}
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		/* FIXME should record badblock */
 		md_error(mddev, rdev);
 	}

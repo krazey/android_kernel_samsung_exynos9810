@@ -1008,7 +1008,7 @@ static void f2fs_submit_discard_endio(struct bio *bio)
 	struct discard_cmd *dc = (struct discard_cmd *)bio->bi_private;
 	unsigned long flags;
 
-	dc->error = bio->bi_error;
+	dc->error = blk_status_to_errno(bio->bi_status);
 
 	spin_lock_irqsave(&dc->lock, flags);
 	dc->bio_ref--;

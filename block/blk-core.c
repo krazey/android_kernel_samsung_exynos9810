@@ -147,6 +147,9 @@ static const struct {
 	[BLK_STS_PROTECTION]	= { -EILSEQ,	"protection" },
 	[BLK_STS_RESOURCE]	= { -ENOMEM,	"kernel resource" },
 
+	/* device mapper special case, should not leak out: */
+	[BLK_STS_DM_REQUEUE]	= { -EREMCHG, "dm internal retry" },
+
 	/* everything else not covered above: */
 	[BLK_STS_IOERR]		= { -EIO,	"I/O" },
 };
@@ -191,7 +194,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, blk_status_t error)
 {
 	if (error)
-		bio->bi_error = blk_status_to_errno(error);
+		bio->bi_status = error;
 
 	if (unlikely(rq->rq_flags & RQF_QUIET))
 		bio_set_flag(bio, BIO_QUIET);
@@ -1702,7 +1705,7 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 	blk_queue_split(q, &bio, q->bio_split);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return BLK_QC_T_NONE;
 	}
@@ -1760,7 +1763,10 @@ get_rq:
 	req = get_request(q, bio->bi_opf, bio, GFP_NOIO);
 	if (IS_ERR(req)) {
 		__wbt_done(q->rq_wb, wb_acct);
-		bio->bi_error = PTR_ERR(req);
+		if (PTR_ERR(req) == -ENOMEM)
+			bio->bi_status = BLK_STS_RESOURCE;
+		else
+			bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		goto out_unlock;
 	}
@@ -1915,7 +1921,7 @@ generic_make_request_checks(struct bio *bio)
 {
 	struct request_queue *q;
 	int nr_sectors = bio_sectors(bio);
-	int err = -EIO;
+	blk_status_t status = BLK_STS_IOERR;
 	char b[BDEVNAME_SIZE];
 	struct hd_struct *part;
 
@@ -1958,7 +1964,7 @@ generic_make_request_checks(struct bio *bio)
 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
 		bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
 		if (!nr_sectors) {
-			err = 0;
+			status = BLK_STS_OK;
 			goto end_io;
 		}
 	}
@@ -2004,9 +2010,9 @@ generic_make_request_checks(struct bio *bio)
 	return true;
 
 not_supported:
-	err = -EOPNOTSUPP;
+	status = BLK_STS_NOTSUPP;
 end_io:
-	bio->bi_error = err;
+	bio->bi_status = status;
 	bio_endio(bio);
 	return false;
 }

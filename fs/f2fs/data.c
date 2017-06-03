@@ -93,7 +93,7 @@ static void __read_end_io(struct bio *bio)
 		page = bv->bv_page;
 
 		/* PG_error was set if any post_read step failed */
-		if (bio->bi_error || PageError(page)) {
+		if (bio->bi_status || PageError(page)) {
 			ClearPageUptodate(page);
 			/* will re-read again later */
 			ClearPageError(page);
@@ -138,7 +138,7 @@ static void bio_post_read_processing(struct bio_post_read_ctx *ctx)
 
 static bool f2fs_bio_post_read_required(struct bio *bio)
 {
-	return bio->bi_private && !bio->bi_error;
+	return bio->bi_private && !bio->bi_status;
 }
 
 static void f2fs_read_end_io(struct bio *bio)
@@ -147,7 +147,7 @@ static void f2fs_read_end_io(struct bio *bio)
 
 	if (time_to_inject(F2FS_P_SB(bio->bi_io_vec->bv_page), FAULT_READ_IO)) {
 		f2fs_show_injection_info(FAULT_READ_IO);
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 	}
 
 	if (f2fs_bio_post_read_required(bio)) {
@@ -176,7 +176,7 @@ static void f2fs_write_end_io(struct bio *bio)
 
 	if (time_to_inject(sbi, FAULT_WRITE_IO)) {
 		f2fs_show_injection_info(FAULT_WRITE_IO);
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 	}
 
 	bio_for_each_segment_all(bvec, bio, i) {
@@ -189,14 +189,14 @@ static void f2fs_write_end_io(struct bio *bio)
 			unlock_page(page);
 			mempool_free(page, sbi->write_io_dummy);
 
-			if (unlikely(bio->bi_error))
+			if (unlikely(bio->bi_status))
 				f2fs_stop_checkpoint(sbi, true);
 			continue;
 		}
 
 		fscrypt_pullback_bio_page(&page, true);
 
-		if (unlikely(bio->bi_error)) {
+		if (unlikely(bio->bi_status)) {
 			mapping_set_error(page->mapping, -EIO);
 			if (type == F2FS_WB_CP_DATA)
 				f2fs_stop_checkpoint(sbi, true);
@@ -2653,7 +2653,7 @@ static void f2fs_dio_submit_bio(struct bio *bio, struct inode *inode,
 	submit_bio(bio);
 	return;
 out:
-	bio->bi_error = -EIO;
+	bio->bi_status = BLK_STS_IOERR;
 	bio_endio(bio);
 }
 
