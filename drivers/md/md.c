@@ -5217,7 +5217,7 @@ int md_run(struct mddev *mddev)
 	}
 
 	if (mddev->bio_set == NULL)
-		mddev->bio_set = bioset_create(BIO_POOL_SIZE, 0);
+		mddev->bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 
 	spin_lock(&pers_lock);
 	pers = find_pers(mddev->level, mddev->clevel);
