@@ -696,6 +696,9 @@ static bool allow_merge_bio_for_encryption(struct bio *bio1, struct bio *bio2)
 static struct request *attempt_merge(struct request_queue *q,
 				     struct request *req, struct request *next)
 {
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
+
 	if (!rq_mergeable(req) || !rq_mergeable(next))
 		return NULL;
 
