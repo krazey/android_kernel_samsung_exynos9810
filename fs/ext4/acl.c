@@ -224,7 +224,8 @@ int
 ext4_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	handle_t *handle;
-	int error, retries = 0;
+	int error, credits, retries = 0;
+	size_t acl_size = acl ? ext4_acl_size(acl->a_count) : 0;
 	umode_t mode = inode->i_mode;
 	int update_mode = 0;
 
@@ -232,8 +233,8 @@ ext4_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (error)
 		return error;
 retry:
-	handle = ext4_journal_start(inode, EXT4_HT_XATTR,
-				    ext4_jbd2_credits_xattr(inode));
+	credits = ext4_xattr_set_credits(inode, acl_size);
+	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
