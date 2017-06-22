@@ -2537,7 +2537,7 @@ static void init_features(struct cache_features *cf)
 static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 			  char **error)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1, "Invalid number of cache feature arguments"},
 	};
 
@@ -2576,7 +2576,7 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 static int parse_policy(struct cache_args *ca, struct dm_arg_set *as,
 			char **error)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "Invalid number of policy arguments"},
 	};
 
