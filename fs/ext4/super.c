@@ -990,6 +990,10 @@ static void ext4_put_super(struct super_block *sb)
 		invalidate_bdev(sbi->journal_bdev);
 		ext4_blkdev_remove(sbi);
 	}
+	if (sbi->s_ea_inode_cache) {
+		ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
+		sbi->s_ea_inode_cache = NULL;
+	}
 	if (sbi->s_ea_block_cache) {
 		ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
 		sbi->s_ea_block_cache = NULL;
@@ -1237,7 +1241,10 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	}
 
 retry:
-	credits = ext4_xattr_set_credits(inode, len);
+	res = ext4_xattr_set_credits(inode, len, &credits);
+	if (res)
+		return res;
+
 	handle = ext4_journal_start(inode, EXT4_HT_MISC, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -3597,7 +3604,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* Load the checksum driver */
-	if (ext4_has_feature_metadata_csum(sb)) {
+	if (ext4_has_feature_metadata_csum(sb) ||
+	    ext4_has_feature_ea_inode(sb)) {
 		sbi->s_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
 		if (IS_ERR(sbi->s_chksum_driver)) {
 			ext4_msg(sb, KERN_ERR, "Cannot load crc32c driver.");
@@ -3619,7 +3627,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	/* Precompute checksum seed for all metadata */
 	if (ext4_has_feature_csum_seed(sb))
 		sbi->s_csum_seed = le32_to_cpu(es->s_checksum_seed);
-	else if (ext4_has_metadata_csum(sb))
+	else if (ext4_has_metadata_csum(sb) || ext4_has_feature_ea_inode(sb))
 		sbi->s_csum_seed = ext4_chksum(sbi, ~0, es->s_uuid,
 					       sizeof(es->s_uuid));
 
@@ -3751,6 +3759,16 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		if (ext4_has_feature_64bit(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "The Hurd can't support 64-bit file systems");
+			goto failed_mount;
+		}
+
+		/*
+		 * ea_inode feature uses l_i_version field which is not
+		 * available in HURD_COMPAT mode.
+		 */
+		if (ext4_has_feature_ea_inode(sb)) {
+			ext4_msg(sb, KERN_ERR,
+				 "ea_inode feature is not supported for Hurd");
 			goto failed_mount;
 		}
 	}
@@ -4258,6 +4276,15 @@ no_journal:
 		goto failed_mount_wq;
 	}
 
+	if (ext4_has_feature_ea_inode(sb)) {
+		sbi->s_ea_inode_cache = ext4_xattr_create_cache();
+		if (!sbi->s_ea_inode_cache) {
+			ext4_msg(sb, KERN_ERR,
+				 "Failed to create ea_inode_cache");
+			goto failed_mount_wq;
+		}
+	}
+
 	if ((DUMMY_ENCRYPTION_ENABLED(sbi) || ext4_has_feature_encrypt(sb)) &&
 	    (blocksize != PAGE_SIZE)) {
 		ext4_msg(sb, KERN_ERR,
@@ -4487,6 +4514,10 @@ failed_mount4:
 	if (EXT4_SB(sb)->rsv_conversion_wq)
 		destroy_workqueue(EXT4_SB(sb)->rsv_conversion_wq);
 failed_mount_wq:
+	if (sbi->s_ea_inode_cache) {
+		ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
+		sbi->s_ea_inode_cache = NULL;
+	}
 	if (sbi->s_ea_block_cache) {
 		ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
 		sbi->s_ea_block_cache = NULL;
