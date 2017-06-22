@@ -1781,9 +1781,10 @@ static int ext4_xattr_make_inode_space(handle_t *handle, struct inode *inode,
 			    (last->e_name_index == EXT4_XATTR_INDEX_SYSTEM) &&
 			    !memcmp(last->e_name, "data", 4))
 				continue;
-			total_size =
-			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
-					EXT4_XATTR_LEN(last->e_name_len);
+			total_size = EXT4_XATTR_LEN(last->e_name_len);
+			if (!last->e_value_inum)
+				total_size += EXT4_XATTR_SIZE(
+					       le32_to_cpu(last->e_value_size));
 			if (total_size <= bfree &&
 			    total_size < min_total_size) {
 				if (total_size + ifree < isize_diff) {
@@ -1802,8 +1803,10 @@ static int ext4_xattr_make_inode_space(handle_t *handle, struct inode *inode,
 		}
 
 		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
-		total_size = entry_size +
-			EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size));
+		total_size = entry_size;
+		if (!entry->e_value_inum)
+			total_size += EXT4_XATTR_SIZE(
+					      le32_to_cpu(entry->e_value_size));
 		error = ext4_xattr_move_to_block(handle, inode, raw_inode,
 						 entry);
 		if (error)
