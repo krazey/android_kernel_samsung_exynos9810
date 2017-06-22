@@ -268,7 +268,7 @@ void ext4_evict_inode(struct inode *inode)
 		goto stop_handle;
 	}
 
-	if (!IS_NOQUOTA(inode))
+	if (!ext4_is_quota_file(inode))
 		extra_credits += 2 * EXT4_QUOTA_DEL_BLOCKS(inode->i_sb);
 
 	if (!ext4_handle_has_enough_credits(handle,
@@ -748,7 +748,7 @@ out_sem:
 		if (map->m_flags & EXT4_MAP_NEW &&
 		    !(map->m_flags & EXT4_MAP_UNWRITTEN) &&
 		    !(flags & EXT4_GET_BLOCKS_ZERO) &&
-		    !IS_NOQUOTA(inode) &&
+		    !ext4_is_quota_file(inode) &&
 		    ext4_should_order_data(inode) &&
 		    !(flags & EXT4_GET_BLOCKS_IO_SUBMIT)) {
 #if 0

@@ -2136,6 +2136,8 @@ static inline struct ext4_inode *ext4_raw_inode(struct ext4_iloc *iloc)
 	return (struct ext4_inode *) (iloc->bh->b_data + iloc->offset);
 }
 
+#define ext4_is_quota_file(inode) IS_NOQUOTA(inode)
+
 /*
  * This structure is stuffed into the struct file's private_data field
  * for directories.  It is where we put information so that we can do
