@@ -1825,6 +1825,7 @@ EXT4_FEATURE_INCOMPAT_FUNCS(encrypt,		ENCRYPT)
 					 EXT4_FEATURE_INCOMPAT_EXTENTS| \
 					 EXT4_FEATURE_INCOMPAT_64BIT| \
 					 EXT4_FEATURE_INCOMPAT_FLEX_BG| \
+					 EXT4_FEATURE_INCOMPAT_EA_INODE| \
 					 EXT4_FEATURE_INCOMPAT_MMP | \
 					 EXT4_FEATURE_INCOMPAT_INLINE_DATA | \
 					 EXT4_FEATURE_INCOMPAT_ENCRYPT | \
@@ -2265,6 +2266,12 @@ struct mmpd_data {
 #define EXT4_MMP_MAX_CHECK_INTERVAL	300UL
 
 /*
+ * Maximum size of xattr attributes for FEATURE_INCOMPAT_EA_INODE 1Mb
+ * This limit is arbitrary, but is reasonable for the xattr API.
+ */
+#define EXT4_XATTR_MAX_LARGE_EA_SIZE    (1024 * 1024)
+
+/*
  * Function prototypes
  */
 
@@ -2276,6 +2283,10 @@ struct mmpd_data {
 # define ATTRIB_NORET	__attribute__((noreturn))
 # define NORET_AND	noreturn,
 
+struct ext4_xattr_ino_array {
+	unsigned int xia_count;		/* # of used item in the array */
+	unsigned int xia_inodes[0];
+};
 /* bitmap.c */
 extern unsigned int ext4_count_free(char *bitmap, unsigned numchars);
 void ext4_inode_bitmap_csum_set(struct super_block *sb, ext4_group_t group,
@@ -2542,6 +2553,7 @@ extern void ext4_set_inode_flags(struct inode *);
 extern void ext4_get_inode_flags(struct ext4_inode_info *);
 extern int ext4_alloc_da_blocks(struct inode *inode);
 extern void ext4_set_aops(struct inode *inode);
+extern int ext4_meta_trans_blocks(struct inode *, int nrblocks, int chunk);
 extern int ext4_writepage_trans_blocks(struct inode *);
 extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
