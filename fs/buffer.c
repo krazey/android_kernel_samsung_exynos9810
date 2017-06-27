@@ -47,8 +47,7 @@
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
-			 unsigned long bio_flags,
-			 struct writeback_control *wbc);
+			 enum rw_hint hint, struct writeback_control *wbc);
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
 
@@ -1830,7 +1829,8 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh,
+					inode->i_write_hint, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1884,7 +1884,8 @@ recover:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh,
+					inode->i_write_hint, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -3087,7 +3088,7 @@ void guard_bio_eod(int op, struct bio *bio)
 }
 
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
-			 unsigned long bio_flags, struct writeback_control *wbc)
+			 enum rw_hint write_hint, struct writeback_control *wbc)
 {
 	struct bio *bio;
 
@@ -3116,13 +3117,14 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio_set_dev(bio, bh->b_bdev);
+	bio->bi_write_hint = write_hint;
 
 	bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
 	BUG_ON(bio->bi_iter.bi_size != bh->b_size);
 
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;
-	bio->bi_flags |= bio_flags;
+
 	if (unlikely(test_clear_buffer_bypass(bh)))
 		bio->bi_sec_flags = SEC_BYPASS;
 
@@ -3150,14 +3152,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 	return 0;
 }
 
-int _submit_bh(int op, int op_flags, struct buffer_head *bh,
-	       unsigned long bio_flags)
-{
-	return submit_bh_wbc(op, op_flags, bh, bio_flags, NULL);
-}
-EXPORT_SYMBOL_GPL(_submit_bh);
-
-int submit_bh(int op, int op_flags,  struct buffer_head *bh)
+int submit_bh(int op, int op_flags, struct buffer_head *bh)
 {
 	return submit_bh_wbc(op, op_flags, bh, 0, NULL);
 }
