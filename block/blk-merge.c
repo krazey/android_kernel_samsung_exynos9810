@@ -722,6 +722,13 @@ static struct request *attempt_merge(struct request_queue *q,
 		return 0;
 
 	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (req->write_hint != next->write_hint)
+		return 0;
+
+	/*
 	 * If we are allowed to merge, then append bio list
 	 * from next to rq and release next. merge_requests_fn
 	 * will have updated segment counts, update sector
@@ -839,6 +846,14 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (req_op(rq) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(rq->bio, bio))
 		return false;
+
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (rq->write_hint != bio->bi_write_hint)
+		return false;
+
 
 	if (!allow_merge_bio_for_encryption(rq->bio, bio))
 		return false;

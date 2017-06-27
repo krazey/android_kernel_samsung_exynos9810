@@ -43,7 +43,6 @@ typedef u8 __bitwise blk_status_t;
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
-	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
@@ -51,6 +50,7 @@ struct bio {
 						 */
 	unsigned short		bi_flags;	/* status, command, etc */
 	unsigned short		bi_ioprio;
+	unsigned short		bi_write_hint;
 	unsigned short		bi_sec_flags;	/* SEC only */
 
 	struct bvec_iter	bi_iter;
