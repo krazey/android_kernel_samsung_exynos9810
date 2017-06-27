@@ -316,16 +316,6 @@ static inline bool is_sync_kiocb(struct kiocb *kiocb)
 	return kiocb->ki_complete == NULL;
 }
 
-static inline int iocb_flags(struct file *file);
-
-static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
-{
-	*kiocb = (struct kiocb) {
-		.ki_filp = filp,
-		.ki_flags = iocb_flags(filp),
-	};
-}
-
 /*
  * "descriptor" for what we're up to with a read.
  * This allows us to use the same read code yet
@@ -892,6 +882,7 @@ struct file {
 	 * Must not be taken from IRQ context.
 	 */
 	spinlock_t		f_lock;
+	enum rw_hint		f_write_hint;
 	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	fmode_t			f_mode;
@@ -1909,6 +1900,25 @@ struct super_operations {
 static inline bool HAS_UNMAPPED_ID(struct inode *inode)
 {
 	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
+}
+
+static inline enum rw_hint file_write_hint(struct file *file)
+{
+	if (file->f_write_hint != WRITE_LIFE_NOT_SET)
+		return file->f_write_hint;
+
+	return file_inode(file)->i_write_hint;
+}
+
+static inline int iocb_flags(struct file *file);
+
+static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
+{
+	*kiocb = (struct kiocb) {
+		.ki_filp = filp,
+		.ki_flags = iocb_flags(filp),
+		.ki_hint = file_write_hint(filp),
+	};
 }
 
 /*
