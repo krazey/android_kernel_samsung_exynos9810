@@ -659,6 +659,7 @@ alloc_new:
 			goto confused;
 
 		wbc_init_bio(wbc, bio);
+		bio->bi_write_hint = inode->i_write_hint;
 	}
 
 	/*
