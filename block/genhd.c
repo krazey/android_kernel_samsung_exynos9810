@@ -1120,7 +1120,7 @@ static ssize_t disk_ios_show(struct device *dev,
 	int ret;
 
 	cpu = part_stat_lock();
-	part_round_stats(cpu, hd);
+	part_round_stats(disk->queue, cpu, hd);
 	part_stat_unlock();
 
 	new.ios[READ] = part_stat_read(hd, ios[READ]);
@@ -1171,7 +1171,7 @@ static ssize_t iomon_show(struct device *dev,
 	int ret;
 
 	cpu = part_stat_lock();
-	part_round_stats(cpu, hd);
+	part_round_stats(disk->queue, cpu, hd);
 	part_stat_unlock();
 	nread = part_in_flight_read(hd);
 	nwrite = part_in_flight_write(hd);
@@ -1213,7 +1213,7 @@ static ssize_t iomon_store(struct device *dev,
 	sscanf(buf, "%1s %79s ", action, name);
 
 	cpu = part_stat_lock();
-	part_round_stats(cpu, hd);
+	part_round_stats(disk->queue, cpu, hd);
 	part_stat_unlock();
 	nread = part_in_flight_read(hd);
 	nwrite = part_in_flight_write(hd);
@@ -1466,7 +1466,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
 		cpu = part_stat_lock();
-		part_round_stats(cpu, hd);
+		part_round_stats(gp->queue, cpu, hd);
 		part_stat_unlock();
 		seq_printf(seqf, "%4d %7d %s %lu %lu %lu "
 			   "%u %lu %lu %lu %u %u %u %u\n",
@@ -1480,7 +1480,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			   part_stat_read(hd, merges[WRITE]),
 			   part_stat_read(hd, sectors[WRITE]),
 			   jiffies_to_msecs(part_stat_read(hd, ticks[WRITE])),
-			   part_in_flight(hd),
+			   part_in_flight(gp->queue, hd),
 			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
 			   jiffies_to_msecs(part_stat_read(hd, time_in_queue))
 			);
@@ -1530,7 +1530,7 @@ static int iostats_show(struct seq_file *seqf, void *v)
 	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
 		cpu = part_stat_lock();
-		part_round_stats(cpu, hd);
+		part_round_stats(gp->queue, cpu, hd);
 		part_stat_unlock();
 		uptime = ktime_to_ns(ktime_get());
 		uptime /= 1000000; /* in ms */
