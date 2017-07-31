@@ -189,8 +189,6 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	void *value = NULL;
 	size_t size = 0;
 	int error;
-	int update_mode = 0;
-	umode_t mode = inode->i_mode;
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
@@ -218,11 +216,6 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	kfree(value);
 	if (!error) {
 		set_cached_acl(inode, type, acl);
-		if (update_mode) {
-			inode->i_mode = mode;
-			inode->i_ctime = current_time(inode);
-			ext4_mark_inode_dirty(handle, inode);
-		}
 	}
 
 	return error;
