@@ -5891,10 +5891,15 @@ static int ext4_expand_extra_isize(struct inode *inode,
 {
 	struct ext4_inode *raw_inode;
 	struct ext4_xattr_ibody_header *header;
+	int no_expand;
+	int error;
 	unsigned int inode_size = EXT4_INODE_SIZE(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
 	if (EXT4_I(inode)->i_extra_isize >= new_extra_isize)
+		return 0;
+
+	if (ext4_write_trylock_xattr(inode, &no_expand) == 0)
 		return 0;
 
 	/* this was checked at iget time, but double check for good measure */
@@ -5921,12 +5926,21 @@ static int ext4_expand_extra_isize(struct inode *inode,
 		       EXT4_I(inode)->i_extra_isize, 0,
 		       new_extra_isize - EXT4_I(inode)->i_extra_isize);
 		EXT4_I(inode)->i_extra_isize = new_extra_isize;
+		ext4_write_unlock_xattr(inode, &no_expand);
 		return 0;
 	}
 
 	/* try to expand with EAs present */
-	return ext4_expand_extra_isize_ea(inode, new_extra_isize,
-					  raw_inode, handle);
+	error = ext4_expand_extra_isize_ea(inode, new_extra_isize,
+					   raw_inode, handle);
+	if (error) {
+		/*
+		 * Inode size expansion failed; don't try again
+		 */
+		no_expand = 1;
+	}
+	ext4_write_unlock_xattr(inode, &no_expand);
+	return error;
 }
 
 /*
