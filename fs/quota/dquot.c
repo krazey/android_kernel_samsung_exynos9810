@@ -1598,40 +1598,6 @@ static qsize_t *inode_reserved_space(struct inode * inode)
 	return inode->i_sb->dq_op->get_reserved_space(inode);
 }
 
-void inode_add_rsv_space(struct inode *inode, qsize_t number)
-{
-	spin_lock(&inode->i_lock);
-	*inode_reserved_space(inode) += number;
-	spin_unlock(&inode->i_lock);
-}
-EXPORT_SYMBOL(inode_add_rsv_space);
-
-void inode_claim_rsv_space(struct inode *inode, qsize_t number)
-{
-	spin_lock(&inode->i_lock);
-	*inode_reserved_space(inode) -= number;
-	__inode_add_bytes(inode, number);
-	spin_unlock(&inode->i_lock);
-}
-EXPORT_SYMBOL(inode_claim_rsv_space);
-
-void inode_reclaim_rsv_space(struct inode *inode, qsize_t number)
-{
-	spin_lock(&inode->i_lock);
-	*inode_reserved_space(inode) += number;
-	__inode_sub_bytes(inode, number);
-	spin_unlock(&inode->i_lock);
-}
-EXPORT_SYMBOL(inode_reclaim_rsv_space);
-
-void inode_sub_rsv_space(struct inode *inode, qsize_t number)
-{
-	spin_lock(&inode->i_lock);
-	*inode_reserved_space(inode) -= number;
-	spin_unlock(&inode->i_lock);
-}
-EXPORT_SYMBOL(inode_sub_rsv_space);
-
 static qsize_t inode_get_rsv_space(struct inode *inode)
 {
 	qsize_t ret;
@@ -1647,18 +1613,24 @@ static qsize_t inode_get_rsv_space(struct inode *inode)
 static void inode_incr_space(struct inode *inode, qsize_t number,
 				int reserve)
 {
-	if (reserve)
-		inode_add_rsv_space(inode, number);
-	else
+	if (reserve) {
+		spin_lock(&inode->i_lock);
+		*inode_reserved_space(inode) += number;
+		spin_unlock(&inode->i_lock);
+	} else {
 		inode_add_bytes(inode, number);
+	}
 }
 
 static void inode_decr_space(struct inode *inode, qsize_t number, int reserve)
 {
-	if (reserve)
-		inode_sub_rsv_space(inode, number);
-	else
+	if (reserve) {
+		spin_lock(&inode->i_lock);
+		*inode_reserved_space(inode) -= number;
+		spin_unlock(&inode->i_lock);
+	} else {
 		inode_sub_bytes(inode, number);
+	}
 }
 
 /*
@@ -1774,7 +1746,10 @@ int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	int cnt, index;
 
 	if (!dquot_active(inode)) {
-		inode_claim_rsv_space(inode, number);
+		spin_lock(&inode->i_lock);
+		*inode_reserved_space(inode) -= number;
+		__inode_add_bytes(inode, number);
+		spin_unlock(&inode->i_lock);
 		return 0;
 	}
 
@@ -1787,7 +1762,10 @@ int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 			dquot_claim_reserved_space(dquots[cnt], number);
 	}
 	/* Update inode bytes */
-	inode_claim_rsv_space(inode, number);
+	spin_lock(&inode->i_lock);
+	*inode_reserved_space(inode) -= number;
+	__inode_add_bytes(inode, number);
+	spin_unlock(&inode->i_lock);
 	spin_unlock(&dq_data_lock);
 	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
@@ -1804,7 +1782,10 @@ void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 	int cnt, index;
 
 	if (!dquot_active(inode)) {
-		inode_reclaim_rsv_space(inode, number);
+		spin_lock(&inode->i_lock);
+		*inode_reserved_space(inode) += number;
+		__inode_sub_bytes(inode, number);
+		spin_unlock(&inode->i_lock);
 		return;
 	}
 
@@ -1817,7 +1798,10 @@ void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 			dquot_reclaim_reserved_space(dquots[cnt], number);
 	}
 	/* Update inode bytes */
-	inode_reclaim_rsv_space(inode, number);
+	spin_lock(&inode->i_lock);
+	*inode_reserved_space(inode) += number;
+	__inode_sub_bytes(inode, number);
+	spin_unlock(&inode->i_lock);
 	spin_unlock(&dq_data_lock);
 	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
