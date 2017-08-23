@@ -81,7 +81,7 @@ static void __mpage_write_end_io(struct bio *bio, int err);
 /*************************************************************************
  * FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
        /* EMPTY */
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) */
 static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)

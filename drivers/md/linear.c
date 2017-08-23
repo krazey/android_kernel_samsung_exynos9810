@@ -263,7 +263,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
 		end_sector = tmp_dev->end_sector;
 		data_offset = tmp_dev->rdev->data_offset;
-		bio->bi_bdev = tmp_dev->rdev->bdev;
+		bio_set_dev(bio, tmp_dev->rdev->bdev);
 
 		if (unlikely(bio_sector >= end_sector ||
 			     bio_sector < start_sector))
@@ -284,7 +284,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 			start_sector + data_offset;
 
 		if (unlikely((bio_op(split) == REQ_OP_DISCARD) &&
-			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
+			 !blk_queue_discard(split->bi_disk->queue))) {
 			/* Just ignore it */
 			bio_endio(split);
 		} else {
