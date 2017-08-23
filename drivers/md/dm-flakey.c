@@ -255,8 +255,13 @@ static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct flakey_c *fc = ti->private;
 
+<<<<<<< HEAD
 	bio->bi_bdev = fc->dev->bdev;
 	if (bio_sectors(bio))
+=======
+	bio_set_dev(bio, fc->dev->bdev);
+	if (bio_sectors(bio) || bio_op(bio) == REQ_OP_ZONE_RESET)
+>>>>>>> 74d46992e0d9 (block: replace bi_bdev with a gendisk pointer and partitions index)
 		bio->bi_iter.bi_sector =
 			flakey_map_sector(ti, bio->bi_iter.bi_sector);
 }

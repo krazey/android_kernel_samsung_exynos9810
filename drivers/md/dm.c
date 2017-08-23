@@ -860,7 +860,7 @@ static void clone_endio(struct bio *bio)
 	}
 
 	if (unlikely(error == -EREMOTEIO && (bio_op(bio) == REQ_OP_WRITE_SAME) &&
-		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
+		     !bio->bi_disk->queue->limits.max_write_same_sectors))
 		disable_write_same(md);
 
 	free_tio(tio);
@@ -1060,10 +1060,8 @@ static void __map_bio(struct dm_target_io *tio)
 
 	if (r == DM_MAPIO_REMAPPED) {
 		/* the bio has been remapped so dispatch it */
-
-		trace_block_bio_remap(bdev_get_queue(clone->bi_bdev), clone,
-				      tio->io->bio->bi_bdev->bd_dev, sector);
-
+		trace_block_bio_remap(clone->bi_disk->queue, clone,
+				      bio_dev(tio->io->bio), sector);
 		generic_make_request(clone);
 	} else if (r < 0 || r == BLK_STS_DM_REQUEUE) {
 		/* error the io and bail out, or requeue it if needed */
@@ -1600,7 +1598,7 @@ static struct mapped_device *alloc_dev(int minor)
 		goto bad;
 
 	bio_init(&md->flush_bio);
-	md->flush_bio.bi_bdev = md->bdev;
+	bio_set_dev(&md->flush_bio, md->bdev);
 	md->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	dm_stats_init(&md->stats);

@@ -695,7 +695,7 @@ int verity_map(struct dm_target *ti, struct bio *bio)
 	bool skip = true;
 	sector_t bitpos, nblks;
 #endif
-	bio->bi_bdev = v->data_dev->bdev;
+	bio_set_dev(bio, v->data_dev->bdev);
 	bio->bi_iter.bi_sector = verity_map_sector(v, bio->bi_iter.bi_sector);
 
 	if (((unsigned)bio->bi_iter.bi_sector | bio_sectors(bio)) &

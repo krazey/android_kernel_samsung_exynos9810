@@ -152,7 +152,7 @@ static inline u64 inode_peek_iversion(struct inode *inode)
 #endif
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
        /* EMPTY */
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) */
 static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)
