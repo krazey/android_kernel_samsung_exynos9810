@@ -327,6 +327,12 @@ struct tlb_props {
 	};
 };
 
+enum {
+	SYSMMU_USE_RUNTIME_ACTIVE = 0,
+	SYSMMU_STATE_DISABLED,
+	SYSMMU_STATE_ENABLED,
+};
+
 /*
  * This structure hold all data of a single SYSMMU controller, this includes
  * hw resources like registers and clocks, pointers and list nodes to connect
@@ -403,6 +409,12 @@ static inline bool put_sysmmu_runtime_active(struct sysmmu_drvdata *data)
 static inline bool is_sysmmu_runtime_active(struct sysmmu_drvdata *data)
 {
 	return data->runtime_active > 0 && !data->no_rpm_control;
+}
+
+static inline bool is_runtime_active_or_enabled(struct sysmmu_drvdata *data)
+{
+	return is_sysmmu_runtime_active(data) ||
+		data->no_rpm_control == SYSMMU_STATE_ENABLED;
 }
 
 static inline bool set_sysmmu_active(struct sysmmu_drvdata *data)
