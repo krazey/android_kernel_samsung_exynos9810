@@ -3333,22 +3333,16 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		} else {
 			if (flags & I2C_CLIENT_SPEEDY) {
 				msg[0].len = data->block[0];
-				if (msg[0].len > I2C_SMBUS_BLOCK_MAX) {
-					dev_err(&adapter->dev,
-						"Invalid block write size %d\n",
-						data->block[0]);
-					return -EINVAL;
-				}
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
+			dev_err(&adapter->dev, "Invalid block %s size %d\n",
+				read_write == I2C_SMBUS_READ ? "read" : "write",
+				data->block[0]);
+			return -EINVAL;
+		}
 				for (i = 1; i <= data->block[0]; i++)
 					msgbuf0[i-1] = data->block[i];
 			} else {
 				msg[0].len = data->block[0] + 1;
-				if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 1) {
-					dev_err(&adapter->dev,
-						"Invalid block write size %d\n",
-						data->block[0]);
-					return -EINVAL;
-				}
 				for (i = 1; i <= data->block[0]; i++)
 					msgbuf0[i] = data->block[i];
 			}
