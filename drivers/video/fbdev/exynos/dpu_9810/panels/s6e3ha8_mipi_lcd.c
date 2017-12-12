@@ -199,10 +199,19 @@ static int s6e3ha8_dump(struct dsim_device *dsim)
 	return 0;
 }
 
+static int s6e3ha8_mres(struct dsim_device *dsim, int mres_idx)
+{
+	int dsc_en;
+	dsc_en = dsim->lcd_info.dt_lcd_mres.res_info[mres_idx].dsc_en;
+	lcd_mres(dsim->id, mres_idx, dsc_en);
+	return 0;
+}
+
 struct dsim_lcd_driver s6e3ha8_mipi_lcd_driver = {
 	.probe		= s6e3ha8_probe,
 	.displayon	= s6e3ha8_displayon,
 	.suspend	= s6e3ha8_suspend,
 	.resume		= s6e3ha8_resume,
 	.dump		= s6e3ha8_dump,
+	.mres		= s6e3ha8_mres,
 };

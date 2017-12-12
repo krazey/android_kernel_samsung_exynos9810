@@ -209,3 +209,65 @@ int lcd_dump(int id)
 	s6e3ha8_wqhd_dump(id);
 	return 0;
 }
+
+void lcd_mres(int id, int mres_idx, int dsc_en)
+{
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)KEY1_ENABLE,
+			ARRAY_SIZE(KEY1_ENABLE)) < 0) {
+		dsim_err("failed to write KEY1_ENABLE\n");
+		return;
+	}
+	if (dsc_en) {
+		if (dsim_wr_data(id, MIPI_DSI_DSC_PRA,
+					(unsigned long)DSC_EN[1][0], 0) < 0) {
+			dsim_err("failed to write DSC_EN\n");
+			return;
+		}
+		if (dsim_wr_data(id, MIPI_DSI_DSC_PPS,
+					(unsigned long)PPS_TABLE[mres_idx],
+					ARRAY_SIZE(PPS_TABLE[mres_idx])) < 0) {
+			dsim_err("failed to write PPS_TABLE[%d]\n", mres_idx);
+			return;
+		}
+	} else {
+		if (dsim_wr_data(id, MIPI_DSI_DSC_PRA,
+					(unsigned long)DSC_EN[0][0], 0) < 0) {
+			dsim_err("failed to write DSC_EN\n");
+			return;
+		}
+	}
+
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)KEY1_DISABLE,
+			ARRAY_SIZE(KEY1_DISABLE)) < 0) {
+		dsim_err("failed to write KEY1_DISABLE\n");
+		return;
+	}
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE,
+				(unsigned long)CASET_TABLE[mres_idx],
+				ARRAY_SIZE(CASET_TABLE[mres_idx])) < 0) {
+		dsim_err("failed to write CASET_TABLE[%d]\n", mres_idx);
+		return;
+	}
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE,
+				(unsigned long)PASET_TABLE[mres_idx],
+				ARRAY_SIZE(PASET_TABLE[mres_idx])) < 0) {
+		dsim_err("failed to write PASET_TABLE[%d]\n", mres_idx);
+		return;
+	}
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)KEY2_ENABLE,
+			ARRAY_SIZE(KEY2_ENABLE)) < 0) {
+		dsim_err("failed to write KEY2_ENABLE\n");
+		return;
+	}
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE,
+				(unsigned long)SCALER_TABLE[mres_idx],
+				ARRAY_SIZE(SCALER_TABLE[mres_idx])) < 0) {
+		dsim_err("failed to write SCALER_TABLE[%d]\n", mres_idx);
+		return;
+	}
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)KEY2_DISABLE,
+			ARRAY_SIZE(KEY2_DISABLE)) < 0) {
+		dsim_err("failed to write KEY2_DISABLE\n");
+		return;
+	}
+}

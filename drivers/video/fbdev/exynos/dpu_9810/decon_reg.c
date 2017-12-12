@@ -2451,3 +2451,24 @@ void decon_reg_set_dsu(u32 id, enum decon_dsi_mode dsi_mode,
 }
 #endif
 
+void decon_reg_set_mres(u32 id, struct decon_param *p)
+{
+	struct decon_lcd *lcd_info = p->lcd_info;
+	struct decon_mode_info *psr = &p->psr;
+	u32 overlap_w = 0;
+
+	if (lcd_info->mode != DECON_MIPI_COMMAND_MODE) {
+		dsim_info("%s: mode[%d] doesn't support multi resolution\n",
+				__func__, lcd_info->mode);
+		return;
+	}
+
+	decon_reg_set_blender_bg_image_size(id, psr->dsi_mode, lcd_info);
+	decon_reg_set_scaled_image_size(id, psr->dsi_mode, lcd_info);
+
+	if (lcd_info->dsc_enabled)
+		dsc_reg_init(id, p, overlap_w, 0);
+	else
+		decon_reg_config_data_path_size(id, lcd_info->xres,
+				lcd_info->yres, overlap_w, NULL, p);
+}

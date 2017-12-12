@@ -229,6 +229,66 @@ static void win_update_reconfig_coordinates(struct decon_device *decon,
 	}
 }
 
+static bool dpu_need_mres_config(struct decon_device *decon,
+		struct decon_win_config *win_config,
+		struct decon_reg_data *regs)
+{
+	struct decon_win_config *mres_config = &win_config[DECON_WIN_UPDATE_IDX];
+	struct lcd_res_info *supported_res;
+	int i;
+
+	regs->mres_update = false;
+
+	if (!decon->mres_enabled) {
+		DPU_DEBUG_MRES("multi-resolution feature is disabled\n");
+		goto end;
+	}
+
+	if (decon->dt.out_type != DECON_OUT_DSI) {
+		DPU_DEBUG_MRES("multi resolution only support DSI path\n");
+		goto end;
+	}
+
+	if (!decon->lcd_info->dt_lcd_mres.mres_en) {
+		DPU_DEBUG_MRES("panel doesn't support multi-resolution\n");
+		goto end;
+	}
+
+	if (!(mres_config->state & DECON_WIN_STATE_MRESOL))
+		goto end;
+
+	/* requested LCD resolution */
+	regs->lcd_width = mres_config->dst.f_w;
+	regs->lcd_height = mres_config->dst.f_h;
+
+	/* compare previous and requested LCD resolution */
+	if ((decon->lcd_info->xres == regs->lcd_width) &&
+			(decon->lcd_info->yres == regs->lcd_height)) {
+		DPU_DEBUG_MRES("prev & req LCD resolution is same(%d %d)\n",
+				regs->lcd_width, regs->lcd_height);
+		goto end;
+	}
+
+	/* match supported and requested LCD resolution */
+	for (i = 0; i < decon->lcd_info->dt_lcd_mres.mres_number; i++) {
+		supported_res = &decon->lcd_info->dt_lcd_mres.res_info[i];
+		if ((supported_res->width == regs->lcd_width) &&
+			(supported_res->height == regs->lcd_height)) {
+			regs->mres_update = true;
+			regs->mres_idx = i;
+			break;
+		}
+	}
+
+	DPU_DEBUG_MRES("update(%d), mode(%d), resolution(%d %d -> %d %d)\n",
+			regs->mres_update, regs->mres_idx,
+			decon->lcd_info->xres, decon->lcd_info->yres,
+			regs->lcd_width, regs->lcd_height);
+
+end:
+	return regs->mres_update;
+}
+
 void dpu_prepare_win_update_config(struct decon_device *decon,
 		struct decon_win_config_data *win_data,
 		struct decon_reg_data *regs)
@@ -264,6 +324,15 @@ void dpu_prepare_win_update_config(struct decon_device *decon,
 	}
 #endif
 
+	/* If LCD resolution is changed, window update is ignored */
+	if (dpu_need_mres_config(decon, win_config, regs)) {
+		regs->up_region.left = 0;
+		regs->up_region.top = 0;
+		regs->up_region.right = regs->lcd_width - 1;
+		regs->up_region.bottom = regs->lcd_height - 1;
+		return;
+	}
+
 	/* find adjusted update region on LCD */
 	win_update_adjust_region(decon, win_config, regs);
 
@@ -296,6 +365,65 @@ void dpu_prepare_win_update_config(struct decon_device *decon,
 	/* Reconfigure source and destination coordinates, if needed. */
 	if (reconfigure)
 		win_update_reconfig_coordinates(decon, win_config, regs);
+}
+
+void dpu_set_mres_config(struct decon_device *decon, struct decon_reg_data *regs)
+{
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+	struct lcd_mres_info *mres_info = &dsim->lcd_info.dt_lcd_mres;
+	struct decon_param p;
+	int idx;
+
+	if (!decon->mres_enabled) {
+		DPU_DEBUG_MRES("multi-resolution feature is disabled\n");
+		return;
+	}
+
+	if (decon->dt.out_type != DECON_OUT_DSI) {
+		DPU_DEBUG_MRES("multi resolution only support DSI path\n");
+		return;
+	}
+
+	if (!decon->lcd_info->dt_lcd_mres.mres_en) {
+		DPU_DEBUG_MRES("panel doesn't support multi-resolution\n");
+		return;
+	}
+
+	if (!regs->mres_update)
+		return;
+
+	if (IS_ERR_OR_NULL(dsim)) {
+		DPU_ERR_MRES("%s: dsim device ptr is invalid\n", __func__);
+		return;
+	}
+
+	/*
+	 * Before LCD resolution is changed, previous frame data must be
+	 * finished to transfer.
+	 */
+	decon_reg_wait_idle_status_timeout(decon->id, IDLE_WAIT_TIMEOUT);
+
+	/* backup current LCD resolution information to previous one */
+	dsim->lcd_info.xres = regs->lcd_width;
+	dsim->lcd_info.yres = regs->lcd_height;
+	dsim->lcd_info.mres_mode = regs->mres_idx;
+	idx = regs->mres_idx;
+	dsim->lcd_info.dsc_enabled = mres_info->res_info[idx].dsc_en;
+	dsim->lcd_info.dsc_slice_h = mres_info->res_info[idx].dsc_height;
+
+	/* transfer LCD resolution change commands to panel */
+	dsim->panel_ops->mres(dsim, regs->mres_idx);
+
+	/* DECON and DSIM are reconfigured by changed LCD resolution */
+	dsim_reg_set_mres(dsim->id, &dsim->lcd_info);
+	decon_to_init_param(decon, &p);
+	decon_reg_set_mres(decon->id, &p);
+
+	/* If LCD resolution is changed, initial partial size is also changed */
+	dpu_init_win_update(decon);
+
+	DPU_DEBUG_MRES("changed LCD resolution(%d %d)\n",
+			decon->lcd_info->xres, decon->lcd_info->yres);
 }
 
 #if !defined(CONFIG_EXYNOS_COMMON_PANEL)
@@ -515,4 +643,13 @@ void dpu_init_win_update(struct decon_device *decon)
 			decon->win_up.hori_cnt, decon->win_up.verti_cnt);
 
 	decon->win_up.enabled = true;
+
+	decon->mres_enabled = false;
+	if (!IS_ENABLED(CONFIG_EXYNOS_MULTIRESOLUTION)) {
+		decon_info("multi-resolution feature is disabled\n");
+		return;
+	}
+	/* TODO: will be printed supported resolution list */
+	decon_info("multi-resolution feature is enabled\n");
+	decon->mres_enabled = true;
 }

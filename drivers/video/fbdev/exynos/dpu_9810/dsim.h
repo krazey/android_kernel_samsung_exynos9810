@@ -281,6 +281,7 @@ struct dsim_lcd_driver {
 #endif
 	int (*notify)(struct dsim_device *dsim, void *data);
 	int (*set_error_cb)(struct dsim_device *dsim);
+	int (*mres)(struct dsim_device *dsim, int mres_idx);
 };
 
 int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1);
@@ -406,6 +407,7 @@ int dsim_reg_exit_ulps_and_start(u32 id, u32 ddi_type, u32 lanes);
 int dsim_reg_stop_and_enter_ulps(u32 id, u32 ddi_type, u32 lanes);
 void dsim_reg_start(u32 id);
 void dsim_reg_stop(u32 id, u32 lanes);
+void dsim_reg_set_mres(u32 id, struct decon_lcd *lcd_info);
 void dsim_reg_wr_tx_payload(u32 id, u32 payload);
 u32 dsim_reg_header_fifo_is_empty(u32 id);
 void dsim_reg_clear_int(u32 id, u32 int_src);

@@ -55,6 +55,8 @@ int dpu_bts_log_level = 6;
 module_param(dpu_bts_log_level, int, 0644);
 int win_update_log_level = 6;
 module_param(win_update_log_level, int, 0644);
+int dpu_mres_log_level = 6;
+module_param(dpu_mres_log_level, int, 0644);
 int decon_systrace_enable;
 static int decon2_event_count;
 
@@ -1809,6 +1811,10 @@ static int __decon_update_regs(struct decon_device *decon, struct decon_reg_data
 #ifdef CONFIG_SUPPORT_DSU
 	set_dsu_config(decon, regs);
 #endif
+
+	/* apply multi-resolution configuration */
+	dpu_set_mres_config(decon, regs);
+
 	/* apply window update configuration to DECON, DSIM and panel */
 	dpu_set_win_update_config(decon, regs);
 

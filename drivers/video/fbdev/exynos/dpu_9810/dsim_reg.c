@@ -1688,7 +1688,7 @@ void dsim_reg_set_config(u32 id, struct decon_lcd *lcd_info, u32 data_lane_cnt,
 		/* DSU_MODE_1 is used in stead of 1 in MCD */
 		idx = lcd_info->mres_mode - DSU_MODE_1;
 #else
-		idx = lcd_info->mres_mode - 1;
+		idx = lcd_info->mres_mode;
 #endif
 		dsim_reg_set_cm_underrun_lp_ref(id,
 				lcd_info->cmd_underrun_lp_ref[idx]);
@@ -2269,4 +2269,47 @@ void dsim_reg_set_dsu(u32 id, struct decon_lcd *lcd_info)
 }
 #endif
 
+
+void dsim_reg_set_mres(u32 id, struct decon_lcd *lcd_info)
+{
+	u32 threshold;
+	u32 num_of_slice;
+	u32 num_of_transfer;
+	int idx;
+
+	if (lcd_info->mode != DECON_MIPI_COMMAND_MODE) {
+		dsim_info("%s: mode[%d] doesn't support multi resolution\n",
+				__func__, lcd_info->mode);
+		return;
+	}
+
+	idx = lcd_info->mres_mode;
+	dsim_reg_set_cm_underrun_lp_ref(id, lcd_info->cmd_underrun_lp_ref[idx]);
+
+	if (lcd_info->dsc_enabled) {
+		threshold = lcd_info->xres / 3;
+		num_of_transfer = lcd_info->xres * lcd_info->yres / threshold / 3;
+	} else {
+		threshold = lcd_info->xres;
+		num_of_transfer = lcd_info->xres * lcd_info->yres / threshold;
+	}
+
+	dsim_reg_set_threshold(id, threshold);
+	dsim_reg_set_vresol(id, lcd_info->yres);
+	dsim_reg_set_hresol(id, lcd_info->xres, lcd_info);
+	dsim_reg_set_porch(id, lcd_info);
+	dsim_reg_set_num_of_transfer(id, num_of_transfer);
+
+	dsim_reg_enable_dsc(id, lcd_info->dsc_enabled);
+	if (lcd_info->dsc_enabled) {
+		dsim_dbg("%s: dsc configuration is set\n", __func__);
+		dsim_reg_set_num_of_slice(id, lcd_info->dsc_slice_num);
+		dsim_reg_set_multi_slice(id, lcd_info); /* multi slice */
+		dsim_reg_set_size_of_slice(id, lcd_info);
+
+		dsim_reg_get_num_of_slice(id, &num_of_slice);
+		dsim_dbg("dsim%d: number of DSC slice(%d)\n", id, num_of_slice);
+		dsim_reg_print_size_of_slice(id);
+	}
+}
 

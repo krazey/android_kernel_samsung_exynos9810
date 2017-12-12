@@ -117,6 +117,12 @@ config SUPPORT_DSU
 	tristate "Support Dynamic Scale Up (Multi-Resolution)"
 	depends on EXYNOS_DECON_9810
 	default n
+
+config EXYNOS_MULTIRESOLUTION
+	bool "Multi resolution LCD support"
+	depends on EXYNOS_DECON_9810 && FB_WINDOW_UPDATE
+	default y
+
 endif
 
 source "drivers/video/fbdev/exynos/dpu_9810/panels/Kconfig"

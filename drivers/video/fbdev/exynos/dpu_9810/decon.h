@@ -64,6 +64,7 @@ extern struct decon_device *decon_drvdata[MAX_DECON_CNT];
 extern int decon_log_level;
 extern int dpu_bts_log_level;
 extern int win_update_log_level;
+extern int dpu_mres_log_level;
 extern int decon_systrace_enable;
 extern struct decon_bts_ops decon_bts_control;
 
@@ -162,6 +163,23 @@ void dpu_debug_printk(const char *function_name, const char *format, ...);
 			dpu_debug_printk("BTS", fmt, ##args);			\
 	} while (0)
 
+#define DPU_DEBUG_MRES(fmt, args...)						\
+	do {									\
+		if (dpu_mres_log_level >= 7)					\
+			dpu_debug_printk("MRES", fmt,  ##args);			\
+	} while (0)
+
+#define DPU_INFO_MRES(fmt, args...)						\
+	do {									\
+		if (dpu_mres_log_level >= 6)					\
+			dpu_debug_printk("MRES", fmt,  ##args);			\
+	} while (0)
+
+#define DPU_ERR_MRES(fmt, args...)						\
+	do {									\
+		if (dpu_mres_log_level >= 3)					\
+			dpu_debug_printk("MRES", fmt, ##args);			\
+	} while (0)
 
 /* DECON systrace related */
 void tracing_mark_write(struct decon_device *decon, char id, char *str1, int value);
@@ -569,6 +587,7 @@ struct decon_win_config {
 		DECON_WIN_STATE_BUFFER,
 		DECON_WIN_STATE_UPDATE,
 		DECON_WIN_STATE_CURSOR,
+		DECON_WIN_STATE_MRESOL = 0x10000,
 	} state;
 
 	/* Reusability:This struct is used for IDMA and ODMA */
@@ -637,6 +656,11 @@ struct decon_reg_data {
 #ifdef CONFIG_SUPPORT_DSU
 	struct dsu_info dsu;
 #endif
+
+	bool mres_update;
+	u32 lcd_width;
+	u32 lcd_height;
+	int mres_idx;
 };
 
 #ifdef CONFIG_SUPPORT_DSU
@@ -1163,6 +1187,8 @@ struct decon_device {
 #endif
 	/* systrace */
 	struct decon_systrace_data systrace;
+
+	bool mres_enabled;
 };
 
 static inline struct decon_device *get_decon_drvdata(u32 id)
@@ -1303,6 +1329,10 @@ void dpu_set_win_update_config(struct decon_device *decon,
 		struct decon_reg_data *regs);
 void dpu_set_win_update_partial_size(struct decon_device *decon,
 		struct decon_rect *up_region);
+
+/* multi-resolution related function */
+void dpu_set_mres_config(struct decon_device *decon, struct decon_reg_data *regs);
+
 /* cursor async */
 void dpu_cursor_win_update_config(struct decon_device *decon,
 		struct decon_reg_data *regs);
@@ -1566,6 +1596,7 @@ u32 dsc_get_slice_mode_change(struct decon_lcd *lcd_info);
 void decon_reg_set_dispif_size(u32 id, u32 width, u32 height);
 void decon_reg_get_clock_ratio(struct decon_clocks *clks,
 		struct decon_lcd *lcd_info);
+void decon_reg_set_mres(u32 id, struct decon_param *p);
 void decon_reg_clear_int_all(u32 id);
 void decon_reg_all_win_shadow_update_req(u32 id);
 void decon_reg_update_req_window(u32 id, u32 win_idx);
