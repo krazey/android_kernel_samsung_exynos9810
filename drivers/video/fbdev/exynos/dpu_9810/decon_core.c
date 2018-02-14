@@ -1507,10 +1507,13 @@ int decon_check_limitation(struct decon_device *decon, int idx,
 	}
 
 	if ((config->dst.x + config->dst.w > config->dst.f_w) ||
-			(config->dst.y + config->dst.h > config->dst.f_h)) {
-		decon_err("dst coordinate is out of range(%d %d %d %d %d %d)\n",
+			(config->dst.y + config->dst.h > config->dst.f_h) ||
+			(config->dst.x + config->dst.w > decon->lcd_info->xres) ||
+			(config->dst.y + config->dst.h > decon->lcd_info->yres)) {
+		decon_err("dst coordinate is out of range(%d %d %d %d %d %d %d %d)\n",
 				config->dst.x, config->dst.w, config->dst.f_w,
-				config->dst.y, config->dst.h, config->dst.f_h);
+				config->dst.y, config->dst.h, config->dst.f_h,
+				decon->lcd_info->xres, decon->lcd_info->yres);
 		return -EINVAL;
 	}
 
