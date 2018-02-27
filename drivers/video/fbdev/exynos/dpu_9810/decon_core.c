@@ -3773,35 +3773,6 @@ static void decon_parse_dt(struct decon_device *decon)
 
 }
 
-static int decon_get_disp_ss_addr(struct decon_device *decon)
-{
-	if (of_have_populated_dt()) {
-		struct device_node *nd;
-#if defined(CONFIG_SOC_EXYNOS9810)
-		nd = of_find_compatible_node(NULL, NULL,
-				"samsung,exynos9-disp_ss");
-#else
-		nd = of_find_compatible_node(NULL, NULL,
-				"samsung,exynos8-disp_ss");
-#endif
-		if (!nd) {
-			decon_err("failed find compatible node(sysreg-disp)");
-			return -ENODEV;
-		}
-
-		decon->res.ss_regs = of_iomap(nd, 0);
-		if (!decon->res.ss_regs) {
-			decon_err("Failed to get sysreg-disp address.");
-			return -ENOMEM;
-		}
-	} else {
-		decon_err("failed have populated device tree");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static int decon_init_resources(struct decon_device *decon,
 		struct platform_device *pdev, char *name)
 {
@@ -3837,10 +3808,11 @@ static int decon_init_resources(struct decon_device *decon,
 	else
 		decon_err("not supported output type(%d)\n", decon->dt.out_type);
 
-	/* mapping SYSTEM registers */
-	ret = decon_get_disp_ss_addr(decon);
-	if (ret)
+	decon->res.ss_regs = dpu_get_sysreg_addr();
+	if (IS_ERR_OR_NULL(decon->res.ss_regs)) {
+		decon_err("failed to get sysreg addr\n");
 		goto err;
+	}
 
 #if defined(CONFIG_ION_EXYNOS)
 	decon->ion_client = exynos_ion_client_create(name);
