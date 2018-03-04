@@ -1952,8 +1952,10 @@ int decon_reg_stop_inst(u32 id, u32 dsi_idx, struct decon_mode_info *psr)
 
 	decon_reg_update_req_global(id);
 
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	if (psr->out_type == DECON_OUT_DP)
 		displayport_reg_lh_p_ch_power(0);
+#endif
 
 	/* timeout : 1 / fps + 20% margin */
 	timeout_value = 1000 / decon->lcd_info->fps * 12 / 10 + 5;
