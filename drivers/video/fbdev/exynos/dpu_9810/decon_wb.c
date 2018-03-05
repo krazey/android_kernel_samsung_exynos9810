@@ -24,10 +24,6 @@ static irqreturn_t decon_wb_irq_handler(int irq, void *dev_data)
 
 	irq_sts_reg = decon_reg_get_interrupt_and_clear(decon->id, &ext_irq);
 
-	if (irq_sts_reg & DPU_UNDER_FLOW_INT_EN) {
-		DPU_EVENT_LOG(DPU_EVT_UNDERRUN, &decon->sd, ktime_set(0, 0));
-		decon_err("DECON%d FIFO underrun\n", decon->id);
-	}
 	if (irq_sts_reg & DPU_FRAME_DONE_INT_EN) {
 		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMEDONE, &decon->sd, ktime_set(0, 0));
 		decon_dbg("%s Frame Done is occured. timeline:%d, %d\n",
