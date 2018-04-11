@@ -1011,6 +1011,7 @@ struct decon_debug {
 #endif
 	struct dentry *debug_recovery_cnt;
 	struct dentry *debug_cmd_lp_ref;
+	struct dentry *debug_mres;
 
 	struct dpu_log *event_log;
 	u32 event_log_cnt;
