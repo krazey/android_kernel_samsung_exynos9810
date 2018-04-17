@@ -10537,6 +10537,7 @@
 			cal-id = <184811522>;
 			dm-type = <0>;
 			min-freq = <455000>;
+			max-freq = <1950000>;
 			pm_qos-min-class = <3>;
 			pm_qos-max-class = <4>;
 			#cooling-cells = <2>;
