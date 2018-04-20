@@ -475,7 +475,6 @@ void fscrypt_msg(struct super_block *sb, const char *level,
 static int __init fscrypt_init(void)
 {
 	int res = -ENOMEM;
-
 	/*
 	 * Use an unbound workqueue to allow bios to be decrypted in parallel
 	 * even when they happen to complete on the same CPU.  This sacrifices
