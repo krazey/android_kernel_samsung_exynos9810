@@ -408,7 +408,6 @@ sdp_dek:
 			goto out;
 		}
 		crypt_info->ci_ctfm = ctfm;
-		crypto_skcipher_clear_flags(ctfm, ~0);
 		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_REQ_WEAK_KEY);
 		res = crypto_skcipher_setkey(ctfm, raw_key, keysize);
 		if (res)
