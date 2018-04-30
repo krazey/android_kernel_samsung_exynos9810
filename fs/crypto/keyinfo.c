@@ -394,8 +394,8 @@ sdp_dek:
 		inode->i_mapping->fmp_ci.private_algo_mode = EXYNOS_FMP_BYPASS_MODE;
 
 		ctfm = crypto_alloc_skcipher(cipher_str, 0, 0);
-		if (!ctfm || IS_ERR(ctfm)) {
-			res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;
+		if (IS_ERR(ctfm)) {
+			res = PTR_ERR(ctfm);
 			pr_debug("%s: error %d (inode %lu) allocating crypto tfm\n",
 				 __func__, res, inode->i_ino);
 			goto out;
