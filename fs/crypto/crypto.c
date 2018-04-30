@@ -379,7 +379,6 @@ const struct dentry_operations fscrypt_d_ops = {
 	.d_delete     = fscrypt_sdp_d_delete,
 #endif
 };
-EXPORT_SYMBOL(fscrypt_d_ops);
 
 void fscrypt_restore_control_page(struct page *page)
 {
