@@ -235,11 +235,11 @@ static int do_read_inode(struct inode *inode)
 	inode->i_ctime.tv_nsec = le32_to_cpu(ri->i_ctime_nsec);
 	inode->i_mtime.tv_nsec = le32_to_cpu(ri->i_mtime_nsec);
 	inode->i_generation = le32_to_cpu(ri->i_generation);
-
-	if (IS_I_VERSION(inode))
-		inode->i_version++;
-
-	fi->i_current_depth = le32_to_cpu(ri->i_current_depth);
+	if (S_ISDIR(inode->i_mode))
+		fi->i_current_depth = le32_to_cpu(ri->i_current_depth);
+	else if (S_ISREG(inode->i_mode))
+		fi->i_gc_failures[GC_FAILURE_PIN] =
+					le16_to_cpu(ri->i_gc_failures);
 	fi->i_xattr_nid = le32_to_cpu(ri->i_xattr_nid);
 	fi->i_flags = le32_to_cpu(ri->i_flags);
 	fi->flags = 0;
@@ -428,7 +428,12 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
 	ri->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 	ri->i_mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
-	ri->i_current_depth = cpu_to_le32(F2FS_I(inode)->i_current_depth);
+	if (S_ISDIR(inode->i_mode))
+		ri->i_current_depth =
+			cpu_to_le32(F2FS_I(inode)->i_current_depth);
+	else if (S_ISREG(inode->i_mode))
+		ri->i_gc_failures =
+			cpu_to_le16(F2FS_I(inode)->i_gc_failures[GC_FAILURE_PIN]);
 	ri->i_xattr_nid = cpu_to_le32(F2FS_I(inode)->i_xattr_nid);
 	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
 	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
