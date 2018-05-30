@@ -3376,6 +3376,8 @@ static int decon_register_subdevs(struct decon_device *decon)
 	else if (decon->dt.out_type == DECON_OUT_DP)
 		ret = decon_displayport_get_out_sd(decon);
 #endif
+	else
+		ret = -ENODEV;
 
 	return ret;
 }
