@@ -381,8 +381,6 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 
 	if (ndev->cnf.stable_secret.initialized)
 		ndev->addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
-	else
-		ndev->addr_gen_mode = IN6_ADDR_GEN_MODE_EUI64;
 
 	ndev->cnf.mtu6 = dev->mtu;
 	ndev->nd_parms = neigh_parms_alloc(dev, &nd_tbl);
