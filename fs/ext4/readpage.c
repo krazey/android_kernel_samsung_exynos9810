@@ -292,13 +292,8 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		}
 		if (bio == NULL) {
 			struct fscrypt_ctx *ctx = NULL;
-#ifdef CONFIG_FS_PRIVATE_ENCRYPTION
-			if (ext4_encrypted_inode(inode) &&
-			    S_ISREG(inode->i_mode) && !inode->i_mapping->fmp_ci.private_algo_mode) {
-#else
-			if (ext4_encrypted_inode(inode) &&
-			    S_ISREG(inode->i_mode)) {
-#endif /* CONFIG_FS_PRIVATE_ENCRYPTION */
+
+			if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode)) {
 				ctx = fscrypt_get_ctx(inode, GFP_NOFS);
 				if (IS_ERR(ctx))
 					goto set_error_page;
