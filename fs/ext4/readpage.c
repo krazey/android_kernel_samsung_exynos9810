@@ -51,19 +51,8 @@
 
 static inline bool ext4_bio_encrypted(struct bio *bio)
 {
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-#ifdef CONFIG_FS_PRIVATE_ENCRYPTION
-	struct page *page;
-
-	page = bio->bi_io_vec->bv_page;
-
-	if (page->mapping->fmp_ci.private_algo_mode)
-		return false;
-	else
-		return unlikely(bio->bi_private != NULL);
-#else
+#ifdef CONFIG_FS_ENCRYPTION
 	return unlikely(bio->bi_private != NULL);
-#endif /* CONFIG_FS_PRIVATE_ENCRYPTION */
 #else
 	return false;
 #endif
