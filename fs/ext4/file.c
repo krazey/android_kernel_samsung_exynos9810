@@ -307,7 +307,7 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_mapping->host;
 
-	if (ext4_encrypted_inode(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		int err = fscrypt_get_encryption_info(inode);
 		if (err)
 			return 0;
@@ -378,7 +378,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	}
 #endif
 
-	if (ext4_encrypted_inode(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		ret = fscrypt_get_encryption_info(inode);
 		if (ret) {
 			printk(KERN_ERR	"%s:failed to get encryption info (%d)", __func__, ret);
@@ -389,7 +389,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	}
 
 	dir = dget_parent(file_dentry(filp));
-	if (ext4_encrypted_inode(d_inode(dir)) &&
+	if (IS_ENCRYPTED(d_inode(dir)) &&
 			!fscrypt_has_permitted_context(d_inode(dir), inode)) {
 		ext4_warning(inode->i_sb,
 			     "Inconsistent encryption contexts: %lu/%lu",
