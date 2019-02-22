@@ -320,7 +320,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		ovl_copyattr(realdentry->d_inode, inode);
 	}
 
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 	oe->opaque = upperopaque;
 	oe->redirect = upperredirect;
 	oe->__upperdentry = upperdentry;
@@ -343,7 +343,7 @@ out_put_upper:
 	kfree(upperredirect);
 out:
 	kfree(d.redirect);
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 	return ERR_PTR(err);
 }
 
