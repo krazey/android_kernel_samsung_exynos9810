@@ -2038,37 +2038,6 @@ static inline u16 ufshcd_upiu_wlun_to_scsi_wlun(u8 upiu_wlun_id)
 	return (upiu_wlun_id & ~UFS_UPIU_WLUN_ID) | SCSI_W_LUN_BASE;
 }
 
-static inline int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
-					     struct scsi_cmnd *cmd,
-					     struct ufshcd_lrb *lrbp)
-{
-	int key_slot;
-
-	if (!cmd->request->bio ||
-	    !bio_crypt_should_process(cmd->request->bio, cmd->request->q)) {
-		lrbp->crypto_enable = false;
-		return 0;
-	}
-
-	if (WARN_ON(!ufshcd_is_crypto_enabled(hba))) {
-		/*
-		 * Upper layer asked us to do inline encryption
-		 * but that isn't enabled, so we fail this request.
-		 */
-		return -EINVAL;
-	}
-	key_slot = bio_crypt_get_keyslot(cmd->request->bio);
-	if (!ufshcd_keyslot_valid(hba, key_slot))
-		return -EINVAL;
-
-	lrbp->crypto_enable = true;
-	lrbp->crypto_key_slot = key_slot;
-	lrbp->data_unit_num = bio_crypt_data_unit_num(cmd->request->bio);
-
-	return 0;
-}
-
-
 /**
  * ufshcd_queuecommand - main entry point for SCSI requests
  * @cmd: command from SCSI Midlayer
@@ -4888,6 +4857,7 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 #endif
 
 			cmd->result = result;
+			ufshcd_complete_lrbp_crypto(hba, cmd, lrbp);
 				if (reason)
 					set_host_byte(cmd, reason);
 			/* Mark completed command as NULL in LRB */
@@ -7949,6 +7919,10 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		req_link_state = UIC_LINK_OFF_STATE;
 	}
 
+	ret = ufshcd_crypto_suspend(hba, pm_op);
+	if (ret)
+		goto out;
+
 	/*
 	 * If we can't transition into any of the low power modes
 	 * just gate the clocks.
@@ -8081,6 +8055,7 @@ set_dev_active:
 enable_gating:
 	hba->clk_gating.is_suspended = false;
 	ufshcd_release(hba);
+	ufshcd_crypto_resume(hba, pm_op);
 out:
 	hba->pm_op_in_progress = 0;
 
@@ -8104,6 +8079,7 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	int ret;
 	enum uic_link_state old_link_state;
+	enum ufs_dev_pwr_mode old_pwr_mode;
 	enum ufs_pm_level pm_lvl;
 	unsigned long flags;
 	bool gating_allowed = !ufshcd_can_fake_clkgating(hba);
@@ -8125,6 +8101,7 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	if (ufs_get_pm_lvl_to_link_pwr_state(pm_lvl) == UIC_LINK_OFF_STATE)
 		hba->uic_link_state = UIC_LINK_OFF_STATE;
 	old_link_state = hba->uic_link_state;
+	old_pwr_mode = hba->curr_dev_pwr_mode;
 
 	ufshcd_hba_vreg_set_hpm(hba);
 
@@ -8184,6 +8161,10 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 			goto set_old_link_state;
 	}
 
+	ret = ufshcd_crypto_resume(hba, pm_op);
+	if (ret)
+		goto set_old_dev_pwr_mode;
+
 	if (ufshcd_keep_autobkops_enabled_except_suspend(hba))
 		ufshcd_enable_auto_bkops(hba);
 	else
@@ -8207,6 +8188,9 @@ async_resume:
 	ufshcd_release(hba);
 	goto out;
 
+set_old_dev_pwr_mode:
+	if (old_pwr_mode != hba->curr_dev_pwr_mode)
+		ufshcd_set_dev_pwr_mode(hba, old_pwr_mode);
 set_old_link_state:
 	ufshcd_link_state_transition(hba, old_link_state, 0);
 vendor_suspend:
