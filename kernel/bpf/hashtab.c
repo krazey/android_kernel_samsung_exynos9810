@@ -43,7 +43,7 @@ enum extra_elem_state {
 /* each htab element is struct htab_elem + key + value */
 struct htab_elem {
 	union {
-		struct hlist_node hash_node;
+		struct hlist_nulls_node hash_node;
 		struct {
 			void *padding;
 			union {
