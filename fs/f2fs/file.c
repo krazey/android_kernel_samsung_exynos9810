@@ -710,11 +710,9 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 		stat->btime.tv_nsec = fi->i_crtime.tv_nsec;
 	}
 
-	flags = fi->i_flags & F2FS_FL_USER_VISIBLE;
+	flags = fi->i_flags;
 	if (flags & F2FS_APPEND_FL)
 		stat->attributes |= STATX_ATTR_APPEND;
-	if (flags & F2FS_COMPR_FL)
-		stat->attributes |= STATX_ATTR_COMPRESSED;
 	if (IS_ENCRYPTED(inode))
 		stat->attributes |= STATX_ATTR_ENCRYPTED;
 	if (flags & F2FS_IMMUTABLE_FL)
@@ -723,7 +721,6 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 		stat->attributes |= STATX_ATTR_NODUMP;
 
 	stat->attributes_mask |= (STATX_ATTR_APPEND |
-				  STATX_ATTR_COMPRESSED |
 				  STATX_ATTR_ENCRYPTED |
 				  STATX_ATTR_IMMUTABLE |
 				  STATX_ATTR_NODUMP);
@@ -1652,37 +1649,143 @@ static int f2fs_file_flush(struct file *file, fl_owner_t id)
 	return 0;
 }
 
+static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
+{
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	u32 oldflags;
+
+	/* Is it quota file? Do not allow user to mess with it */
+	if (IS_NOQUOTA(inode))
+		return -EPERM;
+
+	oldflags = fi->i_flags;
+
+	if ((iflags ^ oldflags) & (F2FS_APPEND_FL | F2FS_IMMUTABLE_FL))
+		if (!capable(CAP_LINUX_IMMUTABLE))
+			return -EPERM;
+
+	fi->i_flags = iflags | (oldflags & ~mask);
+
+	if (fi->i_flags & F2FS_PROJINHERIT_FL)
+		set_inode_flag(inode, FI_PROJ_INHERIT);
+	else
+		clear_inode_flag(inode, FI_PROJ_INHERIT);
+
+	inode->i_ctime = current_time(inode);
+	f2fs_set_inode_flags(inode);
+	f2fs_mark_inode_dirty_sync(inode, true);
+	return 0;
+}
+
+/* FS_IOC_GETFLAGS and FS_IOC_SETFLAGS support */
+
+/*
+ * To make a new on-disk f2fs i_flag gettable via FS_IOC_GETFLAGS, add an entry
+ * for it to f2fs_fsflags_map[], and add its FS_*_FL equivalent to
+ * F2FS_GETTABLE_FS_FL.  To also make it settable via FS_IOC_SETFLAGS, also add
+ * its FS_*_FL equivalent to F2FS_SETTABLE_FS_FL.
+ */
+
+static const struct {
+	u32 iflag;
+	u32 fsflag;
+} f2fs_fsflags_map[] = {
+	{ F2FS_SYNC_FL,		FS_SYNC_FL },
+	{ F2FS_IMMUTABLE_FL,	FS_IMMUTABLE_FL },
+	{ F2FS_APPEND_FL,	FS_APPEND_FL },
+	{ F2FS_NODUMP_FL,	FS_NODUMP_FL },
+	{ F2FS_NOATIME_FL,	FS_NOATIME_FL },
+	{ F2FS_INDEX_FL,	FS_INDEX_FL },
+	{ F2FS_DIRSYNC_FL,	FS_DIRSYNC_FL },
+	{ F2FS_PROJINHERIT_FL,	FS_PROJINHERIT_FL },
+};
+
+#define F2FS_GETTABLE_FS_FL (		\
+		FS_SYNC_FL |		\
+		FS_IMMUTABLE_FL |	\
+		FS_APPEND_FL |		\
+		FS_NODUMP_FL |		\
+		FS_NOATIME_FL |		\
+		FS_INDEX_FL |		\
+		FS_DIRSYNC_FL |		\
+		FS_PROJINHERIT_FL |	\
+		FS_ENCRYPT_FL |		\
+		FS_INLINE_DATA_FL |	\
+		FS_NOCOW_FL)
+
+#define F2FS_SETTABLE_FS_FL (		\
+		FS_SYNC_FL |		\
+		FS_IMMUTABLE_FL |	\
+		FS_APPEND_FL |		\
+		FS_NODUMP_FL |		\
+		FS_NOATIME_FL |		\
+		FS_DIRSYNC_FL |		\
+		FS_PROJINHERIT_FL)
+
+/* Convert f2fs on-disk i_flags to FS_IOC_{GET,SET}FLAGS flags */
+static inline u32 f2fs_iflags_to_fsflags(u32 iflags)
+{
+	u32 fsflags = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(f2fs_fsflags_map); i++)
+		if (iflags & f2fs_fsflags_map[i].iflag)
+			fsflags |= f2fs_fsflags_map[i].fsflag;
+
+	return fsflags;
+}
+
+/* Convert FS_IOC_{GET,SET}FLAGS flags to f2fs on-disk i_flags */
+static inline u32 f2fs_fsflags_to_iflags(u32 fsflags)
+{
+	u32 iflags = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(f2fs_fsflags_map); i++)
+		if (fsflags & f2fs_fsflags_map[i].fsflag)
+			iflags |= f2fs_fsflags_map[i].iflag;
+
+	return iflags;
+}
+
 static int f2fs_ioc_getflags(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	unsigned int flags = fi->i_flags;
+	u32 fsflags = f2fs_iflags_to_fsflags(fi->i_flags);
 
 	if (IS_ENCRYPTED(inode))
-		flags |= F2FS_ENCRYPT_FL;
+		fsflags |= FS_ENCRYPT_FL;
 	if (f2fs_has_inline_data(inode) || f2fs_has_inline_dentry(inode))
-		flags |= F2FS_INLINE_DATA_FL;
+		fsflags |= FS_INLINE_DATA_FL;
 	if (is_inode_flag_set(inode, FI_PIN_FILE))
-		flags |= F2FS_NOCOW_FL;
+		fsflags |= FS_NOCOW_FL;
 
-	flags &= F2FS_FL_USER_VISIBLE;
+	fsflags &= F2FS_GETTABLE_FS_FL;
 
-	return put_user(flags, (int __user *)arg);
+	return put_user(fsflags, (int __user *)arg);
 }
 
 static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	struct f2fs_inode_info *fi = F2FS_I(inode);
-	unsigned int flags;
-	unsigned int oldflags;
+	u32 fsflags;
+	u32 iflags;
 	int ret;
 
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
-	if (get_user(flags, (int __user *)arg))
+	if (get_user(fsflags, (int __user *)arg))
 		return -EFAULT;
+
+	if (fsflags & ~F2FS_GETTABLE_FS_FL)
+		return -EOPNOTSUPP;
+	fsflags &= F2FS_SETTABLE_FS_FL;
+
+	iflags = f2fs_fsflags_to_iflags(fsflags);
+	if (f2fs_mask_flags(inode->i_mode, iflags) != iflags)
+		return -EOPNOTSUPP;
 
 	ret = mnt_want_write_file(filp);
 	if (ret)
@@ -1690,31 +1793,8 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 
 	inode_lock(inode);
 
-	/* Is it quota file? Do not allow user to mess with it */
-	if (IS_NOQUOTA(inode)) {
-		ret = -EPERM;
-		goto unlock_out;
-	}
-
-	flags = f2fs_mask_flags(inode->i_mode, flags);
-
-	oldflags = fi->i_flags;
-
-	if ((flags ^ oldflags) & (F2FS_APPEND_FL | F2FS_IMMUTABLE_FL)) {
-		if (!capable(CAP_LINUX_IMMUTABLE)) {
-			ret = -EPERM;
-			goto unlock_out;
-		}
-	}
-
-	flags = flags & (F2FS_FL_USER_MODIFIABLE);
-	flags |= oldflags & ~(F2FS_FL_USER_MODIFIABLE);
-	fi->i_flags = flags;
-
-	inode->i_ctime = current_time(inode);
-	f2fs_set_inode_flags(inode);
-	f2fs_mark_inode_dirty_sync(inode, false);
-unlock_out:
+	ret = f2fs_setflags_common(inode, iflags,
+			f2fs_fsflags_to_iflags(F2FS_SETTABLE_FS_FL));
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
@@ -2635,6 +2715,232 @@ static int f2fs_ioc_get_features(struct file *filp, unsigned long arg)
 	return put_user(sb_feature, (u32 __user *)arg);
 }
 
+#ifdef CONFIG_QUOTA
+int f2fs_transfer_project_quota(struct inode *inode, kprojid_t kprojid)
+{
+	struct dquot *transfer_to[MAXQUOTAS] = {};
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct super_block *sb = sbi->sb;
+	int err = 0;
+
+	transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
+	if (!IS_ERR(transfer_to[PRJQUOTA])) {
+		err = __dquot_transfer(inode, transfer_to);
+		if (err)
+			set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+		dqput(transfer_to[PRJQUOTA]);
+	}
+	return err;
+}
+
+static int f2fs_ioc_setproject(struct file *filp, __u32 projid)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct page *ipage;
+	kprojid_t kprojid;
+	int err;
+
+	if (!f2fs_sb_has_project_quota(sbi)) {
+		if (projid != F2FS_DEF_PROJID)
+			return -EOPNOTSUPP;
+		else
+			return 0;
+	}
+
+	if (!f2fs_has_extra_attr(inode))
+		return -EOPNOTSUPP;
+
+	kprojid = make_kprojid(&init_user_ns, (projid_t)projid);
+
+	if (projid_eq(kprojid, F2FS_I(inode)->i_projid))
+		return 0;
+
+	err = -EPERM;
+	/* Is it quota file? Do not allow user to mess with it */
+	if (IS_NOQUOTA(inode))
+		return err;
+
+	ipage = f2fs_get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(ipage))
+		return PTR_ERR(ipage);
+
+	if (!F2FS_FITS_IN_INODE(F2FS_INODE(ipage), fi->i_extra_isize,
+								i_projid)) {
+		err = -EOVERFLOW;
+		f2fs_put_page(ipage, 1);
+		return err;
+	}
+	f2fs_put_page(ipage, 1);
+
+	err = dquot_initialize(inode);
+	if (err)
+		return err;
+
+	f2fs_lock_op(sbi);
+	err = f2fs_transfer_project_quota(inode, kprojid);
+	if (err)
+		goto out_unlock;
+
+	F2FS_I(inode)->i_projid = kprojid;
+	inode->i_ctime = current_time(inode);
+	f2fs_mark_inode_dirty_sync(inode, true);
+out_unlock:
+	f2fs_unlock_op(sbi);
+	return err;
+}
+#else
+int f2fs_transfer_project_quota(struct inode *inode, kprojid_t kprojid)
+{
+	return 0;
+}
+
+static int f2fs_ioc_setproject(struct file *filp, __u32 projid)
+{
+	if (projid != F2FS_DEF_PROJID)
+		return -EOPNOTSUPP;
+	return 0;
+}
+#endif
+
+/* FS_IOC_FSGETXATTR and FS_IOC_FSSETXATTR support */
+
+/*
+ * To make a new on-disk f2fs i_flag gettable via FS_IOC_FSGETXATTR and settable
+ * via FS_IOC_FSSETXATTR, add an entry for it to f2fs_xflags_map[], and add its
+ * FS_XFLAG_* equivalent to F2FS_SUPPORTED_XFLAGS.
+ */
+
+static const struct {
+	u32 iflag;
+	u32 xflag;
+} f2fs_xflags_map[] = {
+	{ F2FS_SYNC_FL,		FS_XFLAG_SYNC },
+	{ F2FS_IMMUTABLE_FL,	FS_XFLAG_IMMUTABLE },
+	{ F2FS_APPEND_FL,	FS_XFLAG_APPEND },
+	{ F2FS_NODUMP_FL,	FS_XFLAG_NODUMP },
+	{ F2FS_NOATIME_FL,	FS_XFLAG_NOATIME },
+	{ F2FS_PROJINHERIT_FL,	FS_XFLAG_PROJINHERIT },
+};
+
+#define F2FS_SUPPORTED_XFLAGS (		\
+		FS_XFLAG_SYNC |		\
+		FS_XFLAG_IMMUTABLE |	\
+		FS_XFLAG_APPEND |	\
+		FS_XFLAG_NODUMP |	\
+		FS_XFLAG_NOATIME |	\
+		FS_XFLAG_PROJINHERIT)
+
+/* Convert f2fs on-disk i_flags to FS_IOC_FS{GET,SET}XATTR flags */
+static inline u32 f2fs_iflags_to_xflags(u32 iflags)
+{
+	u32 xflags = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(f2fs_xflags_map); i++)
+		if (iflags & f2fs_xflags_map[i].iflag)
+			xflags |= f2fs_xflags_map[i].xflag;
+
+	return xflags;
+}
+
+/* Convert FS_IOC_FS{GET,SET}XATTR flags to f2fs on-disk i_flags */
+static inline u32 f2fs_xflags_to_iflags(u32 xflags)
+{
+	u32 iflags = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(f2fs_xflags_map); i++)
+		if (xflags & f2fs_xflags_map[i].xflag)
+			iflags |= f2fs_xflags_map[i].iflag;
+
+	return iflags;
+}
+
+static int f2fs_ioc_fsgetxattr(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct fsxattr fa;
+
+	memset(&fa, 0, sizeof(struct fsxattr));
+	fa.fsx_xflags = f2fs_iflags_to_xflags(fi->i_flags);
+
+	if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)))
+		fa.fsx_projid = (__u32)from_kprojid(&init_user_ns,
+							fi->i_projid);
+
+	if (copy_to_user((struct fsxattr __user *)arg, &fa, sizeof(fa)))
+		return -EFAULT;
+	return 0;
+}
+
+static int f2fs_ioctl_check_project(struct inode *inode, struct fsxattr *fa)
+{
+	/*
+	 * Project Quota ID state is only allowed to change from within the init
+	 * namespace. Enforce that restriction only if we are trying to change
+	 * the quota ID state. Everything else is allowed in user namespaces.
+	 */
+	if (current_user_ns() == &init_user_ns)
+		return 0;
+
+	if (__kprojid_val(F2FS_I(inode)->i_projid) != fa->fsx_projid)
+		return -EINVAL;
+
+	if (F2FS_I(inode)->i_flags & F2FS_PROJINHERIT_FL) {
+		if (!(fa->fsx_xflags & FS_XFLAG_PROJINHERIT))
+			return -EINVAL;
+	} else {
+		if (fa->fsx_xflags & FS_XFLAG_PROJINHERIT)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int f2fs_ioc_fssetxattr(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct fsxattr fa;
+	u32 iflags;
+	int err;
+
+	if (copy_from_user(&fa, (struct fsxattr __user *)arg, sizeof(fa)))
+		return -EFAULT;
+
+	/* Make sure caller has proper permission */
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
+	if (fa.fsx_xflags & ~F2FS_SUPPORTED_XFLAGS)
+		return -EOPNOTSUPP;
+
+	iflags = f2fs_xflags_to_iflags(fa.fsx_xflags);
+	if (f2fs_mask_flags(inode->i_mode, iflags) != iflags)
+		return -EOPNOTSUPP;
+
+	err = mnt_want_write_file(filp);
+	if (err)
+		return err;
+
+	inode_lock(inode);
+	err = f2fs_ioctl_check_project(inode, &fa);
+	if (err)
+		goto out;
+	err = f2fs_setflags_common(inode, iflags,
+			f2fs_xflags_to_iflags(F2FS_SUPPORTED_XFLAGS));
+	if (err)
+		goto out;
+
+	err = f2fs_ioc_setproject(filp, fa.fsx_projid);
+out:
+	inode_unlock(inode);
+	mnt_drop_write_file(filp);
+	return err;
+}
+
 int f2fs_pin_file_control(struct inode *inode, bool inc)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
@@ -2803,6 +3109,10 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_flush_device(filp, arg);
 	case F2FS_IOC_GET_FEATURES:
 		return f2fs_ioc_get_features(filp, arg);
+	case F2FS_IOC_FSGETXATTR:
+		return f2fs_ioc_fsgetxattr(filp, arg);
+	case F2FS_IOC_FSSETXATTR:
+		return f2fs_ioc_fssetxattr(filp, arg);
 	case F2FS_IOC_GET_PIN_FILE:
 		return f2fs_ioc_get_pin_file(filp, arg);
 	case F2FS_IOC_SET_PIN_FILE:
@@ -2917,6 +3227,8 @@ long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_MOVE_RANGE:
 	case F2FS_IOC_FLUSH_DEVICE:
 	case F2FS_IOC_GET_FEATURES:
+	case F2FS_IOC_FSGETXATTR:
+	case F2FS_IOC_FSSETXATTR:
 	case F2FS_IOC_GET_PIN_FILE:
 	case F2FS_IOC_SET_PIN_FILE:
 	case F2FS_IOC_PRECACHE_EXTENTS:
