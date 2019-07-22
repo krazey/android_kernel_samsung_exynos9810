@@ -1107,15 +1107,17 @@ resizefs_out:
 	}
 	case EXT4_IOC_SHUTDOWN:
 		return ext4_shutdown(sb, arg);
-#ifdef CONFIG_FSCRYPT_SDP
-	case FS_IOC_GET_SDP_INFO:
-	case FS_IOC_SET_SDP_POLICY:
-	case FS_IOC_SET_SENSITIVE:
-	case FS_IOC_SET_PROTECTED:
-	case FS_IOC_ADD_CHAMBER:
-	case FS_IOC_REMOVE_CHAMBER:
-		return fscrypt_sdp_ioctl(filp, cmd, arg);
-#endif
+
+	case FS_IOC_ENABLE_VERITY:
+		if (!ext4_has_feature_verity(sb))
+			return -EOPNOTSUPP;
+		return fsverity_ioctl_enable(filp, (const void __user *)arg);
+
+	case FS_IOC_MEASURE_VERITY:
+		if (!ext4_has_feature_verity(sb))
+			return -EOPNOTSUPP;
+		return fsverity_ioctl_measure(filp, (void __user *)arg);
+
 	default:
 		return -ENOTTY;
 	}
@@ -1191,6 +1193,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 	case EXT4_IOC_SHUTDOWN:
 	case FS_IOC_GETFSMAP:
+	case FS_IOC_ENABLE_VERITY:
+	case FS_IOC_MEASURE_VERITY:
 		break;
 	default:
 		return -ENOIOCTLCMD;
