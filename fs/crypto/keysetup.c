@@ -52,20 +52,14 @@ static struct fscrypt_mode available_modes[] = {
 };
 
 static struct fscrypt_mode *
-select_encryption_mode(const struct fscrypt_info *ci, const struct inode *inode)
+select_encryption_mode(const union fscrypt_policy *policy,
+		       const struct inode *inode)
 {
-	if (!fscrypt_valid_enc_modes(ci->ci_data_mode, ci->ci_filename_mode)) {
-		fscrypt_warn(inode,
-			     "Unsupported encryption modes (contents mode %d, filenames mode %d)",
-			     ci->ci_data_mode, ci->ci_filename_mode);
-		return ERR_PTR(-EINVAL);
-	}
-
 	if (S_ISREG(inode->i_mode))
-		return &available_modes[ci->ci_data_mode];
+		return &available_modes[fscrypt_policy_contents_mode(policy)];
 
 	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-		return &available_modes[ci->ci_filename_mode];
+		return &available_modes[fscrypt_policy_fnames_mode(policy)];
 
 	WARN_ONCE(1, "fscrypt: filesystem tried to load encryption info for inode %lu, which is not encryptable (file type %d)\n",
 		  inode->i_ino, (inode->i_mode & S_IFMT));
@@ -206,6 +200,82 @@ int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
 	return 0;
 }
 
+static int setup_per_mode_key(struct fscrypt_info *ci,
+			      struct fscrypt_master_key *mk)
+{
+	struct fscrypt_mode *mode = ci->ci_mode;
+	u8 mode_num = mode - available_modes;
+	struct crypto_skcipher *tfm, *prev_tfm;
+	u8 mode_key[FS_MAX_KEY_SIZE];
+	int err;
+
+	if (WARN_ON(mode_num >= ARRAY_SIZE(mk->mk_mode_keys)))
+		return -EINVAL;
+
+	/* pairs with cmpxchg() below */
+	tfm = READ_ONCE(mk->mk_mode_keys[mode_num]);
+	if (likely(tfm != NULL))
+		goto done;
+
+	BUILD_BUG_ON(sizeof(mode_num) != 1);
+	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+				  HKDF_CONTEXT_PER_MODE_KEY,
+				  &mode_num, sizeof(mode_num),
+				  mode_key, mode->keysize);
+	if (err)
+		return err;
+	tfm = fscrypt_allocate_skcipher(mode, mode_key, ci->ci_inode);
+	memzero_explicit(mode_key, mode->keysize);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	/* pairs with READ_ONCE() above */
+	prev_tfm = cmpxchg(&mk->mk_mode_keys[mode_num], NULL, tfm);
+	if (prev_tfm != NULL) {
+		crypto_free_skcipher(tfm);
+		tfm = prev_tfm;
+	}
+done:
+	ci->ci_ctfm = tfm;
+	return 0;
+}
+
+static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
+				     struct fscrypt_master_key *mk)
+{
+	u8 derived_key[FS_MAX_KEY_SIZE];
+	int err;
+
+	if (ci->ci_policy.v2.flags & FS_POLICY_FLAG_DIRECT_KEY) {
+		/*
+		 * DIRECT_KEY: instead of deriving per-file keys, the per-file
+		 * nonce will be included in all the IVs.  But unlike v1
+		 * policies, for v2 policies in this case we don't encrypt with
+		 * the master key directly but rather derive a per-mode key.
+		 * This ensures that the master key is consistently used only
+		 * for HKDF, avoiding key reuse issues.
+		 */
+		if (!fscrypt_mode_supports_direct_key(ci->ci_mode)) {
+			fscrypt_warn(ci->ci_inode,
+				     "Direct key flag not allowed with %s",
+				     ci->ci_mode->friendly_name);
+			return -EINVAL;
+		}
+		return setup_per_mode_key(ci, mk);
+	}
+
+	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+				  HKDF_CONTEXT_PER_FILE_KEY,
+				  ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE,
+				  derived_key, ci->ci_mode->keysize);
+	if (err)
+		return err;
+
+	err = fscrypt_set_derived_key(ci, derived_key);
+	memzero_explicit(derived_key, ci->ci_mode->keysize);
+	return err;
+}
+
 /*
  * Find the master key, then set up the inode's actual encryption key.
  *
@@ -224,15 +294,36 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	struct fscrypt_key_specifier mk_spec;
 	int err;
 
-	mk_spec.type = FS_KEY_SPEC_TYPE_DESCRIPTOR;
-	memcpy(mk_spec.u.descriptor, ci->ci_master_key_descriptor,
-	       FS_KEY_DESCRIPTOR_SIZE);
+	switch (ci->ci_policy.version) {
+	case FSCRYPT_POLICY_V1:
+		mk_spec.type = FS_KEY_SPEC_TYPE_DESCRIPTOR;
+		memcpy(mk_spec.u.descriptor,
+		       ci->ci_policy.v1.master_key_descriptor,
+		       FS_KEY_DESCRIPTOR_SIZE);
+		break;
+	case FSCRYPT_POLICY_V2:
+		mk_spec.type = FS_KEY_SPEC_TYPE_IDENTIFIER;
+		memcpy(mk_spec.u.identifier,
+		       ci->ci_policy.v2.master_key_identifier,
+		       FS_KEY_IDENTIFIER_SIZE);
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
 
 	key = fscrypt_find_master_key(ci->ci_inode->i_sb, &mk_spec);
 	if (IS_ERR(key)) {
-		if (key != ERR_PTR(-ENOKEY))
+		if (key != ERR_PTR(-ENOKEY) ||
+		    ci->ci_policy.version != FSCRYPT_POLICY_V1)
 			return PTR_ERR(key);
 
+		/*
+		 * As a legacy fallback for v1 policies, search for the key in
+		 * the current task's subscribed keyrings too.  Don't move this
+		 * to before the search of ->s_master_keys, since users
+		 * shouldn't be able to override filesystem-level keys.
+		 */
 		return fscrypt_setup_v1_file_key_via_subscribed_keyrings(ci);
 	}
 
@@ -245,6 +336,12 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		goto out_release_key;
 	}
 
+	/*
+	 * Require that the master key be at least as long as the derived key.
+	 * Otherwise, the derived key cannot possibly contain as much entropy as
+	 * that required by the encryption mode it will be used for.  For v1
+	 * policies it's also required for the KDF to work at all.
+	 */
 	if (mk->mk_secret.size < ci->ci_mode->keysize) {
 		fscrypt_warn(NULL,
 			     "key with %s %*phN is too short (got %u bytes, need %u+ bytes)",
@@ -255,7 +352,18 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		goto out_release_key;
 	}
 
-	err = fscrypt_setup_v1_file_key(ci, mk->mk_secret.raw);
+	switch (ci->ci_policy.version) {
+	case FSCRYPT_POLICY_V1:
+		err = fscrypt_setup_v1_file_key(ci, mk->mk_secret.raw);
+		break;
+	case FSCRYPT_POLICY_V2:
+		err = fscrypt_setup_v2_file_key(ci, mk);
+		break;
+	default:
+		WARN_ON(1);
+		err = -EINVAL;
+		break;
+	}
 	if (err)
 		goto out_release_key;
 
@@ -277,7 +385,8 @@ static void put_crypt_info(struct fscrypt_info *ci)
 
 	if (ci->ci_direct_key) {
 		fscrypt_put_direct_key(ci->ci_direct_key);
-	} else {
+	} else if ((ci->ci_ctfm != NULL || ci->ci_essiv_tfm != NULL) &&
+		   !fscrypt_is_direct_key_policy(&ci->ci_policy)) {
 		crypto_free_skcipher(ci->ci_ctfm);
 		crypto_free_cipher(ci->ci_essiv_tfm);
 	}
@@ -307,7 +416,7 @@ static void put_crypt_info(struct fscrypt_info *ci)
 int fscrypt_get_encryption_info(struct inode *inode)
 {
 	struct fscrypt_info *crypt_info;
-	struct fscrypt_context ctx;
+	union fscrypt_context ctx;
 	struct fscrypt_mode *mode;
 	struct key *master_key = NULL;
 	int res;
@@ -326,19 +435,13 @@ int fscrypt_get_encryption_info(struct inode *inode)
 			return res;
 		/* Fake up a context for an unencrypted directory */
 		memset(&ctx, 0, sizeof(ctx));
-		ctx.format = FS_ENCRYPTION_CONTEXT_FORMAT_V1;
-		ctx.contents_encryption_mode = FS_ENCRYPTION_MODE_AES_256_XTS;
-		ctx.filenames_encryption_mode = FS_ENCRYPTION_MODE_AES_256_CTS;
-		memset(ctx.master_key_descriptor, 0x42, FS_KEY_DESCRIPTOR_SIZE);
-	} else if (res != sizeof(ctx)) {
-		return -EINVAL;
+		ctx.version = FSCRYPT_CONTEXT_V1;
+		ctx.v1.contents_encryption_mode = FS_ENCRYPTION_MODE_AES_256_XTS;
+		ctx.v1.filenames_encryption_mode = FS_ENCRYPTION_MODE_AES_256_CTS;
+		memset(ctx.v1.master_key_descriptor, 0x42,
+		       FS_KEY_DESCRIPTOR_SIZE);
+		res = sizeof(ctx.v1);
 	}
-
-	if (ctx.format != FS_ENCRYPTION_CONTEXT_FORMAT_V1)
-		return -EINVAL;
-
-	if (ctx.flags & ~FS_POLICY_FLAGS_VALID)
-		return -EINVAL;
 
 	crypt_info = kmem_cache_zalloc(fscrypt_info_cachep, GFP_NOFS);
 	if (!crypt_info)
@@ -346,14 +449,34 @@ int fscrypt_get_encryption_info(struct inode *inode)
 
 	crypt_info->ci_inode = inode;
 
-	crypt_info->ci_flags = ctx.flags;
-	crypt_info->ci_data_mode = ctx.contents_encryption_mode;
-	crypt_info->ci_filename_mode = ctx.filenames_encryption_mode;
-	memcpy(crypt_info->ci_master_key_descriptor, ctx.master_key_descriptor,
-	       FS_KEY_DESCRIPTOR_SIZE);
-	memcpy(crypt_info->ci_nonce, ctx.nonce, FS_KEY_DERIVATION_NONCE_SIZE);
+	res = fscrypt_policy_from_context(&crypt_info->ci_policy, &ctx, res);
+	if (res) {
+		fscrypt_warn(inode,
+			     "Unrecognized or corrupt encryption context");
+		goto out;
+	}
 
-	mode = select_encryption_mode(crypt_info, inode);
+	switch (ctx.version) {
+	case FSCRYPT_CONTEXT_V1:
+		memcpy(crypt_info->ci_nonce, ctx.v1.nonce,
+		       FS_KEY_DERIVATION_NONCE_SIZE);
+		break;
+	case FSCRYPT_CONTEXT_V2:
+		memcpy(crypt_info->ci_nonce, ctx.v2.nonce,
+		       FS_KEY_DERIVATION_NONCE_SIZE);
+		break;
+	default:
+		WARN_ON(1);
+		res = -EINVAL;
+		goto out;
+	}
+
+	if (!fscrypt_supported_policy(&crypt_info->ci_policy, inode)) {
+		res = -EINVAL;
+		goto out;
+	}
+
+	mode = select_encryption_mode(&crypt_info->ci_policy, inode);
 	if (IS_ERR(mode)) {
 		res = PTR_ERR(mode);
 		goto out;
