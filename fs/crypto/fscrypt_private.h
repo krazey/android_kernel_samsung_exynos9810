@@ -158,7 +158,7 @@ extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
 /* crypto.c */
 int fscrypt_initialize(unsigned int cop_flags);
 
-/* keyinfo.c */
+/* keysetup.c */
 
 struct fscrypt_mode {
 	const char *friendly_name;
