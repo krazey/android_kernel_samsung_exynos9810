@@ -92,6 +92,16 @@ static inline int fscrypt_inherit_context(struct inode *parent,
 	return -EOPNOTSUPP;
 }
 
+/* keyring.c */
+static inline void fscrypt_sb_free(struct super_block *sb)
+{
+}
+
+static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
+{
+	return -EOPNOTSUPP;
+}
+
 /* keysetup.c */
 static inline int fscrypt_get_encryption_info(struct inode *inode)
 {
