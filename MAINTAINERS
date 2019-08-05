@@ -5150,7 +5150,9 @@ Q:	https://patchwork.kernel.org/project/linux-fscrypt/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/fscrypt.git
 S:	Supported
 F:	fs/crypto/
-F:	include/linux/fscrypto.h
+F:	include/linux/fscrypt*.h
+F:	include/uapi/linux/fscrypt.h
+F:	Documentation/filesystems/fscrypt.rst
 
 F2FS FILE SYSTEM
 M:	Jaegeuk Kim <jaegeuk@kernel.org>
