@@ -111,10 +111,13 @@ extern int fscrypt_inherit_context(struct inode *, struct inode *,
 /* keyring.c */
 extern void fscrypt_sb_free(struct super_block *sb);
 extern int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
+extern int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
 
 /* keysetup.c */
 extern int fscrypt_get_encryption_info(struct inode *);
 extern void fscrypt_put_encryption_info(struct inode *);
+extern void fscrypt_free_inode(struct inode *);
+extern int fscrypt_drop_inode(struct inode *inode);
 #ifdef CONFIG_FSCRYPT_SDP
 extern int fscrypt_get_encryption_key(struct inode *inode,
 						struct fscrypt_key *key);
@@ -329,6 +332,11 @@ static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
 	return -EOPNOTSUPP;
 }
 
+static inline int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg)
+{
+	return -EOPNOTSUPP;
+}
+
 /* keysetup.c */
 static inline int fscrypt_get_encryption_info(struct inode *inode)
 {
@@ -352,6 +360,16 @@ static inline int fscrypt_get_encryption_kek(struct inode *inode,
 {
 	return -EOPNOTSUPP;
 }
+
+static inline void fscrypt_free_inode(struct inode *inode)
+{
+}
+
+static inline int fscrypt_drop_inode(struct inode *inode)
+{
+	return 0;
+}
+
  /* fname.c */
 static inline int fscrypt_setup_filename(struct inode *dir,
 					 const struct qstr *iname,
