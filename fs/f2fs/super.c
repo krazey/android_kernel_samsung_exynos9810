@@ -913,6 +913,10 @@ static int f2fs_drop_inode(struct inode *inode)
 		return 0;
 	}
 	ret = generic_drop_inode(inode);
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
+	if (!ret)
+		ret = fscrypt_drop_inode(inode);
+#endif
 	trace_f2fs_drop_inode(inode, ret);
 	return ret;
 }
