@@ -1096,8 +1096,13 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 		     sector_t sector, unsigned len)
 {
 	struct bio *clone = &tio->clone;
+	int ret;
 
 	__bio_clone_fast(clone, bio);
+
+	ret = bio_crypt_clone(clone, bio, GFP_NOIO);
+	if (ret < 0)
+		return ret;
 
 	if (bio_integrity(bio)) {
 		int r = bio_integrity_clone(clone, bio, GFP_NOIO);
@@ -1108,8 +1113,13 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
 	clone->bi_iter.bi_size = to_bytes(len);
 
-	if (bio_integrity(bio))
-		bio_integrity_trim(clone, 0, len);
+	if (bio_integrity(bio)) {
+		ret = bio_integrity_trim(clone, 0, len);
+		if (ret < 0) {
+			bio_crypt_free_ctx(clone);
+			return ret;
+		}
+	}
 
 	return 0;
 }

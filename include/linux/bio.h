@@ -22,6 +22,7 @@
 #include <linux/mempool.h>
 #include <linux/ioprio.h>
 #include <linux/bug.h>
+#include <linux/bio-crypt-ctx.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -553,11 +554,6 @@ static inline char *__bio_kmap_irq(struct bio *bio, struct bvec_iter iter,
 	__bio_kmap_irq((bio), (bio)->bi_iter, (flags))
 #define bio_kunmap_irq(buf,flags)	__bio_kunmap_irq(buf, flags)
 
-enum blk_crypto_mode_num {
-	BLK_ENCRYPTION_MODE_INVALID	= 0,
-	BLK_ENCRYPTION_MODE_AES_256_XTS	= 1,
-};
-
 /*
  * BIO list management for use by remapping drivers (e.g. DM or MD) and loop.
  *
@@ -742,7 +738,7 @@ extern bool bio_integrity_enabled(struct bio *bio);
 extern int bio_integrity_prep(struct bio *);
 extern void bio_integrity_endio(struct bio *);
 extern void bio_integrity_advance(struct bio *, unsigned int);
-extern void bio_integrity_trim(struct bio *, unsigned int, unsigned int);
+extern int bio_integrity_trim(struct bio *, unsigned int, unsigned int);
 extern int bio_integrity_clone(struct bio *, struct bio *, gfp_t);
 extern int bioset_integrity_create(struct bio_set *, int);
 extern void bioset_integrity_free(struct bio_set *);
@@ -792,10 +788,10 @@ static inline void bio_integrity_advance(struct bio *bio,
 	return;
 }
 
-static inline void bio_integrity_trim(struct bio *bio, unsigned int offset,
+static inline int bio_integrity_trim(struct bio *bio, unsigned int offset,
 				      unsigned int sectors)
 {
-	return;
+	return 0;
 }
 
 static inline void bio_integrity_init(void)
