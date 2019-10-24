@@ -41,6 +41,7 @@ struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
+struct keyslot_manager;
 
 #define BLKDEV_MIN_RQ	4
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
@@ -444,6 +445,11 @@ struct request_queue {
 	 * queue_lock internally, e.g. scsi_request_fn().
 	 */
 	unsigned int		request_fn_active;
+
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	/* Inline crypto capabilities */
+	struct keyslot_manager *ksm;
+#endif
 
 	unsigned int		rq_timeout;
 	struct timer_list	timeout;
