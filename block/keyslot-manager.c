@@ -88,7 +88,7 @@ struct keyslot_manager *keyslot_manager_create(unsigned int num_slots,
 	    ksm_ll_ops->keyslot_find == NULL)
 		return NULL;
 
-	ksm = kvzalloc(struct_size(ksm, slots, num_slots), GFP_KERNEL);
+	ksm = kzalloc(struct_size(ksm, slots, num_slots), GFP_KERNEL);
 	if (!ksm)
 		return NULL;
 

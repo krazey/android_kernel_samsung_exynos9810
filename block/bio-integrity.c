@@ -438,7 +438,7 @@ EXPORT_SYMBOL(bio_integrity_advance);
  * and the length will be truncated corresponding to 'len' data
  * sectors.
  */
-void bio_integrity_trim(struct bio *bio, unsigned int offset,
+int bio_integrity_trim(struct bio *bio, unsigned int offset,
 			unsigned int sectors)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
