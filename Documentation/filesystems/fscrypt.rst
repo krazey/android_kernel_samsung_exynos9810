@@ -141,13 +141,6 @@ fscrypt randomly generates a 16-byte nonce and stores it in the
 inode's encryption xattr.  Then, it uses a KDF (Key Derivation
 Function) to derive the file's key from the master key and nonce.
 
-The Adiantum encryption mode (see `Encryption modes and usage`_) is
-special, since it accepts longer IVs and is suitable for both contents
-and filenames encryption.  For it, a "direct key" option is offered
-where the file's nonce is included in the IVs and the master key is
-used for encryption directly.  This improves performance; however,
-users must not use the same master key for any other encryption mode.
-
 Below, the KDF and design considerations are described in more detail.
 
 The current KDF works by encrypting the master key with AES-128-ECB,
@@ -171,10 +164,51 @@ alternative master keys or to support rotating master keys.  Instead,
 the master keys may be wrapped in userspace, e.g. as is done by the
 `fscrypt <https://github.com/google/fscrypt>`_ tool.
 
-Including the inode number in the IVs was considered.  However, it was
-rejected as it would have prevented ext4 filesystems from being
-resized, and by itself still wouldn't have been sufficient to prevent
-the same key from being directly reused for both XTS and CTS-CBC.
+DIRECT_KEY policies
+-------------------
+
+The Adiantum encryption mode (see `Encryption modes and usage`_) is
+suitable for both contents and filenames encryption, and it accepts
+long IVs --- long enough to hold both an 8-byte logical block number
+and a 16-byte per-file nonce.  Also, the overhead of each Adiantum key
+is greater than that of an AES-256-XTS key.
+
+Therefore, to improve performance and save memory, for Adiantum a
+"direct key" configuration is supported.  When the user has enabled
+this by setting FSCRYPT_POLICY_FLAG_DIRECT_KEY in the fscrypt policy,
+per-file keys are not used.  Instead, whenever any data (contents or
+filenames) is encrypted, the file's 16-byte nonce is included in the
+IV.  Moreover:
+
+- For v1 encryption policies, the encryption is done directly with the
+  master key.  Because of this, users **must not** use the same master
+  key for any other purpose, even for other v1 policies.
+
+- For v2 encryption policies, the encryption is done with a per-mode
+  key derived using the KDF.  Users may use the same master key for
+  other v2 encryption policies.
+
+IV_INO_LBLK_64 policies
+-----------------------
+
+When FS_POLICY_FLAG_IV_INO_LBLK_64 is set in the fscrypt policy,
+the encryption keys are derived from the master key, encryption mode
+number, and filesystem UUID.  This normally results in all files
+protected by the same master key sharing a single contents encryption
+key and a single filenames encryption key.  To still encrypt different
+files' data differently, inode numbers are included in the IVs.
+Consequently, shrinking the filesystem may not be allowed.
+
+This format is optimized for use with inline encryption hardware
+compliant with the UFS or eMMC standards, which support only 64 IV
+bits per I/O request and may have only a small number of keyslots.
+
+Key identifiers
+---------------
+
+For master keys used for v2 encryption policies, a unique 16-byte "key
+identifier" is also derived using the KDF.  This value is stored in
+the clear, since it is needed to reliably identify the key itself.
 
 Encryption modes and usage
 ==========================
@@ -226,9 +260,16 @@ a little endian number, except that:
   is encrypted with AES-256 where the AES-256 key is the SHA-256 hash
   of the file's data encryption key.
 
-- In the "direct key" configuration (FS_POLICY_FLAG_DIRECT_KEY set in
-  the fscrypt_policy), the file's nonce is also appended to the IV.
+- With `DIRECT_KEY policies`_, the file's nonce is appended to the IV.
   Currently this is only allowed with the Adiantum encryption mode.
+
+- With `IV_INO_LBLK_64 policies`_, the logical block number is limited
+  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
+  (which is also limited to 32 bits) is placed in bits 32-63.
+
+Note that because file logical block numbers are included in the IVs,
+filesystems must enforce that blocks are never shifted around within
+encrypted files, e.g. via "collapse range" or "insert range".
 
 Filenames encryption
 --------------------
@@ -238,10 +279,10 @@ the requirements to retain support for efficient directory lookups and
 filenames of up to 255 bytes, the same IV is used for every filename
 in a directory.
 
-However, each encrypted directory still uses a unique key; or
-alternatively (for the "direct key" configuration) has the file's
-nonce included in the IVs.  Thus, IV reuse is limited to within a
-single directory.
+However, each encrypted directory still uses a unique key, or
+alternatively has the file's nonce (for `DIRECT_KEY policies`_) or
+inode number (for `IV_INO_LBLK_64 policies`_) included in the IVs.
+Thus, IV reuse is limited to within a single directory.
 
 With CTS-CBC, the IV reuse means that when the plaintext filenames
 share a common prefix at least as long as the cipher block size (16
@@ -296,18 +337,22 @@ This structure must be initialized as follows:
   and FS_ENCRYPTION_MODE_AES_256_CTS (4) for
   ``filenames_encryption_mode``.
 
-- ``flags`` must contain a value from ``<linux/fs.h>`` which
-  identifies the amount of NUL-padding to use when encrypting
-  filenames.  If unsure, use FS_POLICY_FLAGS_PAD_32 (0x3).
-  In addition, if the chosen encryption modes are both
-  FS_ENCRYPTION_MODE_ADIANTUM, this can contain
-  FS_POLICY_FLAG_DIRECT_KEY to specify that the master key should be
-  used directly, without key derivation.
+- ``flags`` contains optional flags from ``<linux/fscrypt.h>``:
 
-- ``master_key_descriptor`` specifies how to find the master key in
-  the keyring; see `Adding keys`_.  It is up to userspace to choose a
-  unique ``master_key_descriptor`` for each master key.  The e4crypt
-  and fscrypt tools use the first 8 bytes of
+  - FS_POLICY_FLAGS_PAD_*: The amount of NUL padding to use when
+    encrypting filenames.  If unsure, use FSCRYPT_POLICY_FLAGS_PAD_32
+    (0x3).
+  - FS_POLICY_FLAG_DIRECT_KEY: See `DIRECT_KEY policies`_.
+  - FS_POLICY_FLAG_IV_INO_LBLK_64: See `IV_INO_LBLK_64
+    policies`_.  This is mutually exclusive with DIRECT_KEY and is not
+    supported on v1 policies.
+
+- For v2 encryption policies, ``__reserved`` must be zeroed.
+
+- For v1 encryption policies, ``master_key_descriptor`` specifies how
+  to find the master key in a keyring; see `Adding keys`_.  It is up
+  to userspace to choose a unique ``master_key_descriptor`` for each
+  master key.  The e4crypt and fscrypt tools use the first 8 bytes of
   ``SHA-512(SHA-512(master_key))``, but this particular scheme is not
   required.  Also, the master key need not be in the keyring yet when
   FS_IOC_SET_ENCRYPTION_POLICY is executed.  However, it must be added
@@ -579,12 +624,12 @@ as follows::
             u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
     };
 
-Note that :c:type:`struct fscrypt_context` contains the same
-information as :c:type:`struct fscrypt_policy` (see `Setting an
-encryption policy`_), except that :c:type:`struct fscrypt_context`
-also contains a nonce.  The nonce is randomly generated by the kernel
-and is used to derive the inode's encryption key as described in
-`Per-file keys`_.
+The context structs contain the same information as the corresponding
+policy structs (see `Setting an encryption policy`_), except that the
+context structs also contain a nonce.  The nonce is randomly generated
+by the kernel and is used as KDF input or as a tweak to cause
+different files to be encrypted differently; see `Per-file keys`_ and
+`DIRECT_KEY policies`_.
 
 Data path changes
 -----------------
