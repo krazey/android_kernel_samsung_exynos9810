@@ -5643,14 +5643,21 @@ int ext4_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *inode;
 	unsigned long long delalloc_blocks;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	unsigned int flags;
 
 	inode = d_inode(path->dentry);
+
+	flags = ei->i_flags & EXT4_FL_USER_VISIBLE;
+	if (flags & EXT4_VERITY_FL)
+		stat->attributes |= STATX_ATTR_VERITY;
 
 	stat->attributes_mask |= (STATX_ATTR_APPEND |
 				  STATX_ATTR_COMPRESSED |
 				  STATX_ATTR_ENCRYPTED |
 				  STATX_ATTR_IMMUTABLE |
-				  STATX_ATTR_NODUMP);
+				  STATX_ATTR_NODUMP |
+				  STATX_ATTR_VERITY);
 
 	generic_fillattr(inode, stat);
 
