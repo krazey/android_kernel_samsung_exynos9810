@@ -715,10 +715,9 @@ int f2fs_truncate(struct inode *inode)
 }
 
 int f2fs_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+		 u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
-#if 0
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_inode *ri;
 	unsigned int flags;
@@ -740,12 +739,15 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 		stat->attributes |= STATX_ATTR_IMMUTABLE;
 	if (flags & F2FS_NODUMP_FL)
 		stat->attributes |= STATX_ATTR_NODUMP;
+	if (IS_VERITY(inode))
+		stat->attributes |= STATX_ATTR_VERITY;
 
 	stat->attributes_mask |= (STATX_ATTR_APPEND |
 				  STATX_ATTR_ENCRYPTED |
 				  STATX_ATTR_IMMUTABLE |
-				  STATX_ATTR_NODUMP);
-#endif
+				  STATX_ATTR_NODUMP |
+				  STATX_ATTR_VERITY);
+
 	generic_fillattr(inode, stat);
 
 	/* we need to show initial sectors used for inline_data/dentries */
