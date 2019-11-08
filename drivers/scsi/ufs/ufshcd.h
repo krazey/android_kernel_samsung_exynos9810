@@ -672,6 +672,12 @@ struct ufs_hba {
 	#define UFSHCD_QUIRK_GET_GENERRCODE_DIRECT		UFS_BIT(11)
 	#define UFSHCD_QUIRK_UNRESET_INTR_AGGR			UFS_BIT(12)
 
+	/*
+	 * This quirk needs to be enabled if the host controller advertises
+	 * inline encryption support but it doesn't work correctly.
+	 */
+	#define UFSHCD_QUIRK_BROKEN_CRYPTO			UFS_BIT(13)
+
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
 	/* Device deviations from standard UFS device spec. */
