@@ -255,12 +255,6 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * This ensures that the master key is consistently used only
 		 * for HKDF, avoiding key reuse issues.
 		 */
-		if (!fscrypt_mode_supports_direct_key(ci->ci_mode)) {
-			fscrypt_warn(ci->ci_inode,
-				     "Direct key flag not allowed with %s",
-				     ci->ci_mode->friendly_name);
-			return -EINVAL;
-		}
 		return setup_per_mode_key(ci, mk, mk->mk_direct_keys,
 					  HKDF_CONTEXT_DIRECT_KEY, false);
 	} else if (ci->ci_policy.v2.flags &
