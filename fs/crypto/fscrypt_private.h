@@ -567,12 +567,6 @@ struct fscrypt_mode {
 
 extern struct fscrypt_mode fscrypt_modes[];
 
-static inline bool
-fscrypt_mode_supports_direct_key(const struct fscrypt_mode *mode)
-{
-	return mode->ivsize >= offsetofend(union fscrypt_iv, nonce);
-}
-
 extern int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 			       const u8 *raw_key, unsigned int raw_key_size,
 			       const struct fscrypt_info *ci);
