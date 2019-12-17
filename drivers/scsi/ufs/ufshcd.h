@@ -190,9 +190,11 @@ struct ufshcd_lrb {
 	int task_tag;
 	u8 lun; /* UPIU LUN id field is only 8-bit wide */
 	bool intr_cmd;
+#if IS_ENABLED(CONFIG_SCSI_UFS_CRYPTO)
 	bool crypto_enable;
 	u8 crypto_key_slot;
 	u64 data_unit_num;
+#endif /* CONFIG_SCSI_UFS_CRYPTO */
 
 	bool req_abort_skip;
 };
@@ -568,7 +570,6 @@ struct SEC_UFS_counting {
  * @crypto_capabilities: Content of crypto capabilities register (0x100)
  * @crypto_cap_array: Array of crypto capabilities
  * @crypto_cfg_register: Start of the crypto cfg array
- * @crypto_cfgs: Array of crypto configurations (i.e. config for each slot)
  * @ksm: the keyslot manager tied to this hba
  */
 struct ufs_hba {
@@ -754,7 +755,7 @@ struct ufs_hba {
 	 * This capability allows the host controller driver to use the
 	 * inline crypto engine, if it is present
 	 */
-#define UFSHCD_CAP_CRYPTO (1 << 6)
+#define UFSHCD_CAP_CRYPTO (1 << 7)
 
 	/* Allow only hibern8 without clk gating */
 #define UFSHCD_CAP_FAKE_CLK_GATING (1 << 6)
@@ -784,7 +785,6 @@ struct ufs_hba {
 	union ufs_crypto_capabilities crypto_capabilities;
 	union ufs_crypto_cap_entry *crypto_cap_array;
 	u32 crypto_cfg_register;
-	union ufs_crypto_cfg_entry *crypto_cfgs;
 	struct keyslot_manager *ksm;
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
 
