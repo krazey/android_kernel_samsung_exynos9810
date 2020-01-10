@@ -288,6 +288,8 @@ struct ufs_pwr_mode_info {
 	struct ufs_pa_layer_attr info;
 };
 
+union ufs_crypto_cfg_entry;
+
 /**
  * struct ufs_hba_variant_ops - variant specific callbacks
  * @name: variant name
@@ -308,6 +310,7 @@ struct ufs_pwr_mode_info {
  * @resume: called during host controller PM callback
  * @dbg_register_dump: used to dump controller debug information
  * @phy_initialization: used to initialize phys
+ * @program_key: program an inline encryption key into a keyslot
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -338,6 +341,8 @@ struct ufs_hba_variant_ops {
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
 	u8      (*get_unipro_result)(struct ufs_hba *hba, int num);
 	int	(*phy_initialization)(struct ufs_hba *);
+	int	(*program_key)(struct ufs_hba *hba,
+			       const union ufs_crypto_cfg_entry *cfg, int slot);
 	int	(*crypto_engine_cfg)(struct ufs_hba *, struct ufshcd_lrb *,
 					struct scatterlist *, int, int);
 	int	(*crypto_engine_clear)(struct ufs_hba *, struct ufshcd_lrb *);
