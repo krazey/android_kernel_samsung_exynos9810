@@ -6725,16 +6725,12 @@ retry:
 		if (!hba->is_init_prefetch)
 			ufshcd_init_icc_levels(hba);
 
-		scsi_scan_host(hba->host);
-
 		/* Add required well known logical units to scsi mid layer */
 		ret = ufshcd_scsi_add_wlus(hba);
-		if (ret) {
-			dev_warn(hba->dev, "%s failed to add w-lus %d\n",
-				__func__, ret);
-			ret = 0;
-		}
+		if (ret)
+			goto out;
 
+		scsi_scan_host(hba->host);
 		pm_runtime_put_sync(hba->dev);
 	}
 
