@@ -146,7 +146,24 @@ struct mmc_request {
 #ifdef CONFIG_BLOCK
 	int			lat_hist_enabled;
 #endif
+#ifdef CONFIG_MMC_CRYPTO
+	int crypto_key_slot;
+	u64 data_unit_num;
+	const struct blk_crypto_key *crypto_key;
+#endif
 };
+
+#ifdef CONFIG_MMC_CRYPTO
+static inline bool mmc_request_crypto_enabled(const struct mmc_request *mrq)
+{
+	return mrq->crypto_key != NULL;
+}
+#else
+static inline bool mmc_request_crypto_enabled(const struct mmc_request *mrq)
+{
+	return false;
+}
+#endif
 
 struct mmc_card;
 struct mmc_async_req;

@@ -49,6 +49,7 @@
 #include "block.h"
 #include "core.h"
 #include "card.h"
+#include "crypto.h"
 #include "bus.h"
 #include "mmc_ops.h"
 #include "sd_ops.h"
@@ -2052,6 +2053,9 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		(md->flags & MMC_BLK_REL_WR);
 
 	memset(brq, 0, sizeof(struct mmc_blk_request));
+
+	mmc_crypto_prepare_req(mqrq);
+
 	brq->mrq.cmd = &brq->cmd;
 	brq->mrq.data = &brq->data;
 

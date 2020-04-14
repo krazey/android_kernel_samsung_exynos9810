@@ -24,6 +24,7 @@
 #include "queue.h"
 #include "block.h"
 #include "core.h"
+#include "crypto.h"
 #include "card.h"
 
 #define MMC_QUEUE_BOUNCESZ	65536
@@ -378,6 +379,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		goto cleanup_queue;
 	}
 
+	mmc_crypto_setup_queue(host, mq->queue);
 	return 0;
 
  cleanup_queue:
