@@ -44,7 +44,7 @@ struct fscrypt_context_v2 {
 	u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
 };
 
-/**
+/*
  * fscrypt_context - the encryption context of an inode
  *
  * This is the on-disk equivalent of an fscrypt_policy, stored alongside each
@@ -158,7 +158,7 @@ fscrypt_policy_flags(const union fscrypt_policy *policy)
 	BUG();
 }
 
-/**
+/*
  * For encrypted symlinks, the ciphertext length is stored at the beginning
  * of the string in little-endian format.
  */
