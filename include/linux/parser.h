@@ -6,7 +6,8 @@
  * but could potentially be used anywhere else that simple option=arg
  * parsing is required.
  */
-
+#ifndef _LINUX_PARSER_H
+#define _LINUX_PARSER_H
 
 /* associates an integer enumerator with a pattern string. */
 struct match_token {
@@ -33,3 +34,5 @@ int match_hex(substring_t *, int *result);
 bool match_wildcard(const char *pattern, const char *str);
 size_t match_strlcpy(char *, const substring_t *, size_t);
 char *match_strdup(const substring_t *);
+
+#endif /* _LINUX_PARSER_H */
