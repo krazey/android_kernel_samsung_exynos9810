@@ -46,7 +46,6 @@ TRACE_DEFINE_ENUM(CP_RECOVERY);
 TRACE_DEFINE_ENUM(CP_DISCARD);
 TRACE_DEFINE_ENUM(CP_TRIMMED);
 TRACE_DEFINE_ENUM(CP_PAUSE);
-TRACE_DEFINE_ENUM(CP_RESIZE);
 
 #define show_block_type(type)						\
 	__print_symbolic(type,						\
@@ -129,8 +128,7 @@ TRACE_DEFINE_ENUM(CP_RESIZE);
 		{ CP_RECOVERY,	"Recovery" },				\
 		{ CP_DISCARD,	"Discard" },				\
 		{ CP_PAUSE,	"Pause" },				\
-		{ CP_TRIMMED,	"Trimmed" },				\
-		{ CP_RESIZE,	"Resize" })
+		{ CP_TRIMMED,	"Trimmed" })
 
 #define show_fsync_cpreason(type)					\
 	__print_symbolic(type,						\
