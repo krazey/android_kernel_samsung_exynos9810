@@ -160,7 +160,6 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 				  struct fscrypt_prepared_key *keys,
 				  u8 hkdf_context, bool include_fs_uuid)
 {
-	static DEFINE_MUTEX(mode_key_setup_mutex);
 	const struct inode *inode = ci->ci_inode;
 	const struct super_block *sb = inode->i_sb;
 	struct fscrypt_mode *mode = ci->ci_mode;
@@ -229,6 +228,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 	}
 done_unlock:
 	ci->ci_key = *prep_key;
+
 	err = 0;
 out_unlock:
 	mutex_unlock(&fscrypt_mode_key_setup_mutex);
