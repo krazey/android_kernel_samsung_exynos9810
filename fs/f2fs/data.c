@@ -761,6 +761,7 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	if (fio->io_wbc && !is_read_io(fio->op))
 		wbc_account_io(fio->io_wbc, page, PAGE_SIZE);
 
+	__attach_io_flag(fio);
 	bio_set_op_attrs(bio, fio->op, fio->op_flags);
 
 	inc_page_count(fio->sbi, is_read_io(fio->op) ?
@@ -955,6 +956,7 @@ alloc_new:
 		f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
 				       fio->page->index, fio,
 				       GFP_NOIO);
+		__attach_io_flag(fio);
 		bio_set_op_attrs(bio, fio->op, fio->op_flags);
 
 		add_bio_entry(fio->sbi, bio, page, fio->temp);
