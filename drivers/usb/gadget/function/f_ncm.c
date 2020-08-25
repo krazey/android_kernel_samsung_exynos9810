@@ -447,6 +447,7 @@ struct ndp_parser_opts {
 	u32		ndp_sign;
 	unsigned	nth_size;
 	unsigned	ndp_size;
+	unsigned	dpe_size;
 	unsigned	ndplen_align;
 	/* sizes in u16 units */
 	unsigned	dgram_item_len; /* index or length */
@@ -462,6 +463,7 @@ struct ndp_parser_opts {
 		.ndp_sign = USB_CDC_NCM_NDP16_NOCRC_SIGN,	\
 		.nth_size = sizeof(struct usb_cdc_ncm_nth16),	\
 		.ndp_size = sizeof(struct usb_cdc_ncm_ndp16),	\
+		.dpe_size = sizeof(struct usb_cdc_ncm_dpe16),	\
 		.ndplen_align = 4,				\
 		.dgram_item_len = 1,				\
 		.block_length = 1,				\
@@ -477,6 +479,7 @@ struct ndp_parser_opts {
 		.ndp_sign = USB_CDC_NCM_NDP32_NOCRC_SIGN,	\
 		.nth_size = sizeof(struct usb_cdc_ncm_nth32),	\
 		.ndp_size = sizeof(struct usb_cdc_ncm_ndp32),	\
+		.dpe_size = sizeof(struct usb_cdc_ncm_dpe32),	\
 		.ndplen_align = 8,				\
 		.dgram_item_len = 2,				\
 		.block_length = 2,				\
@@ -1205,12 +1208,15 @@ static int ncm_unwrap_ntb(struct gether *port,
 	unsigned	index, index2;
 	unsigned	dg_len, dg_len2;
 	unsigned	ndp_len;
+	unsigned	block_len;
 	struct sk_buff	*skb2;
 	int		ret = -EINVAL;
-	unsigned	max_size = le32_to_cpu(ntb_parameters.dwNtbOutMaxSize);
+	unsigned	ntb_max = le32_to_cpu(ntb_parameters.dwNtbOutMaxSize);
+	unsigned	frame_max = le16_to_cpu(ecm_desc.wMaxSegmentSize);
 	const struct ndp_parser_opts *opts = ncm->parser_opts;
 	unsigned	crc_len = ncm->is_crc ? sizeof(uint32_t) : 0;
 	int		dgram_counter;
+	bool		ndp_after_header;
 
 	/* dwSignature */
 	if (get_unaligned_le32(tmp) != opts->nth_sign) {
@@ -1229,21 +1235,34 @@ static int ncm_unwrap_ntb(struct gether *port,
 	}
 	tmp++; /* skip wSequence */
 
+	block_len = get_ncm(&tmp, opts->block_length);
 	/* (d)wBlockLength */
-	if (get_ncm(&tmp, opts->block_length) > max_size) {
+	if (block_len > ntb_max) {
 		INFO(port->func.config->cdev, "OUT size exceeded\n");
 		goto err;
 	}
 
 	index = get_ncm(&tmp, opts->fp_index);
-	/* NCM 3.2 */
-	if (((index % 4) != 0) && (index < opts->nth_size)) {
+	ndp_after_header = false;	
+		/*
+		 * NCM 3.2
+		 * dwNdpIndex
+		 */
+		if (((index % 4) != 0) ||
+				(index < opts->nth_size) ||
+				(index > (block_len -
+					      opts->ndp_size))) {
 		INFO(port->func.config->cdev, "Bad index: %x\n",
 			index);
 		goto err;
 	}
+		if (index == opts->nth_size)
+			ndp_after_header = true;
 
-	/* walk through NDP */
+		/*
+		 * walk through NDP
+		 * dwSignature
+		 */
 	tmp = ((void *)skb->data) + index;
 	if (get_unaligned_le32(tmp) != ncm->ndp_sign) {
 		INFO(port->func.config->cdev, "Wrong NDP SIGN\n");
@@ -1254,6 +1273,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 	ndp_len = get_unaligned_le16(tmp++);
 	/*
 	 * NCM 3.3.1
+	 * wLength
 	 * entry is 2 items
 	 * item size is 16/32 bits, opts->dgram_item_len * 2 bytes
 	 * minimal: struct usb_cdc_ncm_ndpX + normal entry + zero entry
@@ -1274,8 +1294,21 @@ static int ncm_unwrap_ntb(struct gether *port,
 
 	do {
 		index = index2;
+			/* wDatagramIndex[0] */
+			if ((index < opts->nth_size) ||
+					(index > block_len - opts->dpe_size)) {
+				INFO(port->func.config->cdev,
+				     "Bad index: %#X\n", index);
+				goto err;
+			}
+
 		dg_len = dg_len2;
-		if (dg_len < 14 + crc_len) { /* ethernet header + crc */
+			/*
+			 * wDatagramLength[0]
+			 * ethernet hdr + crc or larger than max frame size
+			 */
+			if ((dg_len < 14 + crc_len) ||
+					(dg_len > frame_max)) {
 			INFO(port->func.config->cdev, "Bad dgram length: %x\n",
 			     dg_len);
 			goto err;
@@ -1305,6 +1338,34 @@ static int ncm_unwrap_ntb(struct gether *port,
 				goto err;
 		}
 
+		/* wDatagramIndex[1] */
+			if (ndp_after_header) {
+				if (index2 < opts->nth_size + opts->ndp_size) {
+					INFO(port->func.config->cdev,
+					     "Bad index: %#X\n", index2);
+					goto err;
+				}
+			} else {
+				if (index2 < opts->nth_size + opts->dpe_size) {
+					INFO(port->func.config->cdev,
+					     "Bad index: %#X\n", index2);
+					goto err;
+				}
+			}
+			if (index2 > block_len - opts->dpe_size) {
+				INFO(port->func.config->cdev,
+				     "Bad index: %#X\n", index2);
+				goto err;
+			}
+
+			/* wDatagramLength[1] */
+			if ((dg_len2 < 14 + crc_len) ||
+					(dg_len2 > frame_max)) {
+				INFO(port->func.config->cdev,
+				     "Bad dgram length: %#X\n", dg_len);
+				goto err;
+			}
+
 		if (!skb_pull(skb2, index)) {
 			ret = -EOVERFLOW;
 			goto err;
@@ -1317,8 +1378,6 @@ static int ncm_unwrap_ntb(struct gether *port,
 
 		dgram_counter++;
 
-		if (index2 == 0 || dg_len2 == 0)
-			break;
 	} while (ndp_len > 2 * (opts->dgram_item_len * 2)); /* zero entry */
 
 	VDBG(port->func.config->cdev,
