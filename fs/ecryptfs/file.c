@@ -290,9 +290,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	int rc = 0;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 	struct dentry *ecryptfs_dentry = file->f_path.dentry;
-#if defined(CONFIG_SDP) || defined(CONFIG_FMP_ECRYPT_FS)
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
-#endif
 	/* Private value of ecryptfs_dentry allocated in
 	 * ecryptfs_lookup() */
 	struct ecryptfs_file_info *file_info;

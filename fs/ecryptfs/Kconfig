@@ -35,21 +35,3 @@ config ECRYPTFS_FEK_INTEGRITY
 	depends on ECRYPT_FS
 	help
 	MDFPP requirements: During file decryption of ecrypts, it should check integrity of FEK(File encrypiton key) via HMAC as per
-
-config SDP
-	bool "Enables SDP"
-	default n
-	depends on ECRYPT_FS
-	help
-	Sensitive Data Protection
-
-config SDP_KEY_DUMP
-	bool "SDP KEY DUMP"
-	default n
-
-config DLP
-	bool "Enables DLP"
-	default n
-	help
-	Data Loss Prevention. This flag enables DLP access checks in ecryptfs file system
-

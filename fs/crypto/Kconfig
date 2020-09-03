@@ -35,11 +35,3 @@ config CRYPTO_FIPS
 	  required if you want to system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
 	  this is.
-config FSCRYPT_SDP
-	bool "Sensitive Data Protection for Per-file-encryption"
-	depends on FS_ENCRYPTION
-	depends on SDP
-	help
-	  Enable SDP functional to fscrypto module.
-	  This feature is supporting "Data-At-Rest" for file systems using
-	  Per-file-encryption being controlled by SDP user status.
