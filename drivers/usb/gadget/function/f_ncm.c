@@ -1216,7 +1216,6 @@ static int ncm_unwrap_ntb(struct gether *port,
 	const struct ndp_parser_opts *opts = ncm->parser_opts;
 	unsigned	crc_len = ncm->is_crc ? sizeof(uint32_t) : 0;
 	int		dgram_counter;
-	bool		ndp_after_header;
 
 	/* dwSignature */
 	if (get_unaligned_le32(tmp) != opts->nth_sign) {
@@ -1243,7 +1242,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 	}
 
 	index = get_ncm(&tmp, opts->fp_index);
-	ndp_after_header = false;	
+
 		/*
 		 * NCM 3.2
 		 * dwNdpIndex
@@ -1256,8 +1255,6 @@ static int ncm_unwrap_ntb(struct gether *port,
 			index);
 		goto err;
 	}
-		if (index == opts->nth_size)
-			ndp_after_header = true;
 
 		/*
 		 * walk through NDP
@@ -1330,41 +1327,14 @@ static int ncm_unwrap_ntb(struct gether *port,
 		index2 = get_ncm(&tmp, opts->dgram_item_len);
 		dg_len2 = get_ncm(&tmp, opts->dgram_item_len);
 
-		if (index2 == 0 || dg_len2 == 0) {
-			skb2 = skb;
-		} else {
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-			if (skb2 == NULL)
-				goto err;
-		}
 
 		/* wDatagramIndex[1] */
-			if (ndp_after_header) {
-				if (index2 < opts->nth_size + opts->ndp_size) {
-					INFO(port->func.config->cdev,
-					     "Bad index: %#X\n", index2);
-					goto err;
-				}
-			} else {
-				if (index2 < opts->nth_size + opts->dpe_size) {
-					INFO(port->func.config->cdev,
-					     "Bad index: %#X\n", index2);
-					goto err;
-				}
-			}
 			if (index2 > block_len - opts->dpe_size) {
 				INFO(port->func.config->cdev,
 				     "Bad index: %#X\n", index2);
 				goto err;
 			}
 
-			/* wDatagramLength[1] */
-			if ((dg_len2 < 14 + crc_len) ||
-					(dg_len2 > frame_max)) {
-				INFO(port->func.config->cdev,
-				     "Bad dgram length: %#X\n", dg_len);
-				goto err;
-			}
 
 		if (!skb_pull(skb2, index)) {
 			ret = -EOVERFLOW;
@@ -1377,7 +1347,8 @@ static int ncm_unwrap_ntb(struct gether *port,
 		ndp_len -= 2 * (opts->dgram_item_len * 2);
 
 		dgram_counter++;
-
+		if (index2 == 0 || dg_len2 == 0)
+				break;
 	} while (ndp_len > 2 * (opts->dgram_item_len * 2)); /* zero entry */
 
 	VDBG(port->func.config->cdev,
