@@ -822,7 +822,6 @@ static long acc_ioctl(struct file *fp, unsigned code, unsigned long value)
 static int acc_open(struct inode *ip, struct file *fp)
 {
 	if (atomic_xchg(&_acc_dev->open_excl, 1)) {
-		printk(KERN_INFO "usb: acc_open_EBUSY\n");
 		return -EBUSY;
 	}
 	printk(KERN_INFO "usb: acc_open\n");
@@ -833,8 +832,6 @@ static int acc_open(struct inode *ip, struct file *fp)
 
 static int acc_release(struct inode *ip, struct file *fp)
 {
-	printk(KERN_INFO "acc_release\n");
-
 	WARN_ON(!atomic_xchg(&_acc_dev->open_excl, 0));
 	/* indicate that we are disconnected
 	 * still could be online so don't touch online flag
@@ -912,12 +909,6 @@ int acc_ctrlrequest(struct usb_composite_dev *cdev,
 	 */
 	if (!dev)
 		return -ENODEV;
-/*
-	printk(KERN_INFO "acc_ctrlrequest "
-			"%02x.%02x v%04x i%04x l%u\n",
-			b_requestType, b_request,
-			w_value, w_index, w_length);
-*/
 
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	cdev->req->complete = acc_ctrlrequest_complete;
@@ -1407,7 +1398,6 @@ static struct usb_function_instance *acc_alloc_inst(void)
 	err = acc_setup();
 	if (err) {
 		kfree(fi_acc);
-		pr_err("Error setting ACCESSORY\n");
 		return ERR_PTR(err);
 	}
 
@@ -1433,8 +1423,6 @@ int acc_ctrlrequest_configfs(struct usb_function *f,
 static struct usb_function *acc_alloc(struct usb_function_instance *fi)
 {
 	struct acc_dev *dev = _acc_dev;
-
-	pr_info("acc_alloc\n");
 
 	dev->function.name = "accessory";
 	dev->function.strings = acc_strings,
