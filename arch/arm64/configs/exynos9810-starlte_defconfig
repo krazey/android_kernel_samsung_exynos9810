@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.175 Kernel Configuration
+# Linux/arm64 4.9.179 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -5557,9 +5557,6 @@ CONFIG_MFC_CHARGER=y
 CONFIG_MST_LPM_CONTROL=y
 # CONFIG_INTEGRITY is not set
 # CONFIG_TZ_ICCC is not set
-# CONFIG_SECURITY_DEFEX is not set
-# CONFIG_DEFEX_KERNEL_ONLY is not set
-# CONFIG_SECURITY_DSMS is not set
 # CONFIG_GAF_V3 is not set
 # CONFIG_GAF_V4 is not set
 # CONFIG_GAF_V5 is not set
