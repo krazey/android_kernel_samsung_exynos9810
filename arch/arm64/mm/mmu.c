@@ -350,21 +350,9 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 			 * After the PUD entry has been populated once, we
 			 * only allow updates to the permission attributes.
 			 */
-			BUG_ON(!pgattr_change_is_safe(pte_val(old_pte), pte_val(*pte)));
+			BUG_ON(!pgattr_change_is_safe(pud_val(old_pud),
+						      pud_val(*pud)));
 
-			if (!pud_none(old_pud)) {
-				flush_tlb_all();
-				if (pud_table(old_pud)) {
-					phys_addr_t table = pud_page_paddr(old_pud);
-					if (!WARN_ON_ONCE(slab_is_available()))
-#ifdef CONFIG_UH_RKP
-						if ((u64) table < (u64) __pa(_text) || (u64) table > (u64) __pa(_etext))
-							memblock_free(table, PAGE_SIZE);
-#else
-						memblock_free(table, PAGE_SIZE);
-#endif
-				}
-			}
 		} else {
 			alloc_init_pmd(pud, addr, next, phys, prot,
 				       pgtable_alloc, allow_block_mappings);
