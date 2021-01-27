@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.230 Kernel Configuration
+# Linux/arm64 4.9.249 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -2338,6 +2338,7 @@ CONFIG_SPI_S3C64XX=y
 CONFIG_SPI_SPIDEV=y
 # CONFIG_SPI_LOOPBACK_TEST is not set
 # CONFIG_SPI_TLE62X0 is not set
+# CONFIG_SPI_DYNAMIC is not set
 # CONFIG_SPMI is not set
 # CONFIG_HSI is not set
 
