@@ -54,4 +54,12 @@ int crypto_chacha_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 int crypto_xchacha_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes);
 
+static inline void chacha_init_consts(u32 *state)
+{
+	state[0]  = 0x61707865; /* "expa" */
+	state[1]  = 0x3320646e; /* "nd 3" */
+	state[2]  = 0x79622d32; /* "2-by" */
+	state[3]  = 0x6b206574; /* "te k" */
+}
+
 #endif /* _CRYPTO_CHACHA_H */
