@@ -979,9 +979,7 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 				if (err)
 					goto bad_insert;
 
-				/* Note: mapping count is tracked at alias
-				 * creation time
-				 */
+				kbase_mem_phy_alloc_gpu_mapped(alloc->imported.alias.aliased[i].alloc);
 			} else {
 				err = kbase_mmu_insert_single_page(kctx,
 					reg->start_pfn + i * stride,
@@ -1014,6 +1012,7 @@ bad_insert:
 		while (i--)
 			if (reg->gpu_alloc->imported.alias.aliased[i].alloc) {
 				kbase_mmu_teardown_pages(kctx, reg->start_pfn + (i * stride), reg->gpu_alloc->imported.alias.aliased[i].length);
+				kbase_mem_phy_alloc_gpu_unmapped(reg->gpu_alloc->imported.alias.aliased[i].alloc);
 			}
 	}
 
@@ -1035,10 +1034,13 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 		return 0;
 
 	if (reg->gpu_alloc && reg->gpu_alloc->type == KBASE_MEM_TYPE_ALIAS) {
+		size_t i;
+
 		err = kbase_mmu_teardown_pages(kctx, reg->start_pfn, reg->nr_pages);
-		/* We mark the source allocs as unmapped from the GPU when
-		 * putting reg's allocs
-		 */
+		KBASE_DEBUG_ASSERT(reg->gpu_alloc->imported.alias.aliased);
+		for (i = 0; i < reg->gpu_alloc->imported.alias.nents; i++)
+			if (reg->gpu_alloc->imported.alias.aliased[i].alloc)
+				kbase_mem_phy_alloc_gpu_unmapped(reg->gpu_alloc->imported.alias.aliased[i].alloc);
 	} else {
 		err = kbase_mmu_teardown_pages(kctx, reg->start_pfn, kbase_reg_current_backed_size(reg));
 		/* MALI_SEC_INTEGRATION */
@@ -1344,8 +1346,8 @@ int kbase_mem_free_region(struct kbase_context *kctx, struct kbase_va_region *re
 	KBASE_DEBUG_ASSERT(NULL != reg);
 	lockdep_assert_held(&kctx->reg_lock);
 
-	if (reg->flags & KBASE_REG_NO_USER_FREE) {
-		dev_warn(reg->kctx->kbdev->dev, "Attempt to free GPU memory whose freeing by user space is forbidden!\n");
+	if (reg->flags & KBASE_REG_JIT) {
+		dev_warn(reg->kctx->kbdev->dev, "Attempt to free JIT memory!\n");
 		return -EINVAL;
 	}
 
@@ -1506,9 +1508,6 @@ int kbase_update_region_flags(struct kbase_context *kctx,
 		reg->flags |=
 			KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_DEFAULT);
 	}
-
-	if (flags & BASEP_MEM_NO_USER_FREE)
-		reg->flags |= KBASE_REG_NO_USER_FREE;
 
 	return 0;
 }
@@ -2116,10 +2115,8 @@ void kbase_mem_kref_free(struct kref *kref)
 		aliased = alloc->imported.alias.aliased;
 		if (aliased) {
 			for (i = 0; i < alloc->imported.alias.nents; i++)
-				if (aliased[i].alloc) {
-					kbase_mem_phy_alloc_gpu_unmapped(aliased[i].alloc);
+				if (aliased[i].alloc)
 					kbase_mem_phy_alloc_put(aliased[i].alloc);
-				}
 			vfree(aliased);
 		}
 		break;
@@ -2588,7 +2585,7 @@ static void kbase_jit_destroy_worker(struct work_struct *work)
 		mutex_unlock(&kctx->jit_evict_lock);
 
 		kbase_gpu_vm_lock(kctx);
-		reg->flags &= ~KBASE_REG_NO_USER_FREE;
+		reg->flags &= ~KBASE_REG_JIT;
 		kbase_mem_free_region(kctx, reg);
 		kbase_gpu_vm_unlock(kctx);
 	} while (1);
@@ -2897,7 +2894,7 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 		/* No suitable JIT allocation was found so create a new one */
 		u64 flags = BASE_MEM_PROT_CPU_RD | BASE_MEM_PROT_GPU_RD |
 				BASE_MEM_PROT_GPU_WR | BASE_MEM_GROW_ON_GPF |
-				BASE_MEM_COHERENT_LOCAL | BASEP_MEM_NO_USER_FREE;
+				BASE_MEM_COHERENT_LOCAL;
 		u64 gpu_addr;
 
 		mutex_unlock(&kctx->jit_evict_lock);
@@ -2909,6 +2906,8 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 				info->extent, &flags, &gpu_addr);
 		if (!reg)
 			goto out_unlocked;
+
+		reg->flags |= KBASE_REG_JIT;
 
 		mutex_lock(&kctx->jit_evict_lock);
 		list_add(&reg->jit_node, &kctx->jit_active_head);
@@ -3023,7 +3022,7 @@ bool kbase_jit_evict(struct kbase_context *kctx)
 	mutex_unlock(&kctx->jit_evict_lock);
 
 	if (reg) {
-		reg->flags &= ~KBASE_REG_NO_USER_FREE;
+		reg->flags &= ~KBASE_REG_JIT;
 		kbase_mem_free_region(kctx, reg);
 	}
 
@@ -3045,7 +3044,7 @@ void kbase_jit_term(struct kbase_context *kctx)
 		list_del(&walker->jit_node);
 		list_del_init(&walker->gpu_alloc->evict_node);
 		mutex_unlock(&kctx->jit_evict_lock);
-		walker->flags &= ~KBASE_REG_NO_USER_FREE;
+		walker->flags &= ~KBASE_REG_JIT;
 		kbase_mem_free_region(kctx, walker);
 		mutex_lock(&kctx->jit_evict_lock);
 	}
@@ -3057,7 +3056,7 @@ void kbase_jit_term(struct kbase_context *kctx)
 		list_del(&walker->jit_node);
 		list_del_init(&walker->gpu_alloc->evict_node);
 		mutex_unlock(&kctx->jit_evict_lock);
-		walker->flags &= ~KBASE_REG_NO_USER_FREE;
+		walker->flags &= ~KBASE_REG_JIT;
 		kbase_mem_free_region(kctx, walker);
 		mutex_lock(&kctx->jit_evict_lock);
 	}
