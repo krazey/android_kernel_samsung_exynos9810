@@ -744,8 +744,6 @@ struct mfc_charger_data {
 
 	int i2c_error_count;
 	int wpc_en_flag;
-
-	struct mutex fw_lock;
 };
 
 #endif /* __MFC_CHARGER_H */

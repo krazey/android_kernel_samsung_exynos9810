@@ -1092,17 +1092,16 @@ static int mfc_firmware_verify(struct mfc_charger_data *charger)
 	int block_addr = 0;
 	u8 rdata[sendsz+2];
 
-	mutex_lock(&charger->fw_lock);
+/* I2C WR to prepare boot-loader write */
 
-	/* I2C WR to prepare boot-loader write */
 	if (mfc_reg_write(charger->client, 0x3000, 0x5a) < 0) {
 		pr_err("%s: key error\n", __func__);
-		goto skip_fw_verify;
+		return 0;
 	}
 
 	if (mfc_reg_write(charger->client, 0x3040, 0x11) < 0) {
 		pr_err("%s: halt M0, OTP_I2C_EN set error\n", __func__);
-		goto skip_fw_verify;
+		return 0;
 	}
 
 	dev_err(&charger->client->dev, "%s, request_firmware\n", __func__);
@@ -1111,7 +1110,7 @@ static int mfc_firmware_verify(struct mfc_charger_data *charger)
 	if ( ret < 0) {
 		dev_err(&charger->client->dev, "%s: failed to request firmware %s (%d)\n",
 				__func__, MFC_FLASH_FW_HEX_PATH, ret);
-		goto skip_fw_verify;
+		return 0;
 	}
 	ret = 1;
 	wake_lock(&charger->wpc_update_lock);
@@ -1132,10 +1131,8 @@ static int mfc_firmware_verify(struct mfc_charger_data *charger)
 		}
 	}
 	release_firmware(charger->firm_data_bin);
-	wake_unlock(&charger->wpc_update_lock);
 
-skip_fw_verify:
-	mutex_unlock(&charger->fw_lock);
+	wake_unlock(&charger->wpc_update_lock);
 	return ret;
 }
 
@@ -1641,7 +1638,6 @@ static void mfc_wpc_fw_update_work(struct work_struct *work)
 	char fwdate[8] = {32, 32, 32, 32, 32, 32, 32, 32};
 	u8 data = 32; /* ascii space */
 
-	mutex_lock(&charger->fw_lock);
 	pr_info("%s firmware update mode is = %d\n", __func__, charger->fw_cmd);
 	switch(charger->fw_cmd) {
 	case SEC_WIRELESS_RX_SDCARD_MODE:
@@ -1784,7 +1780,6 @@ static void mfc_wpc_fw_update_work(struct work_struct *work)
 	msleep(200);
 	mfc_uno_on(charger, false);
 	pr_info("%s ---------------------------------------------------------------\n", __func__);
-	mutex_unlock(&charger->fw_lock);
 
 	return;
 
@@ -1795,7 +1790,6 @@ malloc_error:
 	set_fs(old_fs);
 fw_err:
 	mfc_uno_on(charger, false);
-	mutex_unlock(&charger->fw_lock);
 }
 
 /*#if !defined(CONFIG_SEC_FACTORY)
@@ -3590,7 +3584,6 @@ static int mfc_charger_probe(
 
 	mutex_init(&charger->io_lock);
 	mutex_init(&charger->wpc_en_lock);
-	mutex_init(&charger->fw_lock);
 
 	/* wpc_det */
 	if (charger->pdata->irq_wpc_det) {
@@ -3697,7 +3690,6 @@ err_pdata_free:
 err_supply_unreg:
 	mutex_destroy(&charger->io_lock);
 	mutex_destroy(&charger->wpc_en_lock);
-	mutex_destroy(&charger->fw_lock);
 err_i2cfunc_not_support:
 	kfree(charger);
 err_wpc_nomem:
