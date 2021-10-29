@@ -409,8 +409,8 @@ sdp_dek:
 	if (inode->i_mapping->fmp_ci.private_algo_mode == EXYNOS_FMP_ALGO_MODE_AES_XTS ||
 			inode->i_mapping->fmp_ci.private_algo_mode == EXYNOS_FMP_ALGO_MODE_AES_CBC) {
 		memset(inode->i_mapping->fmp_ci.key, 0, MAX_KEY_SIZE);
-		memcpy(inode->i_mapping->fmp_ci.key, raw_key, keysize);
-		inode->i_mapping->fmp_ci.key_length = keysize;
+		memcpy(inode->i_mapping->fmp_ci.key, raw_key, mode->keysize);
+		inode->i_mapping->fmp_ci.key_length = mode->keysize;
 	} else {
 		inode->i_mapping->fmp_ci.private_algo_mode = EXYNOS_FMP_BYPASS_MODE;
 
