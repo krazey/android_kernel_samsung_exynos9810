@@ -49,13 +49,12 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 
 	inode->i_ino = ino;
 	inode->i_blocks = 0;
-
-	if (IS_I_VERSION(inode))
-		inode->i_version++;
-
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
 			F2FS_I(inode)->i_crtime = current_time(inode);
 	inode->i_generation = prandom_u32();
+
+	if (S_ISDIR(inode->i_mode))
+		F2FS_I(inode)->i_current_depth = 1;
 
 	err = insert_inode_locked(inode);
 	if (err) {

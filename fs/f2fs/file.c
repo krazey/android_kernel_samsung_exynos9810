@@ -30,10 +30,6 @@
 #include "trace.h"
 #include <trace/events/f2fs.h>
 
-#ifdef CONFIG_FSCRYPT_SDP
-#include <linux/fscrypto_sdp_ioctl.h>
-#endif
-
 static int f2fs_filemap_fault(struct vm_area_struct *vma,
 					struct vm_fault *vmf)
 {
@@ -2801,15 +2797,6 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_set_pin_file(filp, arg);
 	case F2FS_IOC_PRECACHE_EXTENTS:
 		return f2fs_ioc_precache_extents(filp, arg);
-#ifdef CONFIG_FSCRYPT_SDP
-	case FS_IOC_GET_SDP_INFO:
-	case FS_IOC_SET_SDP_POLICY:
-	case FS_IOC_SET_SENSITIVE:
-	case FS_IOC_SET_PROTECTED:
-	case FS_IOC_ADD_CHAMBER:
-	case FS_IOC_REMOVE_CHAMBER:
-		return fscrypt_sdp_ioctl(filp, cmd, arg);
-#endif
 	default:
 		return -ENOTTY;
 	}
@@ -2915,14 +2902,6 @@ long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_GET_PIN_FILE:
 	case F2FS_IOC_SET_PIN_FILE:
 	case F2FS_IOC_PRECACHE_EXTENTS:
-#ifdef CONFIG_FSCRYPT_SDP
-	case FS_IOC_GET_SDP_INFO:
-	case FS_IOC_SET_SDP_POLICY:
-	case FS_IOC_SET_SENSITIVE:
-	case FS_IOC_SET_PROTECTED:
-	case FS_IOC_ADD_CHAMBER:
-	case FS_IOC_REMOVE_CHAMBER:
-#endif
 		break;
 	default:
 		return -ENOIOCTLCMD;

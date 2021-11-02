@@ -34,10 +34,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/f2fs.h>
 
-#ifdef CONFIG_FSCRYPT_SDP
-#include <linux/fscrypto_sdp_cache.h>
-#endif
-
 static struct kmem_cache *f2fs_inode_cachep;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -878,11 +874,7 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	init_once((void *) fi);
 
 	/* Initialize f2fs-specific inode info */
-	/* F2FS doesn't write value of i_version to disk and
-	   it will be reinitialize after a reboot.*/
-	fi->vfs_inode.i_version = 1;
 	atomic_set(&fi->dirty_pages, 0);
-	fi->i_current_depth = 1;
 	init_rwsem(&fi->i_sem);
 	INIT_LIST_HEAD(&fi->dirty_list);
 	INIT_LIST_HEAD(&fi->gdirty_list);
@@ -902,6 +894,7 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 
 static int f2fs_drop_inode(struct inode *inode)
 {
+	int ret;
 	/*
 	 * This is to avoid a deadlock condition like below.
 	 * writeback_single_inode(inode)
@@ -909,7 +902,6 @@ static int f2fs_drop_inode(struct inode *inode)
 	 *    - f2fs_gc -> iput -> evict
 	 *       - inode_wait_for_writeback(inode)
 	 */
-	int ret;
 	if ((!inode_unhashed(inode) && inode->i_state & I_SYNC)) {
 		if (!inode->i_nlink && !is_bad_inode(inode)) {
 			/* to avoid evict_inode call simultaneously */
@@ -942,12 +934,6 @@ static int f2fs_drop_inode(struct inode *inode)
 		return 0;
 	}
 	ret = generic_drop_inode(inode);
-#ifdef CONFIG_FSCRYPT_SDP
-	if (!ret && fscrypt_sdp_is_locked_sensitive_inode(inode)) {
-		fscrypt_sdp_drop_inode(inode);
-		ret = 1;
-	}
-#endif
 	trace_f2fs_drop_inode(inode, ret);
 	return ret;
 }
@@ -3176,9 +3162,6 @@ try_onemore:
 	sb->s_time_gran = 1;
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
-#ifdef CONFIG_FIVE
-	sb->s_flags |= MS_I_VERSION;
-#endif
 	memcpy(&sb->s_uuid, raw_super->uuid, sizeof(raw_super->uuid));
 	sb->s_iflags |= SB_I_CGROUPWB;
 

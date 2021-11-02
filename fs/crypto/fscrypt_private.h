@@ -15,15 +15,6 @@
 #include <linux/fscrypt.h>
 #include <crypto/hash.h>
 
-#if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
-#include "fscrypt_knox_private.h"
-#endif
-
-#ifdef CONFIG_FSCRYPT_SDP
-#include "sdp/fscrypto_sdp_private.h"
-#include <sdp/fs_request.h>
-#endif
-
 /* Encryption parameters */
 #define FS_KEY_DERIVATION_NONCE_SIZE	16
 
@@ -45,9 +36,6 @@ struct fscrypt_context {
 	u8 flags;
 	u8 master_key_descriptor[FS_KEY_DESCRIPTOR_SIZE];
 	u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
-#if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
-	u32 knox_flags;
-#endif
 } __packed;
 
 #define FS_ENCRYPTION_CONTEXT_FORMAT_V1		1
@@ -96,15 +84,8 @@ struct fscrypt_info {
 	u8 ci_data_mode;
 	u8 ci_filename_mode;
 	u8 ci_flags;
-        u8 ci_master_key_descriptor[FS_KEY_DESCRIPTOR_SIZE];
-        u8 ci_nonce[FS_KEY_DERIVATION_NONCE_SIZE];
-
-#ifdef CONFIG_DDAR
-	struct dd_info *ci_dd_info;
-#endif
-#ifdef CONFIG_FSCRYPT_SDP
-	struct sdp_info *ci_sdp_info;
-#endif
+	u8 ci_master_key_descriptor[FS_KEY_DESCRIPTOR_SIZE];
+	u8 ci_nonce[FS_KEY_DERIVATION_NONCE_SIZE];
 };
 
 typedef enum {
@@ -123,14 +104,6 @@ static inline bool fscrypt_valid_enc_modes(u32 contents_mode,
 		return true;
 
 	if (contents_mode == FS_ENCRYPTION_MODE_AES_256_XTS &&
-	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
-		return true;
-
-	if (contents_mode == FS_PRIVATE_ENCRYPTION_MODE_AES_256_XTS &&
-	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
-		return true;
-
-	if (contents_mode == FS_PRIVATE_ENCRYPTION_MODE_AES_256_CBC &&
 	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
 		return true;
 
