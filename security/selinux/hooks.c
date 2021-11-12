@@ -90,10 +90,6 @@
 #include <linux/delay.h>
 // ] SEC_SELINUX_PORTING_COMMON
 
-#ifdef CONFIG_LOD_SEC
-#include <linux/linux_on_dex.h>
-#endif
-
 #include "avc.h"
 #include "objsec.h"
 #include "netif.h"
@@ -104,13 +100,9 @@
 #include "audit.h"
 #include "avc_ss.h"
 
-#ifdef CONFIG_LOD_SEC
 #ifdef CONFIG_RKP_KDP
 #define rkp_is_lod_cred(x) ((x->type)>>3 & 1)
-#else
-#define rkp_is_lod_cred(x) (uid_is_LOD(x->uid.val) || (strcmp(current->comm, "nst") == 0 && x->uid.val == 0))
 #endif  /* CONFIG_RKP_KDP */
-#endif  /* CONFIG_LOD_SEC */
 
 #ifdef CONFIG_RKP_NS_PROT
 extern unsigned int cmp_ns_integrity(void);
@@ -1863,26 +1855,10 @@ static int cred_has_capability(const struct cred *cred,
 
 	switch (CAP_TO_INDEX(cap)) {
 	case 0:
-#if defined(CONFIG_LOD_SEC)
-		if (!initns && rkp_is_lod_cred(cred)) {
-			sclass = SECCLASS_CAP_LOD;
-		} else {
-			sclass = initns ? SECCLASS_CAPABILITY : SECCLASS_CAP_USERNS;
-		}
-#else
 		sclass = initns ? SECCLASS_CAPABILITY : SECCLASS_CAP_USERNS;
-#endif
 		break;
 	case 1:
-#if defined(CONFIG_LOD_SEC)
-		if (!initns && rkp_is_lod_cred(cred)) {
-			sclass = SECCLASS_CAP2_LOD;
-		} else {
-			sclass = initns ? SECCLASS_CAPABILITY2 : SECCLASS_CAP2_USERNS;
-		}
-#else
 		sclass = initns ? SECCLASS_CAPABILITY2 : SECCLASS_CAP2_USERNS;
-#endif
 		break;
 	default:
 		printk(KERN_ERR

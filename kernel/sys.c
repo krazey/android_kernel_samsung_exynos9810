@@ -70,10 +70,6 @@
 #include <linux/defex.h>
 #endif
 
-#ifdef CONFIG_LOD_SEC
-#include <linux/linux_on_dex.h>
-#endif
-
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a, b)	(-EINVAL)
 #endif
@@ -411,16 +407,6 @@ SYSCALL_DEFINE2(setregid, gid_t, rgid, gid_t, egid)
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
 
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!gid_is_LOD(krgid.val))
-			return -EACCES;
-
-		if (!gid_is_LOD(kegid.val))
-			return -EACCES;
-	}
-#endif
-
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
@@ -480,13 +466,6 @@ SYSCALL_DEFINE1(setgid, gid_t, gid)
 	      return -EACCES;
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
-
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!gid_is_LOD(kgid.val))
-			return -EACCES;
-	}
-#endif
 
 	new = prepare_creds();
 	if (!new)
@@ -575,16 +554,6 @@ SYSCALL_DEFINE2(setreuid, uid_t, ruid, uid_t, euid)
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
 
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!uid_is_LOD(kruid.val))
-			return -EACCES;
-
-		if (!uid_is_LOD(keuid.val))
-			return -EACCES;
-	}
-#endif
-
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
@@ -659,13 +628,6 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
 
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!uid_is_LOD(kuid.val))
-			return -EACCES;
-	}
-#endif
-
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
@@ -728,19 +690,6 @@ SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
 	      return -EACCES;
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
-
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!uid_is_LOD(kruid.val))
-			return -EACCES;
-
-		if (!uid_is_LOD(keuid.val))
-			return -EACCES;
-
-		if (!uid_is_LOD(ksuid.val))
-			return -EACCES;
-	}
-#endif
 
 	new = prepare_creds();
 	if (!new)
@@ -834,19 +783,6 @@ SYSCALL_DEFINE3(setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
 
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!gid_is_LOD(krgid.val))
-			return -EACCES;
-
-		if (!gid_is_LOD(kegid.val))
-			return -EACCES;
-
-		if (!gid_is_LOD(ksgid.val))
-			return -EACCES;
-	}
-#endif
-
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
@@ -928,13 +864,6 @@ SYSCALL_DEFINE1(setfsuid, uid_t, uid)
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
 
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!uid_is_LOD(kuid.val))
-			return -EACCES;
-	}
-#endif
-
 #ifdef CONFIG_SECURITY_DEFEX
 	if (task_defex_enforce(current, NULL, -__NR_setfsuid))
 		return old_fsuid;
@@ -985,13 +914,6 @@ SYSCALL_DEFINE1(setfsgid, gid_t, gid)
 	      return -EACCES;
 	}
 #endif // End of CONFIG_SEC_RESTRICT_SETUID
-
-#ifdef CONFIG_LOD_SEC
-	if (current_is_LOD()) {
-		if (!gid_is_LOD(kgid.val))
-			return -EACCES;
-	}
-#endif
 
 #ifdef CONFIG_SECURITY_DEFEX
 	if (task_defex_enforce(current, NULL, -__NR_setfsgid))
