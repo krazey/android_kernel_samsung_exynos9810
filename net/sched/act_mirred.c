@@ -234,10 +234,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	else
 		err = netif_receive_skb(skb2);
 
-		skb2->skb_iif = skb->dev->ifindex;
-		skb2->dev = dev;
-		err = dev_queue_xmit(skb2);
-	}
 	if (err) {
 out:
 		qstats_overlimit_inc(this_cpu_ptr(m->common.cpu_qstats));
