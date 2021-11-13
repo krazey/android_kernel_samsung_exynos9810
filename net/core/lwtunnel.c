@@ -205,6 +205,19 @@ void lwtstate_free(struct lwtunnel_state *lws)
 }
 EXPORT_SYMBOL(lwtstate_free);
 
+void lwtstate_free(struct lwtunnel_state *lws)
+{
+	const struct lwtunnel_encap_ops *ops = lwtun_encaps[lws->type];
+
+	if (ops->destroy_state) {
+		ops->destroy_state(lws);
+		kfree_rcu(lws, rcu);
+	} else {
+		kfree(lws);
+	}
+}
+EXPORT_SYMBOL(lwtstate_free);
+
 int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 {
 	const struct lwtunnel_encap_ops *ops;
