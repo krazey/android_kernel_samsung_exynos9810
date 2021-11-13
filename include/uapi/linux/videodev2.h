@@ -379,7 +379,7 @@ enum v4l2_quantization {
 	(((is_rgb_or_hsv) && (colsp) == V4L2_COLORSPACE_BT2020) ? \
 	 V4L2_QUANTIZATION_LIM_RANGE : \
 	 (((is_rgb_or_hsv) || (ycbcr_enc) == V4L2_YCBCR_ENC_XV601 || \
-	  (ycbcr_enc) == V4L2_YCBCR_ENC_XV709 || (colsp) == V4L2_COLORSPACE_JPEG) || \
+	  (ycbcr_enc) == V4L2_YCBCR_ENC_XV709 || (colsp) == V4L2_COLORSPACE_JPEG) ? \
 	 V4L2_QUANTIZATION_FULL_RANGE : V4L2_QUANTIZATION_LIM_RANGE))
 
 enum v4l2_priority {
