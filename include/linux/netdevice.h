@@ -3858,7 +3858,7 @@ int netdev_walk_all_upper_dev_rcu(struct net_device *dev,
                                   void *data);
 
 bool netdev_has_upper_dev_all_rcu(struct net_device *dev,
-                                  struct net_device *upper_dev)
+                                  struct net_device *upper_dev);
 
 bool netdev_has_any_upper_dev(struct net_device *dev);
 
