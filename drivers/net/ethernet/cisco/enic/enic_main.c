@@ -2747,6 +2747,10 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->min_mtu = ENIC_MIN_MTU;
 	netdev->max_mtu = ENIC_MAX_MTU;
 
+	/* MTU range: 68 - 9000 */
+	netdev->min_mtu = ENIC_MIN_MTU;
+	netdev->max_mtu = ENIC_MAX_MTU;
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(dev, "Cannot register net device, aborting\n");
