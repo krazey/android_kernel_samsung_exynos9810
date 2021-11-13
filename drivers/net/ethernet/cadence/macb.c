@@ -1629,13 +1629,9 @@ static void macb_init_rings(struct macb *bp)
 	}
 	bp->queues[0].tx_head = 0;
 	bp->queues[0].tx_tail = 0;
-<<<<<<< HEAD
-	bp->queues[0].tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
-=======
 	bp->queues[0].tx_ring[bp->tx_ring_size - 1].ctrl |= MACB_BIT(TX_WRAP);
 
 	bp->rx_tail = 0;
->>>>>>> b410d13e10db (net: macb: Use variables with defaults for tx/rx ring sizes instead of hardcoded values)
 }
 
 static void macb_reset_hw(struct macb *bp)
