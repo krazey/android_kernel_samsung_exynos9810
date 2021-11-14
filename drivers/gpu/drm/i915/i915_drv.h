@@ -1361,6 +1361,11 @@ struct i915_gem_mm {
 	 */
 	struct list_head unbound_list;
 
+	/** List of all objects in gtt_space, currently mmaped by userspace.
+	 * All objects within this list must also be on bound_list.
+	 */
+	struct list_head userfault_list;
+
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
 
@@ -1682,7 +1687,6 @@ struct skl_wm_level {
  */
 struct i915_runtime_pm {
 	atomic_t wakeref_count;
-	atomic_t atomic_seq;
 	bool suspended;
 	bool irqs_enabled;
 };
@@ -2205,6 +2209,11 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
+	/**
+	 * Whether the object is currently in the GGTT mmap.
+	 */
+	struct list_head userfault_link;
+
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
@@ -2231,13 +2240,6 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv:2;
-
-	/**
-	 * Whether the current gtt mapping needs to be mappable (and isn't just
-	 * mappable by accident). Track pin and fault separate for a more
-	 * accurate mappable working set.
-	 */
-	unsigned int fault_mappable:1;
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
@@ -3128,8 +3130,9 @@ void i915_vma_destroy(struct i915_vma *vma);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
-void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
+
+void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
