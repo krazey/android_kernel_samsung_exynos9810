@@ -118,7 +118,6 @@ static u32 gen9_render_mocs_L3[32];
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	enum forcewake_domains fw;
 	i915_reg_t reg;
 	u32 regs[] = {
 		[RCS] = 0x4260,
@@ -136,24 +135,10 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 
 	reg = _MMIO(regs[ring_id]);
 
-	/* WaForceWakeRenderDuringMmioTLBInvalidate:skl
-	 * we need to put a forcewake when invalidating RCS TLB caches,
-	 * otherwise device can go to RC6 state and interrupt invalidation
-	 * process
-	 */
-	fw = intel_uncore_forcewake_for_reg(dev_priv, reg,
-					    FW_REG_READ | FW_REG_WRITE);
-	if (ring_id == RCS && IS_SKYLAKE(dev_priv))
-		fw |= FORCEWAKE_RENDER;
+	I915_WRITE(reg, 0x1);
 
-	intel_uncore_forcewake_get(dev_priv, fw);
-
-	I915_WRITE_FW(reg, 0x1);
-
-	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
+	if (wait_for_atomic((I915_READ(reg) == 0), 50))
 		gvt_err("timeout in invalidate ring (%d) tlb\n", ring_id);
-
-	intel_uncore_forcewake_put(dev_priv, fw);
 
 	gvt_dbg_core("invalidate TLB for ring %d\n", ring_id);
 }
@@ -177,7 +162,6 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (!IS_SKYLAKE(dev_priv))
 		return;
 
-	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		gen9_render_mocs[ring_id][i] = I915_READ(offset);
 		I915_WRITE(offset, vgpu_vreg(vgpu, offset));
@@ -215,7 +199,6 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (!IS_SKYLAKE(dev_priv))
 		return;
 
-	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		vgpu_vreg(vgpu, offset) = I915_READ(offset);
 		I915_WRITE(offset, gen9_render_mocs[ring_id][i]);

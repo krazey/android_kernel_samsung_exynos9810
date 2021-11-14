@@ -247,7 +247,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_IRQ_ACTIVE:
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 	case I915_PARAM_LAST_DISPATCH:
-	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		/* Reject all old ums/dri params. */
 		return -ENODEV;
 	case I915_PARAM_CHIPSET_ID:
@@ -274,6 +273,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_BSD2:
 		value = !!dev_priv->engine[VCS2];
 		break;
+	case I915_PARAM_HAS_EXEC_CONSTANTS:
+		value = INTEL_GEN(dev_priv) >= 4;
+		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);
 		break;
@@ -287,7 +289,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915.semaphores;
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
-		value = HAS_SECURE_BATCHES(dev_priv) && capable(CAP_SYS_ADMIN);
+		value = capable(CAP_SYS_ADMIN);
 		break;
 	case I915_PARAM_CMD_PARSER_VERSION:
 		value = i915_cmd_parser_get_version(dev_priv);
@@ -554,7 +556,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	intel_bios_init(dev_priv);
+	ret = intel_bios_init(dev_priv);
+	if (ret)
+		DRM_INFO("failed to find VBIOS tables\n");
 
 	/* If we have > 1 VGA cards, then we need to arbitrate access
 	 * to the common VGA resources.
@@ -1189,15 +1193,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_priv;
 
 	pci_set_drvdata(pdev, &dev_priv->drm);
-	/*
-	 * Disable the system suspend direct complete optimization, which can
-	 * leave the device suspended skipping the driver's suspend handlers
-	 * if the device was already runtime suspended. This is needed due to
-	 * the difference in our runtime and system suspend sequence and
-	 * becaue the HDA driver may require us to enable the audio power
-	 * domain during system suspend.
-	 */
-	pdev->dev_flags |= PCI_DEV_FLAGS_NEEDS_RESUME;
 
 	ret = i915_driver_init_early(dev_priv, ent);
 	if (ret < 0)
@@ -1464,7 +1459,6 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	intel_display_set_init_power(dev_priv, false);
-	i915_rc6_ctx_wa_suspend(dev_priv);
 
 	fw_csr = !IS_BROXTON(dev_priv) &&
 		suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
@@ -1698,10 +1692,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_BROXTON(dev_priv) ||
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
-	else
-		intel_display_set_init_power(dev_priv, true);
-
-	i915_rc6_ctx_wa_resume(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -2288,8 +2278,10 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 
 	vlv_check_no_gt_access(dev_priv);
 
-	if (rpm_resume)
+	if (rpm_resume) {
 		intel_init_clock_gating(dev);
+		i915_gem_restore_fences(dev);
+	}
 
 	return ret;
 }
@@ -2309,13 +2301,32 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	/*
+	 * We could deadlock here in case another thread holding struct_mutex
+	 * calls RPM suspend concurrently, since the RPM suspend will wait
+	 * first for this RPM suspend to finish. In this case the concurrent
+	 * RPM resume will be followed by its RPM suspend counterpart. Still
+	 * for consistency return -EAGAIN, which will reschedule this suspend.
+	 */
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		DRM_DEBUG_KMS("device lock contention, deffering suspend\n");
+		/*
+		 * Bump the expiration timestamp, otherwise the suspend won't
+		 * be rescheduled.
+		 */
+		pm_runtime_mark_last_busy(kdev);
+
+		return -EAGAIN;
+	}
+
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	/*
 	 * We are safe here against re-faults, since the fault handler takes
 	 * an RPM reference.
 	 */
-	i915_gem_runtime_suspend(dev_priv);
+	i915_gem_release_all_mmaps(dev_priv);
+	mutex_unlock(&dev->struct_mutex);
 
 	intel_guc_suspend(dev);
 
@@ -2375,7 +2386,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	assert_forcewakes_inactive(dev_priv);
 
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (!IS_VALLEYVIEW(dev_priv) || !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_init(dev_priv);
 
 	DRM_DEBUG_KMS("Device suspended\n");
