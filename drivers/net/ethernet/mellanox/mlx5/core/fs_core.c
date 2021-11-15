@@ -153,7 +153,6 @@ static void del_rule(struct fs_node *node);
 static void del_flow_table(struct fs_node *node);
 static void del_flow_group(struct fs_node *node);
 static void del_fte(struct fs_node *node);
-static void cleanup_root_ns(struct mlx5_flow_root_namespace *root_ns);
 static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 				struct mlx5_flow_destination *d2);
 static struct mlx5_flow_rule *
@@ -407,6 +406,10 @@ static void del_rule(struct fs_node *node)
 	    --fte->dests_size) {
 		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
 		update_fte = true;
+	}
+out:
+	if (update_fte && fte->dests_size) {
+		err = mlx5_cmd_update_fte(dev, ft, fg->id, modify_mask, fte);
 		if (err)
 			mlx5_core_warn(dev,
 				       "%s can't del rule fg id=%d fte_index=%d\n",

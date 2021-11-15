@@ -3169,7 +3169,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (pd->phy_node) {
 		phydev = of_phy_connect(mp->dev, pd->phy_node,
 					mv643xx_eth_adjust_link, 0,
-					PHY_INTERFACE_MODE_GMII);
+					get_phy_mode(mp));
 		if (!phydev)
 			err = -ENODEV;
 		else
