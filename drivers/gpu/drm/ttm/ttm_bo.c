@@ -148,7 +148,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(!list_empty(&bo->ddestroy));
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
-	dma_fence_put(bo->moving);
+	fence_put(bo->moving);
 	if (bo->resv == &bo->ttm_resv)
 		reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
@@ -426,20 +426,20 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 {
 	struct reservation_object_list *fobj;
-	struct dma_fence *fence;
+	struct fence *fence;
 	int i;
 
 	fobj = reservation_object_get_list(bo->resv);
 	fence = reservation_object_get_excl(bo->resv);
 	if (fence && !fence->ops->signaled)
-		dma_fence_enable_sw_signaling(fence);
+		fence_enable_sw_signaling(fence);
 
 	for (i = 0; fobj && i < fobj->shared_count; ++i) {
 		fence = rcu_dereference_protected(fobj->shared[i],
 					reservation_object_held(bo->resv));
 
 		if (!fence->ops->signaled)
-			dma_fence_enable_sw_signaling(fence);
+			fence_enable_sw_signaling(fence);
 	}
 }
 
@@ -792,11 +792,11 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 				 struct ttm_mem_type_manager *man,
 				 struct ttm_mem_reg *mem)
 {
-	struct dma_fence *fence;
+	struct fence *fence;
 	int ret;
 
 	spin_lock(&man->move_lock);
-	fence = dma_fence_get(man->move);
+	fence = fence_get(man->move);
 	spin_unlock(&man->move_lock);
 
 	if (fence) {
@@ -806,7 +806,7 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 		if (unlikely(ret))
 			return ret;
 
-		dma_fence_put(bo->moving);
+		fence_put(bo->moving);
 		bo->moving = fence;
 	}
 
@@ -1209,17 +1209,19 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	if (likely(!ret))
 		ret = ttm_bo_validate(bo, placement, interruptible, false);
 
-	if (!resv) {
+	if (!resv)
 		ttm_bo_unreserve(bo);
 
-	} else if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+	if (unlikely(ret)) {
+		ttm_bo_unref(&bo);
+		return ret;
+	}
+
+	if (resv && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
 		spin_lock(&bo->glob->lru_lock);
 		ttm_bo_add_to_lru(bo);
 		spin_unlock(&bo->glob->lru_lock);
 	}
-
-	if (unlikely(ret))
-		ttm_bo_unref(&bo);
 
 	return ret;
 }
@@ -1286,7 +1288,7 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_bo_global *glob = bdev->glob;
-	struct dma_fence *fence;
+	struct fence *fence;
 	int ret;
 
 	/*
@@ -1309,12 +1311,12 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	spin_unlock(&glob->lru_lock);
 
 	spin_lock(&man->move_lock);
-	fence = dma_fence_get(man->move);
+	fence = fence_get(man->move);
 	spin_unlock(&man->move_lock);
 
 	if (fence) {
-		ret = dma_fence_wait(fence, false);
-		dma_fence_put(fence);
+		ret = fence_wait(fence, false);
+		fence_put(fence);
 		if (ret) {
 			if (allow_errors) {
 				return ret;
@@ -1343,7 +1345,6 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		       mem_type);
 		return ret;
 	}
-	dma_fence_put(man->move);
 
 	man->use_type = false;
 	man->has_type = false;
@@ -1354,6 +1355,9 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 
 		ret = (*man->func->takedown)(man);
 	}
+
+	fence_put(man->move);
+	man->move = NULL;
 
 	return ret;
 }
@@ -1602,7 +1606,14 @@ EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 int ttm_bo_wait(struct ttm_buffer_object *bo,
 		bool interruptible, bool no_wait)
 {
-	long timeout = no_wait ? 0 : 15 * HZ;
+	long timeout = 15 * HZ;
+
+	if (no_wait) {
+		if (reservation_object_test_signaled_rcu(bo->resv, true))
+			return 0;
+		else
+			return -EBUSY;
+	}
 
 	timeout = reservation_object_wait_timeout_rcu(bo->resv, true,
 						      interruptible, timeout);
@@ -1654,7 +1665,6 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY;
 	int put_count;
-	uint32_t swap_placement = (TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM);
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &glob->swap_lru, swap) {
@@ -1685,7 +1695,8 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	 * Move to system cached
 	 */
 
-	if ((bo->mem.placement & swap_placement) != swap_placement) {
+	if (bo->mem.mem_type != TTM_PL_SYSTEM ||
+	    bo->ttm->caching_state != tt_cached) {
 		struct ttm_mem_reg evict_mem;
 
 		evict_mem = bo->mem;
