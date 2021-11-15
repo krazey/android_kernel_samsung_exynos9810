@@ -49,9 +49,6 @@ lack of a better place.
    magic-number
    volatile-considered-harmful
 
-   development-process
-
-
 .. only::  subproject and html
 
    Indices

@@ -3,16 +3,39 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to The Linux Kernel's documentation!
-============================================
+Welcome to The Linux Kernel's documentation
+===========================================
 
-Contents:
+This is the top level of the kernel's documentation tree.  Kernel
+documentation, like the kernel itself, is very much a work in progress;
+that is especially true as we work to integrate our many scattered
+documents into a coherent whole.  Please note that improvements to the
+documentation are welcome; join the linux-doc list at vger.kernel.org if
+you want to help out.
+
+User-oriented documentation
+---------------------------
+
+The following manuals are written for *users* of the kernel — those who are
+trying to get it to work optimally on a given system.
 
 .. toctree::
    :maxdepth: 2
 
    admin-guide/index
-   kernel-documentation
+
+Introduction to kernel development
+----------------------------------
+
+These manuals contain overall information about how to develop the kernel.
+The kernel community is quite large, with thousands of developers
+contributing over the course of a year.  As with any large community,
+knowing how things are done will make the process of getting your changes
+merged much easier.
+
+.. toctree::
+   :maxdepth: 2
+
    process/index
    dev-tools/index
    driver-api/index
