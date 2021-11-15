@@ -534,9 +534,6 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 	case TTM_PL_TT:
 		break;
 	case TTM_PL_VRAM:
-		if (mem->start == AMDGPU_BO_INVALID_OFFSET)
-			return -EINVAL;
-
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		/* check if it's visible */
 		if ((mem->bus.offset + mem->bus.size) > adev->mc.visible_vram_size)
@@ -680,7 +677,6 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 
 release_sg:
 	kfree(ttm->sg);
-	ttm->sg = NULL;
 	return r;
 }
 
@@ -695,7 +691,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
 	/* double check that we don't free the table twice */
-	if (!ttm->sg || !ttm->sg->sgl)
+	if (!ttm->sg->sgl)
 		return;
 
 	/* free the sg table and pages again */
@@ -929,7 +925,6 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
 
 	if (gtt && gtt->userptr) {
 		kfree(ttm->sg);
-		ttm->sg = NULL;
 		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
 		return;
 	}
@@ -1492,9 +1487,6 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
-
-	if (*pos >= adev->mc.mc_vram_size)
-		return -ENXIO;
 
 	while (size) {
 		unsigned long flags;
