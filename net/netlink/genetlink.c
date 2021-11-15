@@ -379,8 +379,6 @@ int genl_register_family(struct genl_family *family)
 
 	return 0;
 
-errout_free:
-	kfree(family->attrbuf);
 errout_remove:
 	idr_remove(&genl_fam_idr, family->id);
 errout_locked:
