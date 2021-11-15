@@ -140,7 +140,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 			       unsigned int op_flags)
 {
 	if (blk_queue_io_stat(q))
-		op_flags |= REQ_IO_STAT;
+		op_flags |= RQF_IO_STAT;
 
 	INIT_LIST_HEAD(&rq->queuelist);
 	/* csd/requeue_work/fifo_time is initialized before use */
@@ -195,7 +195,7 @@ __blk_mq_alloc_request(struct blk_mq_alloc_data *data, int op, int op_flags)
 		rq = data->hctx->tags->rqs[tag];
 
 		if (blk_mq_tag_busy(data->hctx)) {
-			rq->cmd_flags = REQ_MQ_INFLIGHT;
+			rq->rq_flags = RQF_MQ_INFLIGHT;
 			atomic_inc(&data->hctx->nr_active);
 		}
 
@@ -295,7 +295,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 	const int tag = rq->tag;
 	struct request_queue *q = rq->q;
 
-	if (rq->cmd_flags & REQ_MQ_INFLIGHT)
+	if (rq->rq_flags & RQF_MQ_INFLIGHT)
 		atomic_dec(&hctx->nr_active);
 	rq->cmd_flags = 0;
 
@@ -486,10 +486,10 @@ static void blk_mq_requeue_work(struct work_struct *work)
 	spin_unlock_irqrestore(&q->requeue_lock, flags);
 
 	list_for_each_entry_safe(rq, next, &rq_list, queuelist) {
-		if (!(rq->cmd_flags & REQ_SOFTBARRIER))
+		if (!(rq->rq_flags & RQF_SOFTBARRIER))
 			continue;
 
-		rq->cmd_flags &= ~REQ_SOFTBARRIER;
+		rq->rq_flags &= ~RQF_SOFTBARRIER;
 		list_del_init(&rq->queuelist);
 		blk_mq_insert_request(rq, true, false, false);
 	}
@@ -516,11 +516,11 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
 	 * We abuse this flag that is otherwise used by the I/O scheduler to
 	 * request head insertation from the workqueue.
 	 */
-	BUG_ON(rq->cmd_flags & REQ_SOFTBARRIER);
+	BUG_ON(rq->rq_flags & RQF_SOFTBARRIER);
 
 	spin_lock_irqsave(&q->requeue_lock, flags);
 	if (at_head) {
-		rq->cmd_flags |= REQ_SOFTBARRIER;
+		rq->rq_flags |= RQF_SOFTBARRIER;
 		list_add(&rq->queuelist, &q->requeue_list);
 	} else {
 		list_add_tail(&rq->queuelist, &q->requeue_list);
