@@ -98,7 +98,7 @@ static inline void __sdfat_clean_bdev_aliases(struct block_device *bdev, sector_
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0) */
 static inline void __sdfat_clean_bdev_aliases(struct block_device *bdev, sector_t block)
 {
-	unmap_underlying_metadata(bdev, block);
+	clean_bdev_aliases(bdev, block, 1);
 }
 #endif
 
