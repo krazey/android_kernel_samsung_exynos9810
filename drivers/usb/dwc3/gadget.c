@@ -821,7 +821,7 @@ static int __dwc3_gadget_ep_disable(struct dwc3_ep *dep)
 	reg &= ~DWC3_DALEPENA_EP(dep->number);
 	dwc3_writel(dwc->regs, DWC3_DALEPENA, reg);
 
-	dep->flags &= DWC3_EP_END_TRANSFER_PENDING
+	dep->flags &= DWC3_EP_END_TRANSFER_PENDING;
 	dep->stream_capable = false;
 	dep->endpoint.desc = NULL;
 	dep->comp_desc = NULL;
