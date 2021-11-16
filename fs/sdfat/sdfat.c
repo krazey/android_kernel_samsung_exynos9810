@@ -190,14 +190,6 @@ static inline void __sdfat_clean_bdev_aliases(struct block_device *bdev, sector_
 {
 	unmap_underlying_metadata(bdev, block);
 }
-
-static inline int wbc_to_write_flags(struct writeback_control *wbc)
-{
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		return REQ_SYNC;
-
-	return 0;
-}
 #endif
 
 
