@@ -692,7 +692,8 @@ static int exynos_ufs_pre_setup_clocks(struct ufs_hba *hba, bool on)
 	return ret;
 }
 
-static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on)
+static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
+				 enum ufs_notify_change_status status)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret = 0;
