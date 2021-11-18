@@ -297,8 +297,6 @@ struct ufs_pwr_mode_info {
  *                  to set some things
  * @setup_task_mgmt: called before any task management request is issued
  *                  to set some things
- * @hibern8_notify: called around hibern8 enter/exit
- *		    to configure some things
  * @suspend: called during host controller PM callback
  * @resume: called during host controller PM callback
  * @dbg_register_dump: used to dump controller debug information
@@ -331,8 +329,6 @@ struct ufs_hba_variant_ops {
 	int	(*hibern8_prepare)(struct ufs_hba *, u8, int);
 	void	(*setup_xfer_req)(struct ufs_hba *, int, bool);
 	void	(*setup_task_mgmt)(struct ufs_hba *, int, u8);
-	void    (*hibern8_notify)(struct ufs_hba *, enum uic_cmd_dme,
-				       enum ufs_notify_change_status);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
@@ -1058,14 +1054,6 @@ static inline void ufshcd_vops_setup_task_mgmt(struct ufs_hba *hba,
 {
 	if (hba->vops && hba->vops->setup_task_mgmt)
 		return hba->vops->setup_task_mgmt(hba, tag, tm_function);
-}
-
-static inline void ufshcd_vops_hibern8_notify(struct ufs_hba *hba,
-					enum uic_cmd_dme cmd,
-					enum ufs_notify_change_status status)
-{
-	if (hba->vops && hba->vops->hibern8_notify)
-		return hba->vops->hibern8_notify(hba, cmd, status);
 }
 
 static inline int ufshcd_vops_suspend(struct ufs_hba *hba, enum ufs_pm_op op)
