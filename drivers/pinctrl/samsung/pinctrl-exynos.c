@@ -357,7 +357,7 @@ static void exynos_eint_flt_config(int en, int sel, int width,
 	else
 		loop_cnt = bank->nr_pins;
 
-	val = readl(d->virt_base + flt_reg);
+	val = readl(bank->eint_base + flt_reg);
 
 	for (i = 0; i < loop_cnt; i++) {
 		shift = i * EXYNOS_EINT_FLTCON_LEN;
@@ -365,11 +365,11 @@ static void exynos_eint_flt_config(int en, int sel, int width,
 		val |= (flt_con << shift);
 	}
 
-	writel(val, d->virt_base + flt_reg);
+	writel(val, bank->eint_base + flt_reg);
 
 	/* if nr_pins > 4, we should also set FLTCON1 register like FLTCON0. (pin4 ~ ) */
 	if (bank->nr_pins > 4)
-		writel(val, d->virt_base + flt_reg + 0x4);
+		writel(val, bank->eint_base + flt_reg + 0x4);
 };
 
 /*
