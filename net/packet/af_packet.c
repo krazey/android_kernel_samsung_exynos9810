@@ -2004,7 +2004,7 @@ static int packet_rcv_vnet(struct msghdr *msg, const struct sk_buff *skb,
 		return -EINVAL;
 	*len -= sizeof(vnet_hdr);
 
-	if (virtio_net_hdr_from_skb(skb, &vnet_hdr, vio_le()))
+	if (virtio_net_hdr_from_skb(skb, &vnet_hdr, vio_le(), true, 0))
 		return -EINVAL;
 
 	return memcpy_to_msg(msg, (void *)&vnet_hdr, sizeof(vnet_hdr));
@@ -2270,9 +2270,13 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (do_vnet &&
-	    __packet_rcv_vnet(skb, h.raw + macoff -
-			      sizeof(struct virtio_net_hdr)))
+	    virtio_net_hdr_from_skb(skb, h.raw + macoff -
+				    sizeof(struct virtio_net_hdr),
+				    vio_le(), true, 0)) {
+		if (po->tp_version == TPACKET_V3)
+			prb_clear_blk_fill_status(&po->rx_ring);
 		goto drop_n_account;
+	}
 
 	po->stats.stats1.tp_packets++;
 	if (copy_skb) {
@@ -2284,7 +2288,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (po->has_vnet_hdr) {
 		if (virtio_net_hdr_from_skb(skb, h.raw + macoff -
 					    sizeof(struct virtio_net_hdr),
-					    vio_le())) {
+					    vio_le(), true, 0)) {
 			spin_lock(&sk->sk_receive_queue.lock);
 			goto drop_n_account;
 		}
