@@ -771,18 +771,6 @@ void f2fs_handle_failed_inode(struct inode *inode)
 	f2fs_update_inode_page(inode);
 	f2fs_inode_synced(inode);
 
-	/*
-	 * clear nlink of inode in order to release resource of inode
-	 * immediately.
-	 */
-	clear_nlink(inode);
-
-	/*
-	 * we must call this to avoid inode being remained as dirty, resulting
-	 * in a panic when flushing dirty inodes in gdirty_list.
-	 */
-	update_inode_page(inode);
-
 	/* don't make bad inode, since it becomes a regular file. */
 	unlock_new_inode(inode);
 
