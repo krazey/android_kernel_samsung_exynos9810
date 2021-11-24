@@ -96,7 +96,11 @@ int dwc3_host_init(struct dwc3 *dwc)
 	}
 
 	xhci->dev.parent	= dwc->dev;
-	xhci->dev.archdata.dma_ops = dwc->dev->archdata.dma_ops;
+	//xhci->dev.dma_mask	= dwc->dev->dma_mask;
+	//xhci->dev.dma_parms	= dwc->dev->dma_parms;
+	//xhci->dev.archdata.dma_ops = dwc->dev->archdata.dma_ops;
+
+	dma_set_coherent_mask(&xhci->dev, dwc->dev->coherent_dma_mask);
 
 	dwc->xhci = xhci;
 
