@@ -4423,7 +4423,6 @@ EXPORT_SYMBOL(dw_mci_runtime_suspend);
 
 int dw_mci_runtime_resume(struct device *dev)
 {
-	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int i, ret = 0;
 	struct dw_mci *host = dev_get_drvdata(dev);
 
@@ -4442,28 +4441,6 @@ int dw_mci_runtime_resume(struct device *dev)
 	if (host->use_dma && host->dma_ops->init)
 		host->dma_ops->init(host);
 
-	if (host->quirks & DW_MCI_QUIRK_HWACG_CTRL) {
-		if (drv_data && drv_data->hwacg_control)
-			drv_data->hwacg_control(host, HWACG_Q_ACTIVE_EN);
-	} else {
-		if (drv_data && drv_data->hwacg_control)
-			drv_data->hwacg_control(host, HWACG_Q_ACTIVE_DIS);
-	}
-
-	if (drv_data && drv_data->access_control_sec_cfg) {
-		ret = drv_data->access_control_sec_cfg(host);
-		if (ret)
-			dev_err(host->dev, "%s: Fail to control security config.(%x)\n",
-						__func__, ret);
-	}
-
-	if (drv_data && drv_data->access_control_resume) {
-		ret = drv_data->access_control_resume(host);
-		if (ret)
-			dev_err(host->dev, "%s: Fail to resume access control.(%d)\n",
-					__func__, ret);
-	}
-
 	/*
 	 * Restore the initial value at FIFOTH register
 	 * And Invalidate the prev_blksz with zero
@@ -4476,9 +4453,8 @@ int dw_mci_runtime_resume(struct device *dev)
 
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
 	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
-			SDMMC_INT_TXDR | SDMMC_INT_RXDR |
-			DW_MCI_ERROR_FLAGS);
-
+		   SDMMC_INT_TXDR | SDMMC_INT_RXDR |
+		   DW_MCI_ERROR_FLAGS);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	for (i = 0; i < host->num_slots; i++) {
@@ -4486,16 +4462,14 @@ int dw_mci_runtime_resume(struct device *dev)
 
 		if (!slot)
 			continue;
-		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER
-				|| slot->mmc->pm_caps & MMC_PM_SKIP_MMC_RESUME_INIT) {
+		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER) {
 			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
 			dw_mci_setup_bus(slot, true);
 		}
 	}
-	if (host->pdata->cd_type == DW_MCI_CD_INTERNAL) {
-		/* Now that slots are all setup, we can enable card detect */
-		dw_mci_enable_cd(host);
-	}
+
+	/* Now that slots are all setup, we can enable card detect */
+	dw_mci_enable_cd(host);
 
 	return ret;
 }
