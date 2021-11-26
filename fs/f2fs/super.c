@@ -1981,7 +1981,7 @@ out:
 }
 
 static int f2fs_quota_on(struct super_block *sb, int type, int format_id,
-							struct path *path)
+							const struct path *path)
 {
 	struct inode *inode;
 	int err;
