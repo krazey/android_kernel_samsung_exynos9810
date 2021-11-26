@@ -1977,9 +1977,6 @@ enum nl80211_commands {
  * @NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED: Indicates whether or not multicast
  *	packets should be send out as unicast to all stations (flag attribute).
  *
- * @NL80211_ATTR_BSSID: The BSSID of the AP. Note that %NL80211_ATTR_MAC is also
- *	used in various commands/events for specifying the BSSID.
- *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2384,8 +2381,6 @@ enum nl80211_attrs {
 	NL80211_ATTR_FILS_NONCES,
 
 	NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED,
-
-	NL80211_ATTR_BSSID,
 
 	/* add attributes here, update the policy in nl80211.c */
 
