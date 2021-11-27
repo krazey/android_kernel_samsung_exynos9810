@@ -60,7 +60,6 @@ struct sync_pt {
 	struct dma_fence base;
 	struct list_head child_list;
 	struct list_head active_list;
-	struct work_struct defer_wq;
 };
 
 #ifdef CONFIG_SW_SYNC
@@ -72,12 +71,6 @@ void sync_timeline_debug_remove(struct sync_timeline *obj);
 void sync_file_debug_add(struct sync_file *fence);
 void sync_file_debug_remove(struct sync_file *fence);
 void sync_dump(void);
-
-struct sync_timeline *sync_timeline_create(const char *name);
-struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size,
-			     unsigned int value);
-void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc);
-void sync_timeline_put(struct sync_timeline *obj);
 
 #else
 # define sync_timeline_debug_add(obj)
