@@ -504,14 +504,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	struct rb_node *parent, **p;
 	bool first, wakeup;
 
-	/* Note that we may be called from an interrupt handler on another
-	 * device (e.g. nouveau signaling a fence completion causing us
-	 * to submit a request, and so enable signaling). As such,
-	 * we need to make sure that all other users of b->lock protect
-	 * against interrupts, i.e. use spin_lock_irqsave.
-	 */
-
-	/* locked by dma_fence_enable_sw_signaling() (irqsafe fence->lock) */
+	/* locked by dma_fence_enable_sw_signaling() */
 	assert_spin_locked(&request->lock);
 	if (!request->global_seqno)
 		return;

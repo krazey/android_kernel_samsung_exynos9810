@@ -58,6 +58,18 @@ static signed long i915_fence_wait(struct dma_fence *fence,
 	return i915_wait_request(to_request(fence), interruptible, timeout);
 }
 
+static void i915_fence_value_str(struct dma_fence *fence, char *str, int size)
+{
+	snprintf(str, size, "%u", fence->seqno);
+}
+
+static void i915_fence_timeline_value_str(struct dma_fence *fence, char *str,
+					  int size)
+{
+	snprintf(str, size, "%u",
+		 intel_engine_get_seqno(to_request(fence)->engine));
+}
+
 static void i915_fence_release(struct dma_fence *fence)
 {
 	struct drm_i915_gem_request *req = to_request(fence);
@@ -561,18 +573,8 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	dma_fence_init(&req->fence,
 		       &i915_fence_ops,
 		       &req->lock,
-		       req->timeline->fence_context,
-		       __timeline_get_seqno(req->timeline->common));
-
-	/* We bump the ref for the fence chain */
-	i915_sw_fence_init(&i915_gem_request_get(req)->submit, submit_notify);
-	i915_sw_fence_init(&i915_gem_request_get(req)->execute, execute_notify);
-
-	/* Ensure that the execute fence completes after the submit fence -
-	 * as we complete the execute fence from within the submit fence
-	 * callback, its completion would otherwise be visible first.
-	 */
-	i915_sw_fence_await_sw_fence(&req->execute, &req->submit, &req->execq);
+		       engine->fence_context,
+		       seqno);
 
 	i915_priotree_init(&req->priotree);
 

@@ -16,8 +16,8 @@
 #include <linux/wait.h>
 
 struct completion;
-struct fence;
-struct fence_ops;
+struct dma_fence;
+struct dma_fence_ops;
 struct reservation_object;
 
 struct i915_sw_fence {
@@ -65,12 +65,12 @@ int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
 				     struct i915_sw_fence *after,
 				     gfp_t gfp);
 int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
-				  struct fence *dma,
+				  struct dma_fence *dma,
 				  unsigned long timeout,
 				  gfp_t gfp);
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 				    struct reservation_object *resv,
-				    const struct fence_ops *exclude,
+				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,
 				    gfp_t gfp);

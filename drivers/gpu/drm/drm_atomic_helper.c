@@ -30,7 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #include "drm_crtc_internal.h"
 
@@ -1014,13 +1014,6 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  * drm_atomic_helper_swap_state() so it uses the current plane state (and
  * just uses the atomic state to find the changed planes)
  *
- * Note that @pre_swap is needed since the point where we block for fences moves
- * around depending upon whether an atomic commit is blocking or
- * non-blocking. For async commit all waiting needs to happen after
- * drm_atomic_helper_swap_state() is called, but for synchronous commits we want
- * to wait **before** we do anything that can't be easily rolled back. That is
- * before we call drm_atomic_helper_swap_state().
- *
  * Returns zero if success or < 0 if dma_fence_wait() fails.
  */
 int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
@@ -1045,11 +1038,11 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 		 * still interrupt the operation. Instead of blocking until the
 		 * timer expires, make the wait interruptible.
 		 */
-		ret = fence_wait(plane_state->fence, pre_swap);
+		ret = dma_fence_wait(plane_state->fence, pre_swap);
 		if (ret)
 			return ret;
 
-		fence_put(plane_state->fence);
+		dma_fence_put(plane_state->fence);
 		plane_state->fence = NULL;
 	}
 

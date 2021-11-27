@@ -255,6 +255,10 @@ static int amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 			       struct ttm_mem_reg *mem,
 			       uint64_t *addr)
 {
+	struct amdgpu_device *adev;
+	struct amdgpu_ring *ring;
+	uint64_t old_start, new_start;
+	struct dma_fence *fence;
 	int r;
 
 	switch (mem->mem_type) {
@@ -352,7 +356,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	}
 
 	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
-	fence_put(fence);
+	dma_fence_put(fence);
 	return r;
 
 error:
@@ -1319,7 +1323,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t dst_offset,
 		       uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct fence **fence, bool direct_submit)
+		       struct dma_fence **fence, bool direct_submit)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_job *job;
@@ -1366,7 +1370,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	if (direct_submit) {
 		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs,
 				       NULL, NULL, fence);
-		job->fence = fence_get(*fence);
+		job->fence = dma_fence_get(*fence);
 		if (r)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		amdgpu_job_free(job);
@@ -1385,9 +1389,9 @@ error_free:
 }
 
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-		       uint32_t src_data,
-		       struct reservation_object *resv,
-		       struct dma_fence **fence)
+		uint32_t src_data,
+		struct reservation_object *resv,
+		struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
