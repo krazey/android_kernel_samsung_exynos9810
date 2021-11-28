@@ -646,7 +646,7 @@ struct kbase_jd_atom {
 		 * when working with this sub struct */
 #if defined(CONFIG_SYNC_FILE)
 		/* Input fence */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 		struct fence *fence_in;
 #else
 		struct dma_fence *fence_in;
@@ -663,7 +663,7 @@ struct kbase_jd_atom {
 		 * regardless of the event_code of the katom (signal also on
 		 * failure).
 		 */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 		struct fence *fence;
 #else
 		struct dma_fence *fence;
@@ -1558,9 +1558,9 @@ struct kbase_device {
 #ifdef CONFIG_REGULATOR
 	struct regulator *regulators[BASE_MAX_NR_CLOCKS_REGULATORS];
 	unsigned int nr_regulators;
-#if (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 9, 0) <= LINUX_VERSION_CODE)
 	struct opp_table *opp_table;
-#endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
+#endif /* (KERNEL_VERSION(4, 9, 0) <= LINUX_VERSION_CODE */
 #endif /* CONFIG_REGULATOR */
 	char devname[DEVNAME_SIZE];
 	u32  id;

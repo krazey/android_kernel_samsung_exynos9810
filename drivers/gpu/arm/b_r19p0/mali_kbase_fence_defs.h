@@ -32,7 +32,7 @@
 
 #include <linux/version.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 
 #include <linux/fence.h>
 
@@ -47,8 +47,8 @@
 
 /* MALI_SEC_INTEGRATION */
 /* [HACK] Should check status in LT(4.9) otherwise fence timeout occur frequently */
-#if (KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE)
-//#if (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
+//#if (KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 9, 0) <= LINUX_VERSION_CODE)
 #define dma_fence_get_status(a) (fence_is_signaled(a) ? (a)->error ?: 1 : 0)
 #else
 #define dma_fence_get_status(a) (fence_is_signaled(a) ? (a)->status ?: 1 : 0)

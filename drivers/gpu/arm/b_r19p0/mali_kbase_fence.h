@@ -35,7 +35,7 @@
 #include "mali_kbase_fence_defs.h"
 #include "mali_kbase.h"
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 extern const struct fence_ops kbase_fence_ops;
 #else
 extern const struct dma_fence_ops kbase_fence_ops;
@@ -49,7 +49,7 @@ extern const struct dma_fence_ops kbase_fence_ops;
 * @node:     List head for linking this callback to the katom
 */
 struct kbase_fence_cb {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 	struct fence_cb fence_cb;
 	struct fence *fence;
 #else
@@ -66,7 +66,7 @@ struct kbase_fence_cb {
  *
  * return: A new fence object on success, NULL on failure.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 struct fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 #else
 struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
@@ -140,8 +140,8 @@ static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom,
 					 int status)
 {
 	if (status) {
-#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
-	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 9, 0) > LINUX_VERSION_CODE && \
+	  KERNEL_VERSION(4, 8, 68) <= LINUX_VERSION_CODE)
 		fence_set_error(katom->dma_fence.fence, status);
 #elif (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE)
 		dma_fence_set_error(katom->dma_fence.fence, status);
@@ -167,7 +167,7 @@ static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom,
  * Return: 0 on success: fence was either already signaled, or callback was
  * set up. Negative error code is returned on error.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 int kbase_fence_add_callback(struct kbase_jd_atom *katom,
 			     struct fence *fence,
 			     fence_func_t callback);
