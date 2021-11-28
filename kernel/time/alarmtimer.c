@@ -680,7 +680,7 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 	 * Rate limit to the tick as a hot fix to prevent DOS. Will be
 	 * mopped up later.
 	 */
-	if (timr->it.alarm.interval.tv64 &&
+	if (timr->it.alarm.interval &&
 			ktime_to_ns(timr->it.alarm.interval) < TICK_NSEC)
 		timr->it.alarm.interval = ktime_set(0, TICK_NSEC);
 

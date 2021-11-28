@@ -529,7 +529,7 @@ static int decon_vsync_thread(void *data)
 	while (!kthread_should_stop()) {
 		ktime_t timestamp = decon->vsync.timestamp;
 		int ret = wait_event_interruptible(decon->vsync.wait,
-			!ktime_equal(timestamp, decon->vsync.timestamp) &&
+			(timestamp != decon->vsync.timestamp) &&
 			decon->vsync.active);
 
 		if (!ret)
@@ -591,7 +591,7 @@ static int decon_fsync_thread(void *data)
 	while (!kthread_should_stop()) {
 		timestamp = decon->fsync.timestamp;
 		ret = wait_event_interruptible(decon->fsync.wait,
-				!ktime_equal(timestamp, decon->fsync.timestamp) &&
+				(timestamp != decon->fsync.timestamp) &&
 				decon->fsync.active);
 
 		if (!ret) {
@@ -1194,9 +1194,8 @@ static int decon_hiber_thread(void *data)
 	while (!kthread_should_stop()) {
 		timestamp = decon->hiber.timestamp;
 		ret = wait_event_interruptible(decon->hiber.wait,
-				!ktime_equal(timestamp, decon->hiber.timestamp)
-				&& decon->hiber.init_status);
-
+			(timestamp != decon->hiber.timestamp) &&
+			decon->hiber.init_status);
 		if (!ret) {
 			if (decon_hiber_enter_cond(decon))
 				decon_enter_hiber(decon);
