@@ -189,7 +189,7 @@ int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 				  struct kbase_sync_fence_info *info);
 
 #if defined(CONFIG_SYNC_FILE)
-#if (KERNEL_VERSION(4, 9, 0) > LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 void kbase_sync_fence_info_get(struct fence *fence,
 			       struct kbase_sync_fence_info *info);
 #else
