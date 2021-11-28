@@ -50,8 +50,8 @@ static inline void dpu_event_log_decon
 	case DPU_EVT_TRIG_MASK:
 	case DPU_EVT_FENCE_RELEASE:
 	case DPU_EVT_DECON_FRAMEDONE:
-		log->data.fence.timeline_value = decon->timeline->value;
-		log->data.fence.timeline_max = decon->timeline_max;
+		log->data.fence.timeline_value = atomic_read(&decon->fence.timeline);
+		log->data.fence.timeline_max = atomic_read(&decon->fence.timeline);
 		break;
 	case DPU_EVT_WB_SW_TRIGGER:
 		break;
