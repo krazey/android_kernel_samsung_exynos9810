@@ -532,8 +532,8 @@ static void g2d_put_image(struct g2d_device *g2d_dev, struct g2d_layer *layer,
 			layer->buffer, layer->num_buffers, dir);
 
 	if (layer->fence)
-		fence_remove_callback(layer->fence, &layer->fence_cb);
-	fence_put(layer->fence);
+		dma_fence_remove_callback(layer->fence, &layer->fence_cb);
+	dma_fence_put(layer->fence);
 
 	layer->buffer_type = G2D_BUFTYPE_NONE;
 }
@@ -602,8 +602,8 @@ err_prepare:
 		       layer->num_buffers, DMA_TO_DEVICE);
 err_buffer:
 	if (layer->fence)
-		fence_remove_callback(layer->fence, &layer->fence_cb);
-	fence_put(layer->fence); /* fence_put() checkes NULL */
+		dma_fence_remove_callback(layer->fence, &layer->fence_cb);
+	dma_fence_put(layer->fence); /* fence_put() checkes NULL */
 
 	return ret;
 }
@@ -750,8 +750,8 @@ err_prepare:
 				target->num_buffers, DMA_FROM_DEVICE);
 err_buffer:
 	if (target->fence)
-		fence_remove_callback(target->fence, &target->fence_cb);
-	fence_put(target->fence); /* fence_put() checkes NULL */
+		dma_fence_remove_callback(target->fence, &target->fence_cb);
+	dma_fence_put(target->fence); /* fence_put() checkes NULL */
 
 	return ret;
 }
@@ -818,7 +818,7 @@ void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_invalidate_caches_task(task);
 
 	if (task->release_fence) {
-		fence_signal(task->release_fence->fence);
+		dma_fence_signal(task->release_fence->fence);
 		fput(task->release_fence->file);
 	}
 

@@ -873,7 +873,7 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_pm;
 
 	spin_lock_init(&g2d_dev->fence_lock);
-	g2d_dev->fence_context = fence_context_alloc(1);
+	g2d_dev->fence_context = dma_fence_context_alloc(1);
 
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x\n", version);
 

@@ -62,8 +62,8 @@ struct g2d_layer {
 	int			buffer_type;
 	int			num_buffers;
 	struct g2d_buffer	buffer[G2D_MAX_PLANES];
-	struct fence		*fence;
-	struct fence_cb		fence_cb;
+	struct dma_fence	*fence;
+	struct dma_fence_cb	fence_cb;
 	struct g2d_reg		*commands;
 };
 
@@ -188,7 +188,7 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev);
 void g2d_prepare_suspend(struct g2d_device *g2d_dev);
 void g2d_suspend_finish(struct g2d_device *g2d_dev);
 
-void g2d_fence_callback(struct fence *fence, struct fence_cb *cb);
+void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb);
 
 void g2d_queuework_task(struct kref *kref);
 

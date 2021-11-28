@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/sync_file.h>
 
 #include "g2d.h"
@@ -29,7 +29,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 {
 	struct g2d_task *task = (struct g2d_task *)arg;
 	struct g2d_device *g2d_dev = task->g2d_dev;
-	struct fence *fence;
+	struct dma_fence *fence;
 	unsigned long flags;
 	char name[32];
 	int i;
@@ -42,7 +42,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 			       sizeof(name));
 			dev_err(g2d_dev->dev, "%s:  SOURCE[%d]:  %s #%d (%s)\n",
 				__func__, i, name, fence->seqno,
-				fence_is_signaled(fence) ?
+				dma_fence_is_signaled(fence) ?
 					"signaled" : "active");
 		}
 	}
@@ -52,7 +52,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
 		pr_err("%s:  TARGET:     %s #%d (%s)\n",
 			__func__, name, fence->seqno,
-			fence_is_signaled(fence) ? "signaled" : "active");
+			dma_fence_is_signaled(fence) ? "signaled" : "active");
 	}
 
 	if (task->release_fence)
@@ -91,12 +91,12 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	for (i = 0; i < task->num_source; i++) {
 		fence = task->source[i].fence;
 		if (fence)
-			fence_remove_callback(fence, &task->source[i].fence_cb);
+			dma_fence_remove_callback(fence, &task->source[i].fence_cb);
 	}
 
 	fence = task->target.fence;
 	if (fence)
-		fence_remove_callback(fence, &task->target.fence_cb);
+		dma_fence_remove_callback(fence, &task->target.fence_cb);
 
 	/* check compressed buffer because crashed buffer makes recovery */
 	for (i = 0; i < task->num_source; i++) {
@@ -113,32 +113,32 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	g2d_queuework_task(&task->starter);
 };
 
-static const char *g2d_fence_get_driver_name(struct fence *fence)
+static const char *g2d_fence_get_driver_name(struct dma_fence *fence)
 {
 	return "g2d";
 }
 
-static bool g2d_fence_enable_signaling(struct fence *fence)
+static bool g2d_fence_enable_signaling(struct dma_fence *fence)
 {
 	/* nothing to do */
 	return true;
 }
 
-static void g2d_fence_release(struct fence *fence)
+static void g2d_fence_release(struct dma_fence *fence)
 {
 	kfree(fence);
 }
 
-static void g2d_fence_value_str(struct fence *fence, char *str, int size)
+static void g2d_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
 	snprintf(str, size, "%d", fence->seqno);
 }
 
-static struct fence_ops g2d_fence_ops = {
+static struct dma_fence_ops g2d_fence_ops = {
 	.get_driver_name =	g2d_fence_get_driver_name,
 	.get_timeline_name =	g2d_fence_get_driver_name,
 	.enable_signaling =	g2d_fence_enable_signaling,
-	.wait =			fence_default_wait,
+	.wait =			dma_fence_default_wait,
 	.release =		g2d_fence_release,
 	.fence_value_str =	g2d_fence_value_str,
 };
@@ -147,7 +147,7 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 					   struct g2d_task *task,
 					   struct g2d_task_data *data)
 {
-	struct fence *fence;
+	struct dma_fence *fence;
 	struct sync_file *file;
 	s32 release_fences[G2D_MAX_IMAGES + 1];
 	int i;
@@ -167,12 +167,12 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 	if (!fence)
 		return ERR_PTR(-ENOMEM);
 
-	fence_init(fence, &g2d_fence_ops, &g2d_dev->fence_lock,
+	dma_fence_init(fence, &g2d_fence_ops, &g2d_dev->fence_lock,
 		   g2d_dev->fence_context,
 		   atomic_inc_return(&g2d_dev->fence_timeline));
 
 	file = sync_file_create(fence);
-	fence_put(fence);
+	dma_fence_put(fence);
 	if (!file)
 		return ERR_PTR(-ENOMEM);
 
@@ -207,41 +207,10 @@ err_fd:
 	return ERR_PTR(ret);
 }
 
-static void g2d_check_valid_fence(struct fence *fence, s32 fence_fd)
-{
-	struct file *file;
-	struct sync_file *sync_file;
-
-	if (fence->magic_bit == 0xFECEFECE)
-		return;
-	/*
-	 * Caution:
-	 * This file of fence_fd doesn't have problem because this file's
-	 * fops is sync_file_fops, and we get reference for that. However
-	 * this fence of sync_file might be corrupted or released because
-	 * magic_bit is not 0xFECEFECE that is initialized on fence_init.
-	 *
-	 * Print information to find fence owner.
-	 */
-	file = fget(fence_fd);
-	sync_file = file->private_data;
-
-	pr_err("%s : sync_file@%p : ref %d name %s\n", __func__,
-	       sync_file, atomic_read(&sync_file->kref.refcount),
-	       sync_file->name);
-	pr_err("%s : fence@%p : ref %d lock %p context %lu\n", __func__,
-	       fence, atomic_read(&fence->refcount.refcount),
-	       fence->lock, (unsigned long)fence->context);
-	pr_err(" timestamp %ld status %d magic_bit %#x\n",
-	       (long)fence->timestamp.tv64, fence_get_status(fence), fence->magic_bit);
-
-	fput(file);
-}
-
-struct fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
+struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
 				    struct g2d_layer *layer, s32 fence_fd)
 {
-	struct fence *fence;
+	struct dma_fence *fence;
 	int ret;
 
 	if (!(layer->flags & G2D_LAYERFLAG_ACQUIRE_FENCE))
@@ -251,14 +220,12 @@ struct fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
 	if (!fence)
 		return ERR_PTR(-EINVAL);
 
-	g2d_check_valid_fence(fence, fence_fd);
-
 	kref_get(&layer->task->starter);
 
-	ret = fence_add_callback(fence, &layer->fence_cb, g2d_fence_callback);
+	ret = dma_fence_add_callback(fence, &layer->fence_cb, g2d_fence_callback);
 	if (ret < 0) {
 		kref_put(&layer->task->starter, g2d_queuework_task);
-		fence_put(fence);
+		dma_fence_put(fence);
 		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
 	}
 
