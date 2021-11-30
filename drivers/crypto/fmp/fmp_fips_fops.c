@@ -17,7 +17,7 @@
 #include <crypto/authenc.h>
 
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/memory.h>
 
 #include "fmp_fips_main.h"

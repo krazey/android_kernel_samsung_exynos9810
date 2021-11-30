@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/export.h>

@@ -30,7 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>

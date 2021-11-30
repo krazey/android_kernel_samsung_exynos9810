@@ -17,7 +17,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <soc/samsung/bts.h>
 #include "cal_bts9810.h"

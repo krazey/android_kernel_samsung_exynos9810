@@ -35,7 +35,7 @@
 #include <linux/seq_file.h>
 #include <linux/smc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/delay.h>

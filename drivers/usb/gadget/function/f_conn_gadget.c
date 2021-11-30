@@ -55,7 +55,7 @@
 #include <linux/kfifo.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/file.h>
 #include <linux/configfs.h>
 #include <linux/usb/composite.h>

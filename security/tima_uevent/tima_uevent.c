@@ -2,7 +2,7 @@
  * TIMA Uevent Support
  *
  */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
