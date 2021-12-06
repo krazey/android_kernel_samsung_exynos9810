@@ -719,29 +719,6 @@ int exynos_hotplug_out_callback(unsigned int cpu)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_hotplug_out_callback);
-
-static int exynos_cpu_callback(struct notifier_block *nfb,
-				 unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
-
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		while (exynos_cpu.power_state(cpu)) {
-			if (time_before(jiffies, timeout)) {
-				udelay(10);
-				continue;
-			} else {
-				BUG();
-			}
-		}
-		break;
-	}
-
-	return NOTIFY_OK;
-}
 #endif
 
 /**
@@ -915,8 +892,6 @@ static int __init exynos_powermode_init(void)
 
 	cpufreq_register_notifier(&exynos_powermode_cpufreq_notifier,
 					CPUFREQ_TRANSITION_NOTIFIER);
-
-	__hotcpu_notifier(exynos_cpu_callback, INT_MAX);
 
 	return 0;
 }

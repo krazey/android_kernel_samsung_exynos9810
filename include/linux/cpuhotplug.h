@@ -147,6 +147,7 @@ enum cpuhp_state {
 	CPUHP_AP_RCUTREE_ONLINE,
 	CPUHP_AP_ONLINE_DYN,
 	CPUHP_AP_ONLINE_DYN_END		= CPUHP_AP_ONLINE_DYN + 30,
+	CPUHP_AP_EXYNOS_ACME,
 	CPUHP_AP_X86_HPET_ONLINE,
 	CPUHP_AP_X86_KVM_CLK_ONLINE,
 	CPUHP_AP_ACTIVE,
@@ -157,6 +158,11 @@ int __cpuhp_setup_state(enum cpuhp_state state,	const char *name, bool invoke,
 			int (*startup)(unsigned int cpu),
 			int (*teardown)(unsigned int cpu), bool multi_instance);
 
+int __cpuhp_setup_state_cpuslocked(enum cpuhp_state state, const char *name,
+				   bool invoke,
+				   int (*startup)(unsigned int cpu),
+				   int (*teardown)(unsigned int cpu),
+				   bool multi_instance);
 /**
  * cpuhp_setup_state - Setup hotplug state callbacks with calling the callbacks
  * @state:	The state for which the calls are installed
@@ -193,6 +199,15 @@ static inline int cpuhp_setup_state_nocalls(enum cpuhp_state state,
 {
 	return __cpuhp_setup_state(state, name, false, startup, teardown,
 				   false);
+}
+
+static inline int cpuhp_setup_state_nocalls_cpuslocked(enum cpuhp_state state,
+						     const char *name,
+						     int (*startup)(unsigned int cpu),
+						     int (*teardown)(unsigned int cpu))
+{
+	return __cpuhp_setup_state_cpuslocked(state, name, false, startup,
+					    teardown, false);
 }
 
 /**

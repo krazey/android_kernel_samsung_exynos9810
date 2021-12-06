@@ -513,9 +513,7 @@ static int ion_rbin_heap_cpu_callback(struct notifier_block *nfb,
 		return NOTIFY_OK;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
 	case CPU_DEAD:
-	case CPU_UP_CANCELED:
 		cpumask_clear(&cpu_mask);
 		for (i = BIG_CORE_NUM_FIRST; i <= BIG_CORE_NUM_LAST; i++)
 			cpumask_set_cpu(i, &cpu_mask);
@@ -557,7 +555,6 @@ struct ion_heap *ion_rbin_heap_create(struct ion_platform_heap *data)
 
 	sched_setscheduler(heap->task, SCHED_NORMAL, &param);
 	ion_rbin_heap_cpu_callback(NULL, CPU_UP_PREPARE, NULL);
-	hotcpu_notifier(ion_rbin_heap_cpu_callback, 0);
 
 	return &heap->heap;
 

@@ -328,6 +328,13 @@ void cpu_hotplug_done(void)
 	cpuhp_lock_release();
 }
 
+DEFINE_STATIC_PERCPU_RWSEM(cpu_hotplug_lock);
+
+void lockdep_assert_cpus_held(void)
+{
+	percpu_rwsem_assert_held(&cpu_hotplug_lock);
+}
+
 /*
  * Wait for currently running CPU hotplug operations to complete (if any) and
  * disable future CPU hotplug (from sysfs). The 'cpu_add_remove_lock' protects
@@ -1126,11 +1133,6 @@ down_fail:
 	}
 out:
 	cpu_hotplug_done();
-	/* This pot dead nonsense must die */
-	if (!ret && hasdied) {
-		for_each_cpu(cpu, &take_down_cpus)
-			cpu_notify_nofail(CPU_POST_DEAD, cpu);
-	}
 
 	cpuset_wait_for_hotplug();
 
@@ -1395,7 +1397,7 @@ static int _cpus_up(const struct cpumask *cpus, int tasks_frozen, enum cpuhp_sta
 			st->state--;
 			trace_cpuhp_exit(cpu, st->state, st->target, st->result);
 			irq_unlock_sparse();
-			goto cpu_up_fail;
+			goto bringup_fail;
 		}
 	}
 	irq_unlock_sparse();
@@ -1436,9 +1438,6 @@ static int _cpus_up(const struct cpumask *cpus, int tasks_frozen, enum cpuhp_sta
 
 	goto out;
 
-cpu_up_fail:
-	for_each_cpu(cpu, &failed_cpus)
-		cpu_notify(CPU_UP_CANCELED, cpu);
 bringup_fail:
 	for_each_cpu(cpu, &bringup_cpus) {
 		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
@@ -2029,6 +2028,82 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__cpuhp_state_add_instance);
+
+/**
+ * __cpuhp_setup_state_cpuslocked - Setup the callbacks for an hotplug machine state
+ * @state:		The state to setup
+ * @invoke:		If true, the startup function is invoked for cpus where
+ *			cpu state >= @state
+ * @startup:		startup callback function
+ * @teardown:		teardown callback function
+ * @multi_instance:	State is set up for multiple instances which get
+ *			added afterwards.
+ *
+ * The caller needs to hold cpus read locked while calling this function.
+ * Returns:
+ *   On success:
+ *      Positive state number if @state is CPUHP_AP_ONLINE_DYN
+ *      0 for all other states
+ *   On failure: proper (negative) error code
+ */
+int __cpuhp_setup_state_cpuslocked(enum cpuhp_state state,
+				   const char *name, bool invoke,
+				   int (*startup)(unsigned int cpu),
+				   int (*teardown)(unsigned int cpu),
+				   bool multi_instance)
+{
+	int cpu, ret = 0;
+	bool dynstate;
+
+	lockdep_assert_cpus_held();
+
+	if (cpuhp_cb_check(state) || !name)
+		return -EINVAL;
+
+	mutex_lock(&cpuhp_state_mutex);
+
+	ret = cpuhp_store_callbacks(state, name, startup, teardown,
+				    multi_instance);
+
+	dynstate = state == CPUHP_AP_ONLINE_DYN;
+	if (ret > 0 && dynstate) {
+		state = ret;
+		ret = 0;
+	}
+
+	if (ret || !invoke || !startup)
+		goto out;
+
+	/*
+	 * Try to call the startup callback for each present cpu
+	 * depending on the hotplug state of the cpu.
+	 */
+	for_each_present_cpu(cpu) {
+		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+		int cpustate = st->state;
+
+		if (cpustate < state)
+			continue;
+
+		ret = cpuhp_issue_call(cpu, state, true, NULL);
+		if (ret) {
+			if (teardown)
+				cpuhp_rollback_install(cpu, state, NULL);
+			cpuhp_store_callbacks(state, NULL, NULL, NULL, false);
+			goto out;
+		}
+	}
+out:
+	mutex_unlock(&cpuhp_state_mutex);
+	/*
+	 * If the requested state is CPUHP_AP_ONLINE_DYN, return the
+	 * dynamically allocated state in case of success.
+	 */
+	if (!ret && dynstate)
+		return state;
+	return ret;
+}
+EXPORT_SYMBOL(__cpuhp_setup_state_cpuslocked);
 
 /**
  * __cpuhp_setup_state - Setup the callbacks for an hotplug machine state
