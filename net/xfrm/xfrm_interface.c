@@ -559,13 +559,13 @@ static int xfrmi_update(struct xfrm_if *xi, struct xfrm_if_parms *p)
 	return err;
 }
 
-static struct rtnl_link_stats64 *xfrmi_get_stats64(struct net_device *dev,
+static void xfrmi_get_stats64(struct net_device *dev,
 			       struct rtnl_link_stats64 *s)
 {
 	int cpu;
 
 	if (!dev->tstats)
-		return s;
+		return;
 
 	for_each_possible_cpu(cpu) {
 		struct pcpu_sw_netstats *stats;
@@ -589,8 +589,6 @@ static struct rtnl_link_stats64 *xfrmi_get_stats64(struct net_device *dev,
 
 	s->rx_dropped = dev->stats.rx_dropped;
 	s->tx_dropped = dev->stats.tx_dropped;
-
-	return s;
 }
 
 static int xfrmi_get_iflink(const struct net_device *dev)
