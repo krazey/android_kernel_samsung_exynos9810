@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.10.0 Kernel Configuration
+# Linux/arm64 4.10.0-testing Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -3158,6 +3158,7 @@ CONFIG_VGA_ARB_MAX_GPUS=16
 #
 # ACP (Audio CoProcessor) Configuration
 #
+# CONFIG_DRM_LIB_RANDOM is not set
 CONFIG_EXYNOS_HDR_TUNABLE_TONEMAPPING=y
 
 #
@@ -3181,6 +3182,7 @@ CONFIG_FB_CFB_IMAGEBLIT=y
 # CONFIG_FB_SYS_FILLRECT is not set
 # CONFIG_FB_SYS_COPYAREA is not set
 # CONFIG_FB_SYS_IMAGEBLIT is not set
+# CONFIG_FB_PROVIDE_GET_FB_UNMAPPED_AREA is not set
 # CONFIG_FB_FOREIGN_ENDIAN is not set
 # CONFIG_FB_SYS_FOPS is not set
 # CONFIG_FB_SVGALIB is not set
@@ -4666,6 +4668,7 @@ CONFIG_EXYNOS_ADC=y
 # CONFIG_TI_ADC128S052 is not set
 # CONFIG_TI_ADC161S626 is not set
 # CONFIG_TI_ADS1015 is not set
+# CONFIG_TI_ADS7950 is not set
 # CONFIG_TI_ADS8688 is not set
 # CONFIG_VF610_ADC is not set
 
@@ -4798,6 +4801,7 @@ CONFIG_EXYNOS_ADC=y
 # CONFIG_CM32181 is not set
 # CONFIG_CM3232 is not set
 # CONFIG_CM3323 is not set
+# CONFIG_CM3605 is not set
 # CONFIG_CM36651 is not set
 # CONFIG_GP2AP020A00F is not set
 # CONFIG_SENSORS_ISL29018 is not set
@@ -5859,3 +5863,4 @@ CONFIG_LIBFDT=y
 CONFIG_SG_POOL=y
 CONFIG_ARCH_HAS_SG_CHAIN=y
 CONFIG_SBITMAP=y
+# CONFIG_PRIME_NUMBERS is not set
