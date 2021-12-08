@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 #include <linux/sec_debug.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/buffer.h>
+#include <linux/iio/buffer_impl.h>
 
 #define SSP_DEBUG_TIMER_SEC		(5 * HZ)
 
