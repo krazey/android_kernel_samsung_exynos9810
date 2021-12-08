@@ -952,7 +952,7 @@ static int bw2cap[] = { 0, 0, WLC_BW_CAP_20MHZ, WLC_BW_CAP_40MHZ, WLC_BW_CAP_80M
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)) || \
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)) || \
 	defined(CFG80211_CONNECT_TIMEOUT_REASON_CODE) || defined(WL_FILS) || \
 	defined(CONFIG_CFG80211_FILS_BKPORT)
 #define CFG80211_CONNECT_RESULT(dev, bssid, bss, req_ie, req_ie_len, resp_ie, \
@@ -964,7 +964,7 @@ static int bw2cap[] = { 0, 0, WLC_BW_CAP_20MHZ, WLC_BW_CAP_40MHZ, WLC_BW_CAP_80M
 		resp_ie_len, status, gfp) \
 	cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len, resp_ie, \
 		resp_ie_len, status, gfp);
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0) || \
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) || \
 	* (CFG80211_CONNECT_TIMEOUT_REASON_CODE) ||
 	* WL_FILS || CONFIG_CFG80211_FILS_BKPORT
 	*/
@@ -6354,7 +6354,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	 * A start scan occuring during connect is unlikely
 	 */
 	if (cfg->sched_scan_req) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
 		wl_cfg80211_sched_scan_stop(wiphy, bcmcfg_to_prmry_ndev(cfg),
 				cfg->sched_scan_req->reqid);
 #else
