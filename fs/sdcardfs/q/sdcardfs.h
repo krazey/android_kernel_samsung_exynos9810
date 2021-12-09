@@ -382,11 +382,11 @@ static inline struct sdcardfs_inode_data *data_get(
 {
 	if (data) {
 #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB_DEBUG_ON)
-		BUG_ON(atomic_read(&data->refcount.refcount) ==
+		BUG_ON(kref_read(&data->refcount) ==
 				(POISON_FREE << 24 | POISON_FREE << 16 |
 				 POISON_FREE << 8 | POISON_FREE));
 #endif
-		BUG_ON(atomic_read(&data->refcount.refcount) <= 0);
+		BUG_ON(kref_read(&data->refcount) <= 0);
 		kref_get(&data->refcount);
 	}
 	return data;
@@ -403,11 +403,11 @@ extern void data_release(struct kref *ref);
 static inline void data_put(struct sdcardfs_inode_data *data)
 {
 #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB_DEBUG_ON)
-	BUG_ON(atomic_read(&data->refcount.refcount) ==
+	BUG_ON(kref_read(&data->refcount) ==
 			(POISON_FREE << 24 | POISON_FREE << 16 |
 			POISON_FREE << 8 | POISON_FREE));
 #endif
-	BUG_ON(atomic_read(&data->refcount.refcount) <= 0);
+	BUG_ON(kref_read(&data->refcount) <= 0);
 	kref_put(&data->refcount, data_release);
 }
 
