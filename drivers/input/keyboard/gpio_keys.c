@@ -580,7 +580,7 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
 	int state;
-	struct irq_desc *desc = irq_to_desc(gpio_to_irq(button->gpio));
+	struct irq_desc *desc = irq_to_desc(bdata->irq);
 
 	if (!desc) {
 		dev_err(input->dev.parent, "irq_desc is null! (gpio=%d)\n",
