@@ -31,6 +31,7 @@
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
+/* samsung gpio driver integration */
 #include <linux/sec_sysfs.h>
 #include <linux/sec_debug.h>
 
@@ -38,9 +39,10 @@ struct device *sec_key;
 EXPORT_SYMBOL(sec_key);
 
 static int call_gpio_keys_notifier(unsigned int code, int state);
+/* samsung gpio driver integration */
 
 struct gpio_button_data {
-	struct gpio_keys_button *button;
+	struct gpio_keys_button *button; /* samsung gpio driver integration: allow modifying */
 	struct input_dev *input;
 	struct gpio_desc *gpiod;
 
@@ -56,8 +58,10 @@ struct gpio_button_data {
 	spinlock_t lock;
 	bool disabled;
 	bool key_pressed;
+/* samsung gpio driver integration */
 	bool key_state;
 	int key_press_count;
+/* samsung gpio driver integration */
 };
 
 struct gpio_keys_drvdata {
@@ -366,6 +370,7 @@ static struct attribute_group gpio_keys_attr_group = {
 	.attrs = gpio_keys_attrs,
 };
 
+/* samsung gpio driver integration */
 static ssize_t key_pressed_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -576,6 +581,7 @@ static struct attribute *sec_key_attrs[] = {
 static struct attribute_group sec_key_attr_group = {
 	.attrs = sec_key_attrs,
 };
+/* samsung gpio driver integration */
 
 static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 {
@@ -583,6 +589,7 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
 	int state;
+/* samsung gpio driver integration */
 	struct irq_desc *desc = irq_to_desc(bdata->irq);
 
 	if (!desc) {
@@ -590,6 +597,7 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 				button->gpio);
 		return;
 	}
+/* samsung gpio driver integration */
 
 	state = gpiod_get_value_cansleep(bdata->gpiod);
 	if (state < 0) {
@@ -605,12 +613,14 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 		if (state)
 			input_event(input, type, button->code, button->value);
 	} else {
-		bdata->key_state = state;
+		bdata->key_state = state; /* samsung gpio driver integration */
 		input_event(input, type, *bdata->code, state);
 	}
 
+/* samsung gpio driver integration */
 	if (state)
 		bdata->key_press_count++;
+/* samsung gpio driver integration */
 
 	input_sync(input);
 }
@@ -629,11 +639,11 @@ static void gpio_keys_gpio_work_func(struct work_struct *work)
 static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 {
 	struct gpio_button_data *bdata = dev_id;
-	int state = (gpio_get_value(bdata->button->gpio) ? 1 : 0) ^ bdata->button->active_low;
+	int state = (gpio_get_value(bdata->button->gpio) ? 1 : 0) ^ bdata->button->active_low; /* samsung gpio driver integration */
 
 	BUG_ON(irq != bdata->irq);
 
-	call_gpio_keys_notifier(bdata->button->code, state);
+	call_gpio_keys_notifier(bdata->button->code, state); /* samsung gpio driver integration */
 
 	if (bdata->button->wakeup)
 		pm_stay_awake(bdata->input->dev.parent);
@@ -707,7 +717,7 @@ static void gpio_keys_quiesce_key(void *data)
 static int gpio_keys_setup_key(struct platform_device *pdev,
 				struct input_dev *input,
 				struct gpio_keys_drvdata *ddata,
-				struct gpio_keys_button *button,
+				struct gpio_keys_button *button, /* samsung gpio driver integration: allow modifying */
 				int idx,
 				struct fwnode_handle *child)
 {
@@ -945,7 +955,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 			fwnode_property_read_bool(child, "wakeup-source") ||
 			/* legacy name */
 			fwnode_property_read_bool(child, "gpio-key,wakeup");
-		button->wakeup_default = button->wakeup;
+		button->wakeup_default = button->wakeup; /* samsung gpio driver integration */
 
 		button->can_disable =
 			fwnode_property_read_bool(child, "linux,can-disable");
@@ -1030,7 +1040,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		__set_bit(EV_REP, input->evbit);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
-		struct gpio_keys_button *button = &pdata->buttons[i];
+		struct gpio_keys_button *button = &pdata->buttons[i]; /* samsung gpio driver integration: allow modifying */
 
 		if (!dev_get_platdata(dev)) {
 			child = device_get_next_child_node(dev, child);
@@ -1062,6 +1072,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		return error;
 	}
 
+/* samsung gpio driver integration */
 	sec_key = sec_device_create(ddata, "sec_key");
 	if (IS_ERR(sec_key))
 		pr_err("%s failed to create sec_key\n", __func__);
@@ -1072,21 +1083,24 @@ static int gpio_keys_probe(struct platform_device *pdev)
 			error);
 		goto err_remove_group;
 	}
+/* samsung gpio driver integration */
 
 	error = input_register_device(input);
 	if (error) {
 		dev_err(dev, "Unable to register input device, error: %d\n",
 			error);
-		goto err_remove_group;
+		goto err_remove_group; /* samsung gpio driver integration */
 	}
 
 	device_init_wakeup(dev, wakeup);
 
 	return 0;
 
+/* samsung gpio driver integration */
 err_remove_group:
 	sysfs_remove_group(&dev->kobj, &gpio_keys_attr_group);
 	return error;
+/* samsung gpio driver integration */
 }
 
 static int gpio_keys_remove(struct platform_device *pdev)
@@ -1145,6 +1159,7 @@ static int __maybe_unused gpio_keys_resume(struct device *dev)
 	return 0;
 }
 
+/* samsung gpio driver integration */
 static ATOMIC_NOTIFIER_HEAD(gpio_keys_notifiers);
 
 int register_gpio_keys_notifier(struct  notifier_block *nb)
@@ -1165,6 +1180,7 @@ static int call_gpio_keys_notifier(unsigned int code, int state)
 }
 
 static SIMPLE_DEV_PM_OPS(gpio_keys_pm_ops, gpio_keys_suspend, gpio_keys_resume);
+/* samsung gpio driver integration */
 
 static struct platform_driver gpio_keys_device_driver = {
 	.probe		= gpio_keys_probe,

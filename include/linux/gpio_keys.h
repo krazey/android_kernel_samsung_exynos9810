@@ -27,7 +27,7 @@ struct gpio_keys_button {
 	const char *desc;
 	unsigned int type;
 	int wakeup;
-	int wakeup_default;
+	int wakeup_default; /* samsung gpio driver integration */
 	int debounce_interval;
 	bool can_disable;
 	int value;
@@ -46,7 +46,7 @@ struct gpio_keys_button {
  * @name:		input device name
  */
 struct gpio_keys_platform_data {
-	struct gpio_keys_button *buttons;
+	struct gpio_keys_button *buttons; /* samsung gpio driver integration: allow modifying */
 	int nbuttons;
 	unsigned int poll_interval;
 	unsigned int rep:1;
@@ -55,6 +55,8 @@ struct gpio_keys_platform_data {
 	const char *name;
 };
 
+/* samsung gpio driver integration */
 int register_gpio_keys_notifier(struct notifier_block *nb);
 int unregister_gpio_keys_notifier(struct notifier_block *nb);
+/* samsung gpio driver integration */
 #endif
