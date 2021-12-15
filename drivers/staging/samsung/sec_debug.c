@@ -29,6 +29,7 @@
 #include <linux/fdtable.h>
 #include <linux/mount.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/cputime.h>
 
 #include <asm/cacheflush.h>
 #include <asm/stacktrace.h>
@@ -380,7 +381,7 @@ static u64 get_idle_time(int cpu)
 		/* !NO_HZ or cpu offline so we can rely on cpustat.idle */
 		idle = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE];
 	else
-		idle = usecs_to_cputime64(idle_time);
+		idle = ktime_to_us(idle_time);
 
 	return idle;
 }
@@ -396,7 +397,7 @@ static u64 get_iowait_time(int cpu)
 		/* !NO_HZ or cpu offline so we can rely on cpustat.iowait */
 		iowait = kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
 	else
-		iowait = usecs_to_cputime64(iowait_time);
+		iowait = ktime_to_us(iowait_time);
 
 	return iowait;
 }
@@ -446,16 +447,16 @@ static void sec_debug_dump_cpu_stat(void)
 
 	pr_info("\n");
 	pr_info("cpu   user:%llu \tnice:%llu \tsystem:%llu \tidle:%llu \tiowait:%llu \tirq:%llu \tsoftirq:%llu \t %llu %llu %llu\n",
-		(unsigned long long)cputime64_to_clock_t(user),
-		(unsigned long long)cputime64_to_clock_t(nice),
-		(unsigned long long)cputime64_to_clock_t(system),
-		(unsigned long long)cputime64_to_clock_t(idle),
-		(unsigned long long)cputime64_to_clock_t(iowait),
-		(unsigned long long)cputime64_to_clock_t(irq),
-		(unsigned long long)cputime64_to_clock_t(softirq),
-		(unsigned long long)cputime64_to_clock_t(steal),
-		(unsigned long long)cputime64_to_clock_t(guest),
-		(unsigned long long)cputime64_to_clock_t(guest_nice));
+		(unsigned long long)nsec_to_clock_t(user),
+		(unsigned long long)nsec_to_clock_t(nice),
+		(unsigned long long)nsec_to_clock_t(system),
+		(unsigned long long)nsec_to_clock_t(idle),
+		(unsigned long long)nsec_to_clock_t(iowait),
+		(unsigned long long)nsec_to_clock_t(irq),
+		(unsigned long long)nsec_to_clock_t(softirq),
+		(unsigned long long)nsec_to_clock_t(steal),
+		(unsigned long long)nsec_to_clock_t(guest),
+		(unsigned long long)nsec_to_clock_t(guest_nice));
 	pr_info("-------------------------------------------------------------------------------------------------------------\n");
 
 	for_each_possible_cpu(i) {
@@ -473,16 +474,16 @@ static void sec_debug_dump_cpu_stat(void)
 
 		pr_info("cpu%d  user:%llu \tnice:%llu \tsystem:%llu \tidle:%llu \tiowait:%llu \tirq:%llu \tsoftirq:%llu \t %llu %llu %llu\n",
 			i,
-			(unsigned long long)cputime64_to_clock_t(user),
-			(unsigned long long)cputime64_to_clock_t(nice),
-			(unsigned long long)cputime64_to_clock_t(system),
-			(unsigned long long)cputime64_to_clock_t(idle),
-			(unsigned long long)cputime64_to_clock_t(iowait),
-			(unsigned long long)cputime64_to_clock_t(irq),
-			(unsigned long long)cputime64_to_clock_t(softirq),
-			(unsigned long long)cputime64_to_clock_t(steal),
-			(unsigned long long)cputime64_to_clock_t(guest),
-			(unsigned long long)cputime64_to_clock_t(guest_nice));
+			(unsigned long long)nsec_to_clock_t(user),
+			(unsigned long long)nsec_to_clock_t(nice),
+			(unsigned long long)nsec_to_clock_t(system),
+			(unsigned long long)nsec_to_clock_t(idle),
+			(unsigned long long)nsec_to_clock_t(iowait),
+			(unsigned long long)nsec_to_clock_t(irq),
+			(unsigned long long)nsec_to_clock_t(softirq),
+			(unsigned long long)nsec_to_clock_t(steal),
+			(unsigned long long)nsec_to_clock_t(guest),
+			(unsigned long long)nsec_to_clock_t(guest_nice));
 	}
 	pr_info("-------------------------------------------------------------------------------------------------------------\n");
 	pr_info("\n");

@@ -28,6 +28,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/cputime.h>
 
 
 #define UID_HASH_BITS	10
@@ -67,10 +68,10 @@ struct task_entry {
 
 struct uid_entry {
 	uid_t uid;
-	cputime_t utime;
-	cputime_t stime;
-	cputime_t active_utime;
-	cputime_t active_stime;
+	u64 utime;
+	u64 stime;
+	u64 active_utime;
+	u64 active_stime;
 	int state;
 	struct io_stats io[UID_STATE_SIZE];
 	struct hlist_node hash;
@@ -442,15 +443,13 @@ static int uid_show(struct seq_file *m, void *v)
 	struct uid_entry *uid_entry;
 
 	hlist_for_each_entry(uid_entry, (struct hlist_head *)v, hash) {
-		cputime_t total_utime = uid_entry->utime +
+		u64 total_utime = uid_entry->utime +
 							uid_entry->active_utime;
-		cputime_t total_stime = uid_entry->stime +
+		u64 total_stime = uid_entry->stime +
 							uid_entry->active_stime;
 		debug_seq_printf(m, "%d: %llu %llu\n", uid_entry->uid,
-			(unsigned long long)jiffies_to_msecs(
-				cputime_to_jiffies(total_utime)) * USEC_PER_MSEC,
-			(unsigned long long)jiffies_to_msecs(
-				cputime_to_jiffies(total_stime)) * USEC_PER_MSEC);
+			(unsigned long long)ktime_to_us(total_utime) * USEC_PER_MSEC,
+			(unsigned long long)ktime_to_us(total_stime) * USEC_PER_MSEC);
 	}
 
 	return 0;
@@ -468,8 +467,8 @@ static int uid_cputime_open(struct inode *inode, struct file *file)
 	struct uid_entry *uid_entry = NULL;
 	struct task_struct *task, *temp;
 	struct user_namespace *user_ns = current_user_ns();
-	cputime_t utime;
-	cputime_t stime;
+	u64 utime;
+	u64 stime;
 	unsigned long bkt;
 	uid_t uid;
 
@@ -751,7 +750,7 @@ static int process_notifier(struct notifier_block *self,
 {
 	struct task_struct *task = v;
 	struct uid_entry *uid_entry;
-	cputime_t utime, stime;
+	u64 utime, stime;
 	uid_t uid;
 
 	if (!task)
