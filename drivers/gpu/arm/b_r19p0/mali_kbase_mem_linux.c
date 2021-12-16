@@ -2301,7 +2301,7 @@ static struct kbase_aliased *get_aliased_alloc(struct vm_area_struct *vma,
 	return aliased;
 }
 
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 static vm_fault_t kbase_cpu_vm_fault(struct vm_area_struct *vma,
 			struct vm_fault *vmf)
 {
