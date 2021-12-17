@@ -25,6 +25,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/sync_file.h>
 #include <uapi/linux/sync_file.h>
+#include "sync_debug.h"
 
 static const struct file_operations sync_file_fops;
 
@@ -97,7 +98,7 @@ EXPORT_SYMBOL(sync_file_create);
  * Ensures @fd references a valid sync_file, increments the refcount of the
  * backing file. Returns the sync_file or NULL in case of error.
  */
-static struct sync_file *sync_file_fdget(int fd)
+struct sync_file *sync_file_fdget(int fd)
 {
 	struct file *file = fget(fd);
 
@@ -316,6 +317,59 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 
 	return dma_fence_is_signaled(sync_file->fence) ? POLLIN : 0;
 }
+
+#ifdef CONFIG_MALI_SEC_JOB_STATUS_CHECK
+extern int gpu_job_fence_status_dump(struct sync_file *timeout_sync_file);
+#endif
+int sync_file_wait(struct sync_file *sync_file, long timeout)
+{
+	long ret;
+	bool signaled;
+
+	if (timeout < 0)
+		timeout = MAX_SCHEDULE_TIMEOUT;
+	else
+		timeout = msecs_to_jiffies(timeout);
+
+	ret = wait_event_interruptible_timeout(sync_file->wq,
+			dma_fence_is_signaled(sync_file->fence), timeout);
+
+	if (ret < 0) {
+		return ret;
+	} else if (ret == 0) {
+		if (timeout) {
+#if defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+			pr_info("fence timeout on [%pK] after %dms\n", sync_file,
+					jiffies_to_msecs(timeout));
+#else
+			pr_info("fence timeout on [%p] after %dms\n", sync_file,
+					jiffies_to_msecs(timeout));
+#endif
+#ifdef CONFIG_MALI_SEC_JOB_STATUS_CHECK
+			gpu_job_fence_status_dump(sync_file);
+#endif
+			sync_dump();
+		}
+		return -ETIME;
+	}
+
+	signaled = dma_fence_is_signaled(sync_file->fence);
+	if (!signaled) {
+#if defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+		pr_info("fence error %d on [%pK]\n", signaled, sync_file);
+#else
+		pr_info("fence error %d on [%p]\n", signaled, sync_file);
+#endif
+#ifdef CONFIG_MALI_SEC_JOB_STATUS_CHECK
+		gpu_job_fence_status_dump(sync_file);
+#endif
+		sync_dump();
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sync_file_wait);
 
 static long sync_file_ioctl_merge(struct sync_file *sync_file,
 				  unsigned long arg)

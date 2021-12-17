@@ -49,5 +49,7 @@ struct sync_file {
 
 struct sync_file *sync_file_create(struct dma_fence *fence);
 struct dma_fence *sync_file_get_fence(int fd);
+int sync_file_wait(struct sync_file *sync_file, long timeout);
+struct sync_file *sync_file_fdget(int fd);
 
 #endif /* _LINUX_SYNC_H */
