@@ -981,11 +981,64 @@ static int sc_v4l2_s_fmt_mplane(struct file *file, void *fh,
 	return 0;
 }
 
+static void sc_fence_work(struct work_struct *work)
+{
+	struct vb2_sc_buffer *svb =
+			container_of(work, struct vb2_sc_buffer, work);
+	struct sc_ctx *ctx = vb2_get_drv_priv(svb->mb.vb.vb2_buf.vb2_queue);
+	struct sync_file *sync_file;
+	int ret;
+
+	/* Buffers do not have acquire_fence are never pushed to workqueue */
+	BUG_ON(svb->mb.vb.vb2_buf.acquire_fence == NULL);
+	BUG_ON(!ctx->m2m_ctx);
+
+	sync_file = svb->mb.vb.vb2_buf.acquire_fence;
+	svb->mb.vb.vb2_buf.acquire_fence = NULL;
+
+	ret = sync_file_wait(sync_file, 1000);
+	if (ret == -ETIME) {
+		dev_warn(ctx->sc_dev->dev, "sync_fence_wait() timeout\n");
+		ret = sync_file_wait(sync_file, 10 * MSEC_PER_SEC);
+
+		if (ret)
+			dev_warn(ctx->sc_dev->dev,
+					"sync_fence_wait() error (%d)\n", ret);
+	}
+
+	fput(sync_file->file);
+
+	/* OK to preceed the timed out buffers: It does not harm the system */
+	v4l2_m2m_buf_queue(ctx->m2m_ctx, &svb->mb.vb);
+	v4l2_m2m_try_schedule(ctx->m2m_ctx);
+}
+
 static int sc_v4l2_reqbufs(struct file *file, void *fh,
 			    struct v4l2_requestbuffers *reqbufs)
 {
 	struct sc_ctx *ctx = fh_to_sc_ctx(fh);
-	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
+	struct vb2_queue *vq = v4l2_m2m_get_vq(ctx->m2m_ctx, reqbufs->type);
+	unsigned int i;
+	int ret;
+
+	ret = v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < vq->num_buffers; i++) {
+		struct vb2_buffer *vb;
+		struct vb2_v4l2_buffer *vb2_v4l2;
+		struct v4l2_m2m_buffer *mb;
+		struct vb2_sc_buffer *svb;
+
+		vb = vq->bufs[i];
+		vb2_v4l2 = container_of(vb, typeof(*vb2_v4l2), vb2_buf);
+		mb = container_of(vb2_v4l2, typeof(*mb), vb);
+		svb = container_of(mb, typeof(*svb), mb);
+
+		INIT_WORK(&svb->work, sc_fence_work);
+	}
+	return 0;
 }
 
 static int sc_v4l2_querybuf(struct file *file, void *fh,
