@@ -2765,6 +2765,7 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 	struct madera_accdet_pdata *pdata;
 	u32 out_num;
 	int i, ret;
+	enum gpiod_flags gpio_status;
 
 	ret = fwnode_property_read_u32(node, "reg", &out_num);
 	if (ret < 0) {
@@ -2852,10 +2853,15 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 	madera_extcon_get_micd_configs(info, node, pdata);
 	madera_extcon_of_get_micd_ranges(info, node, pdata);
 
-	info->micd_pol_gpio = devm_get_gpiod_from_child(info->dev,
+	if (info->micd_modes[0].gpio)
+		gpio_status = GPIOD_OUT_HIGH;
+	else
+		gpio_status = GPIOD_OUT_LOW;
+
+	info->micd_pol_gpio = devm_fwnode_get_gpiod_from_child(info->dev,
 							"cirrus,micd-pol",
 							node,
-							GPIOD_IN,
+							gpio_status,
 							"cirrus,micd-pol");
 	if (IS_ERR(info->micd_pol_gpio)) {
 		dev_warn(info->dev,
