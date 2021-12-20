@@ -237,7 +237,7 @@ iommu_insert_device_resv_regions(struct list_head *dev_resv_regions,
 int iommu_get_group_resv_regions(struct iommu_group *group,
 				 struct list_head *head)
 {
-	struct iommu_device *device;
+	struct group_device *device;
 	int ret = 0;
 
 	mutex_lock(&group->mutex);
