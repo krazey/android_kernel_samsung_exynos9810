@@ -9976,10 +9976,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 
 	return 0;
 
-#if defined(CONFIG_PM_DEVFREQ)
-out_remove_scsi_host:
-	scsi_remove_host(hba->host);
-#endif
 exit_gating:
 	ufshcd_exit_clk_gating(hba);
 	ufshcd_exit_latency_hist(hba);
