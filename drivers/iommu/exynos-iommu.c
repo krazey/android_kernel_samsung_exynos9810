@@ -485,6 +485,7 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 	return ret;
 }
 
+static struct iommu_ops exynos_iommu_ops;
 static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 {
 	int irq, ret;
@@ -564,6 +565,15 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	} else {
 		data->next = sysmmu_drvdata_list->next;
 		sysmmu_drvdata_list->next = data;
+	}
+
+	iommu_device_set_ops(&data->iommu, &exynos_iommu_ops);
+	iommu_device_set_fwnode(&data->iommu, &dev->of_node->fwnode);
+
+	ret = iommu_device_register(&data->iommu);
+	if (ret) {
+		dev_err(dev, "Failed to register device\n");
+		return ret;
 	}
 
 	dev_info(data->sysmmu, "is probed. Version %d.%d.%d\n",
@@ -1506,8 +1516,6 @@ static int __init exynos_iommu_of_setup(struct device_node *np)
 	pdev = of_platform_device_create(np, NULL, platform_bus_type.dev_root);
 	if (!pdev)
 		return -ENODEV;
-
-	iommu_register_instance(&np->fwnode, &exynos_iommu_ops);
 
 	return 0;
 }

@@ -338,6 +338,7 @@ struct sysmmu_drvdata {
 	struct device *sysmmu;		/* SYSMMU controller device */
 	void __iomem *sfrbase;		/* our registers */
 	struct clk *clk;		/* SYSMMU's clock */
+	struct iommu_device iommu;	/* IOMMU core handle */
 	int activations;		/* number of calls to sysmmu_enable */
 	int runtime_active;	/* Runtime PM activated count from master */
 	spinlock_t lock;		/* lock for modyfying state */
