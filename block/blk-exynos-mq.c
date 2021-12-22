@@ -991,7 +991,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 			blk_mq_run_hw_queue(hctx, true);
 	}
 
-	return ret != BLK_MQ_RQ_QUEUE_BUSY;
+	return queued != 0;
 }
 
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
@@ -1419,12 +1419,11 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	cookie = request_to_qc_t(data.hctx, rq);
 
 	if (unlikely(is_flush_fua)) {
-		blk_mq_put_ctx(data.ctx);
+		if (q->elevator)
+			goto elv_insert;
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_get_driver_tag(rq, NULL, true);
 		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(data.hctx, true);
-		goto done;
+		goto run_queue;
 	}
 
 	plug = current->plug;
@@ -1474,6 +1473,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (q->elevator) {
+elv_insert:
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true,
@@ -1487,6 +1487,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		 * latter allows for merging opportunities and more efficient
 		 * dispatching.
 		 */
+run_queue:
 		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
 	blk_mq_put_ctx(data.ctx);
@@ -1542,12 +1543,11 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	cookie = request_to_qc_t(data.hctx, rq);
 
 	if (unlikely(is_flush_fua)) {
-		blk_mq_put_ctx(data.ctx);
+		if (q->elevator)
+			goto elv_insert;
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_get_driver_tag(rq, NULL, true);
 		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(data.hctx, true);
-		goto done;
+		goto run_queue;
 	}
 
 	/*
@@ -1585,6 +1585,7 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (q->elevator) {
+elv_insert:
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true,
@@ -1598,6 +1599,7 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		 * latter allows for merging opportunities and more efficient
 		 * dispatching.
 		 */
+run_queue:
 		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
 
