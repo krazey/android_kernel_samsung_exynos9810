@@ -1261,6 +1261,45 @@ static void dw_mci_post_req(struct mmc_host *mmc,
 	data->host_cookie = COOKIE_UNMAPPED;
 }
 
+static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
+{
+	unsigned int blksz = data->blksz;
+	const u32 mszs[] = { 1, 4, 8, 16, 32, 64, 128, 256 };
+	u32 fifo_width = 1 << host->data_shift;
+	u32 blksz_depth = blksz / fifo_width, fifoth_val;
+	u32 msize = 0, rx_wmark = 1, tx_wmark, tx_wmark_invers;
+	int idx = ARRAY_SIZE(mszs) - 1;
+
+	/* pio should ship this scenario */
+	if (!host->use_dma)
+		return;
+
+	tx_wmark = (host->fifo_depth) / 2;
+	tx_wmark_invers = host->fifo_depth - tx_wmark;
+
+	/*
+	 * MSIZE is '1',
+	 * if blksz is not a multiple of the FIFO width
+	 */
+	if (blksz % fifo_width)
+		goto done;
+
+	do {
+		if (!((blksz_depth % mszs[idx]) || (tx_wmark_invers % mszs[idx]))) {
+			msize = idx;
+			rx_wmark = mszs[idx] - 1;
+			break;
+		}
+	} while (--idx > 0);
+	/*
+	 * If idx is '0', it won't be tried
+	 * Thus, initial values are uesed
+	 */
+ done:
+	fifoth_val = SDMMC_SET_FIFOTH(msize, rx_wmark, tx_wmark);
+	mci_writel(host, FIFOTH, fifoth_val);
+}
+
 static void dw_mci_ctrl_thld(struct dw_mci *host, struct mmc_data *data)
 {
 	unsigned int blksz = data->blksz;
