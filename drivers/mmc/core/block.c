@@ -1407,7 +1407,7 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 
 	if (card->host->areq) {
 		mq_mrq = container_of(card->host->areq, struct mmc_queue_req,
-				mmc_active);
+				areq);
 		brq = &mq_mrq->brq;
 	}
 
