@@ -443,7 +443,7 @@ int mmc_queue_suspend(struct mmc_queue *mq, int wait)
 		spin_unlock_irqrestore(q->queue_lock, flags);
 		rc = down_trylock(&mq->thread_sem);
 		if (rc && !wait) {
-			mq->flags &= ~MMC_QUEUE_SUSPENDED;
+			mq->suspended = false;
 			spin_lock_irqsave(q->queue_lock, flags);
 			blk_start_queue(q);
 			spin_unlock_irqrestore(q->queue_lock, flags);
@@ -451,7 +451,7 @@ int mmc_queue_suspend(struct mmc_queue *mq, int wait)
 		} else if (wait) {
 			printk("%s: mq->flags: %x, q->queue_flags: 0x%lx, \
 					q->in_flight (%d, %d) \n",
-					mmc_hostname(mq->card->host), mq->flags,
+					mmc_hostname(mq->card->host), mq->suspended,
 					q->queue_flags, q->in_flight[0], q->in_flight[1]);
 			mutex_lock(&q->sysfs_lock);
 			if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) {
