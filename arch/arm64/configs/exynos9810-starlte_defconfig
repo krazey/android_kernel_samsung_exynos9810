@@ -459,17 +459,22 @@ CONFIG_PCI_MSI_IRQ_DOMAIN=y
 # CONFIG_HOTPLUG_PCI is not set
 
 #
-# PCI host controller drivers
+# DesignWare PCI Core Support
 #
-# CONFIG_PCIE_DW_PLAT is not set
 CONFIG_PCIE_DW=y
+CONFIG_PCIE_DW_HOST=y
+# CONFIG_PCIE_DW_PLAT is not set
 CONFIG_PCI_EXYNOS=y
 CONFIG_EXYNOS_PCIE_IOMMU=y
 CONFIG_PCIE_IOMMU_HISTORY_LOG=y
 # CONFIG_SEC_PANIC_PCIE_ERR is not set
+# CONFIG_PCI_HISI is not set
+
+#
+# PCI host controller drivers
+#
 # CONFIG_PCI_HOST_GENERIC is not set
 # CONFIG_PCI_XGENE is not set
-# CONFIG_PCI_HISI is not set
 # CONFIG_PCI_HOST_THUNDER_PEM is not set
 # CONFIG_PCI_HOST_THUNDER_ECAM is not set
 
