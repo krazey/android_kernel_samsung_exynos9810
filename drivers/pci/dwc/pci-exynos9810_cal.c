@@ -394,9 +394,10 @@ void exynos_pcie_phy_config(void *phy_base_regs, void *phy_pcs_base_regs,
 
 void exynos_pcie_phy_init(struct pcie_port *pp)
 {
-	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 
-	dev_info(pp->dev, "Initialize PHY functions.\n");
+	dev_info(pci->dev, "Initialize PHY functions.\n");
 
 	exynos_pcie->phy_ops.phy_check_rx_elecidle =
 		exynos_phy_check_rx_elecidle;

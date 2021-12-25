@@ -27,7 +27,7 @@
 #define GPIO_DEBUG_SFR		0x0
 #endif
 
-#define to_exynos_pcie(x)	container_of(x, struct exynos_pcie, pp)
+#define to_exynos_pcie(x)	dev_get_drvdata((x)->dev)
 
 #define PCIE_BUS_PRIV_DATA(pdev) \
 	((struct pcie_port *)pdev->bus->sysdata)
@@ -67,6 +67,7 @@ struct pcie_phyops {
 };
 
 struct exynos_pcie {
+	struct dw_pcie		*pci;
 	void __iomem		*elbi_base;
 	void __iomem		*phy_base;
 	void __iomem		*sysreg_base;
@@ -95,7 +96,6 @@ struct exynos_pcie {
 	spinlock_t              pcie_l1_exit_lock;
 	struct workqueue_struct	*pcie_wq;
 	struct exynos_pcie_clks	clks;
-	struct pcie_port	pp;
 	struct pci_dev		*pci_dev;
 	struct pci_saved_state	*pci_saved_configs;
 	struct notifier_block	power_mode_nb;
