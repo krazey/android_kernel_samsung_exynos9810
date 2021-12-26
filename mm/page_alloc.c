@@ -3329,31 +3329,9 @@ static inline bool should_suppress_show_mem(void)
 	return ret;
 }
 
-static void warn_alloc_show_mem(gfp_t gfp_mask, nodemask_t *nodemask)
-{
-	unsigned int filter = SHOW_MEM_FILTER_NODES;
-	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
-
-	if (should_suppress_show_mem() || !__ratelimit(&show_mem_rs))
-		return;
-
-	/*
-	 * This documents exceptions given to allocations in certain
-	 * contexts that are allowed to allocate outside current's set
-	 * of allowed nodes.
-	 */
-	if (!(gfp_mask & __GFP_NOMEMALLOC))
-		if (test_thread_flag(TIF_MEMDIE) ||
-		    (current->flags & (PF_MEMALLOC | PF_EXITING)))
-			filter &= ~SHOW_MEM_FILTER_NODES;
-	if (in_interrupt() || !(gfp_mask & __GFP_DIRECT_RECLAIM))
-		filter &= ~SHOW_MEM_FILTER_NODES;
-
-	show_mem(filter, nodemask);
-}
-
 void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
 {
+	unsigned int filter = SHOW_MEM_FILTER_NODES;
 	struct va_format vaf;
 	va_list args;
 	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -3372,15 +3350,10 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
 	va_end(args);
 
 	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
-	if (nodemask)
-		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
-	else
-		pr_cont("(null)\n");
-
-	cpuset_print_current_mems_allowed();
 
 	dump_stack();
-	warn_alloc_show_mem(gfp_mask, nodemask);
+	if (!should_suppress_show_mem())
+		show_mem(filter, NULL);
 }
 
 static inline struct page *
@@ -4027,14 +4000,6 @@ retry:
 	if (!can_direct_reclaim)
 		goto nopage;
 
-	/* Make sure we know about allocations which stall for too long */
-	if (time_after(jiffies, alloc_start + stall_timeout)) {
-		warn_alloc(gfp_mask, ac->nodemask,
-			"page allocation stalls for %ums, order:%u",
-			jiffies_to_msecs(jiffies-alloc_start), order);
-		stall_timeout += 10 * HZ;
-	}
-
 	/* Avoid recursion of direct reclaim */
 	if (current->flags & PF_MEMALLOC)
 		goto nopage;
@@ -4152,7 +4117,7 @@ nopage:
 		goto retry;
 	}
 fail:
-	warn_alloc(gfp_mask, ac->nodemask,
+	warn_alloc(gfp_mask,
 			"page allocation failure: order:%u", order);
 got_pg:
 	clear_tsk_thread_flag(current, TIF_MEMALLOC);
