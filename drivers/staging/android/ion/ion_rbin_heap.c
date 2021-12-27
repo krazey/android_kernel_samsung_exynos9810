@@ -70,21 +70,21 @@ static struct page *alloc_rbin_page(struct ion_rbin_heap *heap,
 	trace_ion_rbin_partial_alloc_start(heap->heap.name, buffer, size, NULL);
 
 	if (size >= (MAX_ORDER_NR_PAGES << PAGE_SHIFT)) {
-		page = cma_alloc(heap->cma, MAX_ORDER_NR_PAGES, MAX_ORDER - 1);
+		page = cma_alloc(heap->cma, MAX_ORDER_NR_PAGES, MAX_ORDER - 1, GFP_KERNEL);
 		if (page) {
 			size = MAX_ORDER_NR_PAGES << PAGE_SHIFT;
 			goto done;
 		}
 		order = MAX_ORDER - 2;
 	} else if (size < (PAGE_SIZE << order)) {
-		page = cma_alloc(heap->cma, size >> PAGE_SHIFT, 0);
+		page = cma_alloc(heap->cma, size >> PAGE_SHIFT, 0, GFP_KERNEL);
 		if (page)
 			goto done;
 		order--;
 	}
 
 	for ( ; order >= 0; order--) {
-		page = cma_alloc(heap->cma, 1 << order, 0);
+		page = cma_alloc(heap->cma, 1 << order, 0, GFP_KERNEL);
 		if (page) {
 			size = PAGE_SIZE << order;
 			goto done;

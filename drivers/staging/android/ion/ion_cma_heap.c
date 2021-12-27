@@ -60,7 +60,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	}
 
 	page = cma_alloc(cma_heap->cma, (PAGE_ALIGN(size) >> PAGE_SHIFT),
-			 (align ? get_order(align) : 0));
+			 (align ? get_order(align) : 0), GFP_KERNEL);
 	if (!page) {
 		ret = -ENOMEM;
 		pr_err("%s: Fail to allocate buffer from CMA\n", __func__);
