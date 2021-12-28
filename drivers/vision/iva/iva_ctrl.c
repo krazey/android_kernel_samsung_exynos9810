@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/sched/task.h>
 #include <linux/ion.h>
 #include <linux/notifier.h>
 #include <linux/pm_runtime.h>
