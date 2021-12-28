@@ -39,6 +39,7 @@
 #include <linux/mm.h>
 #include <linux/cma.h>
 #include <linux/oom.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/swap.h>
 #include <linux/rcupdate.h>

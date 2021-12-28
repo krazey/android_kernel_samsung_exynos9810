@@ -19,6 +19,7 @@
 
 #include <asm/cacheflush.h>
 #include <linux/list.h>
+#include <linux/sched/mm.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rtmutex.h>

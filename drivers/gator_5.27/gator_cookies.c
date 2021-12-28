@@ -8,7 +8,7 @@
  */
 
 #include <linux/mount.h>
-
+#include <linux/sched/mm.h>
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
