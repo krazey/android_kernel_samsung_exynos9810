@@ -19,6 +19,7 @@
 #include <linux/list_sort.h>
 #include <linux/cpu.h>
 #include <linux/cache.h>
+#include <linux/sched/topology.h>
 #include <linux/sched/sysctl.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>

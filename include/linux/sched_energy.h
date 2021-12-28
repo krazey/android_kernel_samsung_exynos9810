@@ -1,7 +1,7 @@
 #ifndef _LINUX_SCHED_ENERGY_H
 #define _LINUX_SCHED_ENERGY_H
 
-#include <linux/sched.h>
+#include <linux/sched/topology.h>
 #include <linux/slab.h>
 
 /*
