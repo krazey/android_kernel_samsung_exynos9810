@@ -15,6 +15,7 @@
 #if defined(CONFIG_ION_EXYNOS)
 #include <linux/exynos_iovmm.h>
 #endif
+#include <uapi/linux/sched/types.h>
 #include <linux/of_address.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/irq.h>

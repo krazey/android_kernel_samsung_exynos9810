@@ -62,6 +62,7 @@
 #ifdef ENABLE_ADAPTIVE_SCHED
 #include <linux/cpufreq.h>
 #endif /* ENABLE_ADAPTIVE_SCHED */
+#include <uapi/linux/sched/types.h>
 #include <linux/rtc.h>
 #include <linux/namei.h>
 #include <linux/uaccess.h>

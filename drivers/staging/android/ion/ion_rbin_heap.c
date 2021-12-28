@@ -23,6 +23,7 @@
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/vmalloc.h>
 #include <linux/kthread.h>
 #include <linux/cpu.h>

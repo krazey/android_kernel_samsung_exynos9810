@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <uapi/linux/sched/types.h>
 
 #include "score_log.h"
 #include "score_scq.h"

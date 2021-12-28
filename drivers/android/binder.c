@@ -73,6 +73,7 @@
 #include <linux/spinlock.h>
 
 #include <uapi/linux/android/binder.h>
+#include <uapi/linux/sched/types.h>
 #include "binder_alloc.h"
 #include "binder_trace.h"
 #ifdef CONFIG_SAMSUNG_FREECESS

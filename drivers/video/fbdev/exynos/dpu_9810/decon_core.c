@@ -26,6 +26,7 @@
 #include <linux/ion.h>
 #include <linux/exynos_iovmm.h>
 #endif
+#include <uapi/linux/sched/types.h>
 #include <linux/highmem.h>
 #include <linux/memblock.h>
 #include <linux/bug.h>
