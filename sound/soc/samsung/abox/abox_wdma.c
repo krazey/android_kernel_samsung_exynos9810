@@ -22,6 +22,7 @@
 #include <linux/iommu.h>
 #include <linux/delay.h>
 #include <linux/memblock.h>
+#include <linux/sched/clock.h>
 #include <sound/hwdep.h>
 
 #include <sound/soc.h>

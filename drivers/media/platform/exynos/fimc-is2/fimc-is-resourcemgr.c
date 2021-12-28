@@ -11,6 +11,7 @@
  */
 
 #include <linux/memblock.h>
+#include <linux/sched/clock.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>

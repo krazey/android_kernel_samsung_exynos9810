@@ -19,6 +19,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
+#include <linux/sched/clock.h>
 #include <linux/usb_notify.h>
 
 #define USBLOG_MAX_BUF_SIZE	(1 << 7) /* 128 */

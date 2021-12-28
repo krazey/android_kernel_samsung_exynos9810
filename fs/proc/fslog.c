@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <linux/sched/clock.h>
 
 /* For compatibility */
 #include <linux/fslog.h>

@@ -13,6 +13,7 @@
 #define FIMC_IS_TIME_H
 
 #include <linux/time.h>
+#include <linux/sched/clock.h>
 
 #define MEASURE_TIME
 #define MONITOR_TIME

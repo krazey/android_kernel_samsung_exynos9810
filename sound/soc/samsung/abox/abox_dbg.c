@@ -16,6 +16,7 @@
 #include <linux/iommu.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched/clock.h>
 #include <linux/mm_types.h>
 #include <asm/cacheflush.h>
 #include "abox_dbg.h"

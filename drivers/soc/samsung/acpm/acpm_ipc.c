@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/exynos-ss.h>
 
 #include "acpm.h"

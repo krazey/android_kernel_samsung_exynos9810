@@ -24,6 +24,7 @@
 #include <linux/smc.h>
 #include <linux/delay.h>
 #include <linux/suspend.h>
+#include <linux/sched/clock.h>
 #include <linux/shm_ipc.h>
 #include <linux/modem_notifier.h>
 

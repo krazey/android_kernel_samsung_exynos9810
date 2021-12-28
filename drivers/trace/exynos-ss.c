@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/memblock.h>
+#include <linux/sched/clock.h>
 #include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 

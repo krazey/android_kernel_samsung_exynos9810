@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <linux/sched/clock.h>
 
 #include "iva_ipc_header.h"
 #include "iva_mcu.h"

@@ -46,6 +46,7 @@
 #include <linux/soc/samsung/exynos-soc.h>
 
 #ifdef CONFIG_SEC_DEBUG
+#include <linux/sched/clock.h>
 #define SEC_WATCHDOGD_FOOTPRINT
 #endif
 #define S3C2410_WTCON		0x00

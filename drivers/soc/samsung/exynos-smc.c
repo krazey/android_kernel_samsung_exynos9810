@@ -16,6 +16,7 @@
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
+#include <linux/sched/clock.h>
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_LOGGING_SMC_CALL
 

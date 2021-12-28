@@ -10,6 +10,7 @@
 */
 
 #include <linux/module.h>
+#include <linux/sched/clock.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/version.h>

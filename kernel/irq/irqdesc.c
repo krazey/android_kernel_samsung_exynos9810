@@ -16,6 +16,7 @@
 #include <linux/bitmap.h>
 #include <linux/irqdomain.h>
 #include <linux/sysfs.h>
+#include <linux/sched/clock.h>
 #include <linux/exynos-ss.h>
 #ifdef CONFIG_SEC_DUMP_SUMMARY
 #include <linux/sec_debug.h>

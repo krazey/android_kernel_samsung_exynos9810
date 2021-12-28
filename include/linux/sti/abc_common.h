@@ -36,6 +36,7 @@
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
 #include <linux/rtc.h>
+#include <linux/sched/clock.h>
 
 #define ABC_UEVENT_MAX		20
 #define ABC_BUFFER_MAX		256

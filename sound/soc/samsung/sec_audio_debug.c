@@ -29,7 +29,7 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
-#include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include <sound/samsung/sec_audio_debug.h>
 

@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/debugfs.h>
+#include <linux/sched/clock.h>
 #include <soc/samsung/acpm_ipc_ctrl.h>
 #include "exynos_acpm_tmu.h"
 

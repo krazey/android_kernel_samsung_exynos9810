@@ -17,6 +17,7 @@
 #include <soc/samsung/acpm_ipc_ctrl.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/exynos-ss.h>
 #include <soc/samsung/exynos-pmu.h>
 

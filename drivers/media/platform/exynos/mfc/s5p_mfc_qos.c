@@ -11,6 +11,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/sched/clock.h>
 #include <soc/samsung/bts.h>
 
 #include "s5p_mfc_qos.h"

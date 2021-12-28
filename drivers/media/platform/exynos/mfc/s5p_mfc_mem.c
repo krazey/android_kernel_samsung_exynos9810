@@ -11,6 +11,7 @@
  */
 
 #include <linux/iommu.h>
+#include <linux/sched/clock.h>
 
 #include "s5p_mfc_mem.h"
 

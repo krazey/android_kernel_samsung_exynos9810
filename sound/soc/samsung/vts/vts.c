@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/wakelock.h>
+#include <linux/sched/clock.h>
 #include <linux/miscdevice.h>
 
 #include <asm-generic/delay.h>

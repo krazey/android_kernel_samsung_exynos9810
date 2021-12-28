@@ -48,6 +48,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/exynos-ss.h>
 #include <asm/irq.h>
 

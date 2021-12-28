@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/time.h>
+#include <linux/sched/clock.h>
 #include <linux/uaccess.h>
 
 #include "nfc_logger.h"

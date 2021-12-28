@@ -37,6 +37,7 @@
 #include <linux/irqnr.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
+#include <linux/sched/clock.h>
 
 #include <linux/nmi.h>
 

@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sched/clock.h>
 #include <linux/sec_debug.h>
 #include <linux/soc/samsung/exynos-soc.h>
 #include <linux/proc_fs.h>

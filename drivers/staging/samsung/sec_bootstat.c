@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/smp.h>
+#include <linux/sched/clock.h>
 #include <linux/sched.h>
 #include <linux/sec_sysfs.h>
 #include <linux/sec_ext.h>

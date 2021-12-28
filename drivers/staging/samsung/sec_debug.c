@@ -24,6 +24,7 @@
 #include <linux/sec_debug.h>
 #include <linux/sec_debug_hard_reset_hook.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/io.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>

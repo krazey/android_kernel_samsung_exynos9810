@@ -14,6 +14,7 @@
 #define __S5P_MFC_UTILS_H __FILE__
 
 #include <linux/time.h>
+#include <linux/sched/clock.h>
 
 #include "s5p_mfc_common.h"
 

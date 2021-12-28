@@ -25,7 +25,7 @@
 #include <linux/suspend.h>
 #include <linux/exynos-ss.h>
 #include <linux/io.h>
-#include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/exynos-wd.h>
 
 #include <soc/samsung/exynos-devfreq.h>
