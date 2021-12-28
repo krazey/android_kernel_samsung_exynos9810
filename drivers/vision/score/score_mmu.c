@@ -15,7 +15,7 @@
 #include <linux/dma-buf.h>
 #include <linux/freezer.h>
 #include <linux/version.h>
-#if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
 #include <uapi/linux/sched/types.h>
 #endif
 
