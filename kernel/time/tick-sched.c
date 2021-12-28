@@ -27,7 +27,6 @@
 #include <linux/irq_work.h>
 #include <linux/posix-timers.h>
 #include <linux/context_tracking.h>
-#include <linux/cputime.h>
 
 #include <asm/irq_regs.h>
 

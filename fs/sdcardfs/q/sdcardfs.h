@@ -40,7 +40,7 @@
 #include <linux/magic.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/types.h>
 #include <linux/security.h>
 #include <linux/string.h>
