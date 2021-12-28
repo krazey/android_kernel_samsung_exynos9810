@@ -12,6 +12,7 @@
 #include <linux/cdev.h>
 #include <linux/poll.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/usb.h>
 #include <linux/hidraw.h>
 #include <linux/interrupt.h>

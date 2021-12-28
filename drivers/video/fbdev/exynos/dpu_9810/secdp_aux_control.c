@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/sched/signal.h>
 
 #include <linux/dp_logger.h>
 #include "secdp_aux_control.h"

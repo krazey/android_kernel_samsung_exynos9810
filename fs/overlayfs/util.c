@@ -9,6 +9,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/cred.h>
 #include <linux/xattr.h>
