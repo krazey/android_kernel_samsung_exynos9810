@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/socket.h>
+#include <linux/sched/signal.h>
 #include <linux/net.h>
 #include <linux/fs.h>
 #include <net/af_unix.h>

@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 #include "bbd.h"
 
 #ifdef CONFIG_SENSORS_SSP
