@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/nmi.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/io.h>
