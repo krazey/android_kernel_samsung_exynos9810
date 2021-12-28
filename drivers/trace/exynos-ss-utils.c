@@ -43,6 +43,7 @@ struct tsp_dump_callbacks dump_callbacks;
 #endif /* CONFIG_SEC_DEBUG */
 #include "exynos-ss-local.h"
 
+#include <linux/sched/debug.h>
 #include <linux/nmi.h>
 
 DEFINE_PER_CPU(struct pt_regs *, ess_core_reg);
