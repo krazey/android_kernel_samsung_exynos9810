@@ -12,7 +12,8 @@
  */
 
 #include <linux/plist.h>
-#include <linux/sched.h>
+#include <linux/sched/idle.h>
+#include <linux/sched/topology.h>
 
 struct gb_qos_request {
 	struct plist_node node;
