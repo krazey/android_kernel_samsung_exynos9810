@@ -36,7 +36,7 @@
 #include <linux/version.h>
 
 /* MALI_SEC_INTEGRATION */
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 10, 0))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 11, 0))
 #include <linux/sched/clock.h>
 #endif
 
