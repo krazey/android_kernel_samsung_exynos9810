@@ -1382,15 +1382,6 @@ static void ppp_dev_uninit(struct net_device *dev)
 	wake_up_interruptible(&ppp->file.rwait);
 }
 
-static void ppp_dev_priv_destructor(struct net_device *dev)
-{
-	struct ppp *ppp;
-
-	ppp = netdev_priv(dev);
-	if (atomic_dec_and_test(&ppp->file.refcnt))
-		ppp_destroy_interface(ppp);
-}
-
 static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_init	 = ppp_dev_init,
 	.ndo_uninit      = ppp_dev_uninit,
@@ -1416,7 +1407,7 @@ static void ppp_setup(struct net_device *dev)
 	dev->tx_queue_len = 3;
 	dev->type = ARPHRD_PPP;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
-	dev->destructor = ppp_dev_priv_destructor;
+	dev->needs_free_netdev = true;
 	netif_keep_dst(dev);
 }
 

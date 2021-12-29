@@ -114,11 +114,6 @@ static void xfrmi_unlink(struct xfrmi_net *xfrmn, struct xfrm_if *xi)
 	}
 }
 
-static void xfrmi_dev_free(struct net_device *dev)
-{
-	free_percpu(dev->tstats);
-}
-
 static int xfrmi_create2(struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
@@ -616,7 +611,7 @@ static void xfrmi_dev_setup(struct net_device *dev)
 	dev->mtu		= ETH_DATA_LEN;
 	dev->addr_len		= ETH_ALEN;
 	dev->flags 		= IFF_NOARP;
-	dev->destructor	= xfrmi_dev_free;
+	dev->needs_free_netdev	= true;
 	netif_keep_dst(dev);
 }
 
