@@ -17,6 +17,15 @@ static void blk_mq_sysfs_release(struct kobject *kobj)
 {
 }
 
+static void blk_mq_hw_sysfs_release(struct kobject *kobj)
+{
+	struct blk_mq_hw_ctx *hctx = container_of(kobj, struct blk_mq_hw_ctx,
+						  kobj);
+	free_cpumask_var(hctx->cpumask);
+	kfree(hctx->ctxs);
+	kfree(hctx);
+}
+
 struct blk_mq_ctx_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct blk_mq_ctx *, char *);
@@ -189,7 +198,7 @@ static struct kobj_type blk_mq_ctx_ktype = {
 static struct kobj_type blk_mq_hw_ktype = {
 	.sysfs_ops	= &blk_mq_hw_sysfs_ops,
 	.default_attrs	= default_hw_ctx_attrs,
-	.release	= blk_mq_sysfs_release,
+	.release	= blk_mq_hw_sysfs_release,
 };
 
 static void blk_mq_unregister_hctx(struct blk_mq_hw_ctx *hctx)
@@ -231,28 +240,16 @@ static int blk_mq_register_hctx(struct blk_mq_hw_ctx *hctx)
 static void __blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx;
-	int i, j;
+	int i;
 
-	lockdep_assert_held(&q->sysfs_lock);
-
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_unregister_hctx(hctx);
-
-		hctx_for_each_ctx(hctx, ctx, j)
-			kobject_put(&ctx->kobj);
-
-		kobject_put(&hctx->kobj);
-	}
 
 	blk_mq_debugfs_unregister_hctxs(q);
 
 	kobject_uevent(&q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(&q->mq_kobj);
-	kobject_put(&q->mq_kobj);
-
 	kobject_put(&dev->kobj);
-
 	q->mq_sysfs_init_done = false;
 }
 
@@ -266,6 +263,18 @@ void blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx)
 {
 	kobject_init(&hctx->kobj, &blk_mq_hw_ktype);
+}
+
+void blk_mq_sysfs_deinit(struct request_queue *q)
+{
+	struct blk_mq_ctx *ctx;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		ctx = per_cpu_ptr(q->queue_ctx, cpu);
+		kobject_put(&ctx->kobj);
+	}
+	kobject_put(&q->mq_kobj);
 }
 
 void blk_mq_sysfs_init(struct request_queue *q)
