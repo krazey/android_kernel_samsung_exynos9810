@@ -99,9 +99,9 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		struct ion_handle *handle;
 
 		handle = __ion_alloc(client, data.allocation.len,
-						data.allocation.align,
-						data.allocation.heap_id_mask,
-						data.allocation.flags, true);
+				     data.allocation.align,
+				     data.allocation.heap_id_mask,
+				     data.allocation.flags, true);
 		if (IS_ERR(handle)) {
 			pr_err("%s: len %zu align %zu heap_id_mask %u flags %x (ret %ld)\n",
 				__func__, data.allocation.len,
