@@ -39,6 +39,9 @@
 static DEFINE_MUTEX(all_q_mutex);
 static LIST_HEAD(all_q_list);
 
+static void blk_mq_poll_stats_start(struct request_queue *q);
+static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
+
 /*
  * Check if any of the ctx's have pending work in this hardware queue
  */
@@ -434,15 +437,8 @@ static void blk_mq_ipi_complete_request(struct request *rq)
 static void blk_mq_stat_add(struct request *rq)
 {
 	if (rq->rq_flags & RQF_STATS) {
-		/*
-		 * We could rq->mq_ctx here, but there's less of a risk
-		 * of races if we have the completion event add the stats
-		 * to the local software queue.
-		 */
-		struct blk_mq_ctx *ctx;
-
-		ctx = __blk_mq_get_ctx(rq->q, raw_smp_processor_id());
-		blk_stat_add(&ctx->stat[rq_data_dir(rq)], rq);
+		blk_mq_poll_stats_start(rq->q);
+		blk_stat_add(rq);
 	}
 }
 
@@ -2054,8 +2050,6 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		spin_lock_init(&__ctx->lock);
 		INIT_LIST_HEAD(&__ctx->rq_list);
 		__ctx->queue = q;
-		blk_stat_init(&__ctx->stat[BLK_STAT_READ]);
-		blk_stat_init(&__ctx->stat[BLK_STAT_WRITE]);
 
 		/* If the cpu isn't present, the cpu is mapped to first hctx */
 		if (!cpu_present(i))
@@ -2351,6 +2345,16 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 {
 	/* mark the queue as mq asap */
 	q->mq_ops = set->ops;
+
+
+	q->stats = blk_alloc_queue_stats();
+	if (!q->stats)
+		goto err_exit;
+
+	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
+					     blk_stat_rq_ddir, 2, q);
+	if (!q->poll_cb)
+		goto err_exit;
 
 	q->queue_ctx = alloc_percpu(struct blk_mq_ctx);
 	if (!q->queue_ctx)
@@ -2687,6 +2691,29 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 		blk_mq_unfreeze_queue(q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
+
+static void blk_mq_poll_stats_start(struct request_queue *q)
+{
+	/*
+	 * We don't arm the callback if polling stats are not enabled or the
+	 * callback is already active.
+	 */
+	if (!test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags) ||
+	    blk_stat_is_active(q->poll_cb))
+		return;
+
+	blk_stat_activate_msecs(q->poll_cb, 100);
+}
+
+static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb)
+{
+	struct request_queue *q = cb->data;
+
+	if (cb->stat[READ].nr_samples)
+		q->poll_stat[READ] = cb->stat[READ];
+	if (cb->stat[WRITE].nr_samples)
+		q->poll_stat[WRITE] = cb->stat[WRITE];
+}
 
 static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 {
