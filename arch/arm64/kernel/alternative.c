@@ -28,7 +28,7 @@
 #include <asm/sections.h>
 #include <linux/stop_machine.h>
 
-#define __ALT_PTR(a,f)		((void *)&(a)->f + (a)->f)
+#define __ALT_PTR(a,f)		(u32 *)((void *)&(a)->f + (a)->f)
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
 
@@ -107,52 +107,31 @@ static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 	return insn;
 }
 
-static void patch_alternative(struct alt_instr *alt,
-			      __le32 *origptr, __le32 *updptr, int nr_inst)
-{
-	__le32 *replptr;
-	int i;
-
-	replptr = ALT_REPL_PTR(alt);
-	for (i = 0; i < nr_inst; i++) {
-		u32 insn;
-
-		insn = get_alt_insn(alt, origptr + i, replptr + i);
-		updptr[i] = cpu_to_le32(insn);
-	}
-}
-
 static void __apply_alternatives(void *alt_region)
 {
 	struct alt_instr *alt;
 	struct alt_region *region = alt_region;
-	__le32 *origptr;
-	alternative_cb_t alt_cb;
+	u32 *origptr, *replptr;
 
 	for (alt = region->begin; alt < region->end; alt++) {
-		int nr_inst;
+		u32 insn;
+		int i, nr_inst;
 
-		/* Use ARM64_CB_PATCH as an unconditional patch */
-		if (alt->cpufeature < ARM64_CB_PATCH &&
-		    !cpus_have_cap(alt->cpufeature))
+		if (!cpus_have_cap(alt->cpufeature))
 			continue;
 
-		if (alt->cpufeature == ARM64_CB_PATCH)
-			BUG_ON(alt->alt_len != 0);
-		else
-			BUG_ON(alt->alt_len != alt->orig_len);
+		BUG_ON(alt->alt_len != alt->orig_len);
 
 		pr_info_once("patching kernel code\n");
 
 		origptr = ALT_ORIG_PTR(alt);
-		nr_inst = alt->orig_len / AARCH64_INSN_SIZE;
+		replptr = ALT_REPL_PTR(alt);
+		nr_inst = alt->alt_len / sizeof(insn);
 
-		if (alt->cpufeature < ARM64_CB_PATCH)
-			alt_cb = patch_alternative;
-		else
-			alt_cb  = ALT_REPL_PTR(alt);
-
-		alt_cb(alt, origptr, origptr, nr_inst);
+		for (i = 0; i < nr_inst; i++) {
+			insn = get_alt_insn(alt, origptr + i, replptr + i);
+			*(origptr + i) = cpu_to_le32(insn);
+		}
 
 		flush_icache_range((uintptr_t)origptr,
 				   (uintptr_t)(origptr + nr_inst));
