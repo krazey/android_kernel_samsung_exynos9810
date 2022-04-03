@@ -980,18 +980,10 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct request *rq;
-	LIST_HEAD(driver_list);
-	struct list_head *dptr;
 	int queued, ret = BLK_MQ_RQ_QUEUE_OK;
 
 	if (list_empty(list))
 		return false;
-
-	/*
-	 * Start off with dptr being NULL, so we start the first request
-	 * immediately, even if we have more pending.
-	 */
-	dptr = NULL;
 
 	/*
 	 * Now process all the entries, sending them to the driver.
@@ -1024,7 +1016,6 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 		list_del_init(&rq->queuelist);
 
 		bd.rq = rq;
-		bd.list = dptr;
 
 		/*
 		 * Flag last if we have no more requests, or if we have more
@@ -1060,12 +1051,6 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 		if (ret == BLK_MQ_RQ_QUEUE_BUSY)
 			break;
 
-		/*
-		 * We've done the first request. If we have more than 1
-		 * left in the list, set dptr to defer issue.
-		 */
-		if (!dptr && list->next != list->prev)
-			dptr = &driver_list;
 	} while (!list_empty(list));
 
 	hctx->dispatched[queued_to_index(queued)]++;
@@ -1474,7 +1459,6 @@ static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
 	struct request_queue *q = rq->q;
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
-		.list = NULL,
 		.last = 1
 	};
 	struct blk_mq_hw_ctx *hctx;
