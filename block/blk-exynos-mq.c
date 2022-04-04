@@ -1001,17 +1001,16 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 			 * The initial allocation attempt failed, so we need to
 			 * rerun the hardware queue when a tag is freed.
 			 */
-			if (blk_mq_dispatch_wait_add(hctx)) {
-				/*
-				 * It's possible that a tag was freed in the
-				 * window between the allocation failure and
-				 * adding the hardware queue to the wait queue.
-				 */
-				if (!blk_mq_get_driver_tag(rq, &hctx, false))
-					break;
-			} else {
+			if (!blk_mq_dispatch_wait_add(hctx))
 				break;
-			}
+
+			/*
+			 * It's possible that a tag was freed in the window
+			 * between the allocation failure and adding the
+			 * hardware queue to the wait queue.
+			 */
+			if (!blk_mq_get_driver_tag(rq, &hctx, false))
+				break;
 		}
 		list_del_init(&rq->queuelist);
 
@@ -1061,8 +1060,8 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 	 */
 	if (!list_empty(list)) {
 		/*
-		 * If we got a driver tag for the next request already,
-		 * free it again.
+		 * If an I/O scheduler has been configured and we got a driver
+		 * tag for the next request already, free it again.
 		 */
 		rq = list_first_entry(list, struct request, queuelist);
 		blk_mq_put_driver_tag(rq);
@@ -1072,16 +1071,24 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 		spin_unlock(&hctx->lock);
 
 		/*
-		 * the queue is expected stopped with BLK_MQ_RQ_QUEUE_BUSY, but
-		 * it's possible the queue is stopped and restarted again
-		 * before this. Queue restart will dispatch requests. And since
-		 * requests in rq_list aren't added into hctx->dispatch yet,
-		 * the requests in rq_list might get lost.
+		 * If SCHED_RESTART was set by the caller of this function and
+		 * it is no longer set that means that it was cleared by another
+		 * thread and hence that a queue rerun is needed.
 		 *
-		 * blk_mq_run_hw_queue() already checks the STOPPED bit
+		 * If TAG_WAITING is set that means that an I/O scheduler has
+		 * been configured and another thread is waiting for a driver
+		 * tag. To guarantee fairness, do not rerun this hardware queue
+		 * but let the other thread grab the driver tag.
 		 *
-		 * If RESTART or TAG_WAITING is set, then let completion restart
-		 * the queue instead of potentially looping here.
+		 * If no I/O scheduler has been configured it is possible that
+		 * the hardware queue got stopped and restarted before requests
+		 * were pushed back onto the dispatch list. Rerun the queue to
+		 * avoid starvation. Notes:
+		 * - blk_mq_run_hw_queue() checks whether or not a queue has
+		 *   been stopped before rerunning a queue.
+		 * - Some but not all block drivers stop a queue before
+		 *   returning BLK_MQ_RQ_QUEUE_BUSY. Two exceptions are scsi-mq
+		 *   and dm-rq.
 		 */
 		if (!blk_mq_sched_needs_restart(hctx) &&
 		    !test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state))
@@ -1459,7 +1466,7 @@ static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
 	struct request_queue *q = rq->q;
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
-		.last = 1
+		.last = true,
 	};
 	struct blk_mq_hw_ctx *hctx;
 	blk_qc_t new_cookie;
@@ -2100,6 +2107,8 @@ static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set, bool shared)
 {
 	struct request_queue *q;
 
+	lockdep_assert_held(&set->tag_list_lock);
+
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_freeze_queue(q);
 		queue_set_hctx_shared(q, shared);
@@ -2112,7 +2121,8 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 	struct blk_mq_tag_set *set = q->tag_set;
 
 	mutex_lock(&set->tag_list_lock);
-	list_del_init(&q->tag_set_list);
+	list_del_rcu(&q->tag_set_list);
+	INIT_LIST_HEAD(&q->tag_set_list);
 	if (list_is_singular(&set->tag_list)) {
 		/* just transitioned to unshared */
 		set->flags &= ~BLK_MQ_F_TAG_SHARED;
@@ -2120,6 +2130,8 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 		blk_mq_update_tag_set_depth(set, false);
 	}
 	mutex_unlock(&set->tag_list_lock);
+
+	synchronize_rcu();
 }
 
 static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
@@ -2137,7 +2149,7 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 	}
 	if (set->flags & BLK_MQ_F_TAG_SHARED)
 		queue_set_hctx_shared(q, true);
-	list_add_tail(&q->tag_set_list, &set->tag_list);
+	list_add_tail_rcu(&q->tag_set_list, &set->tag_list);
 
 	mutex_unlock(&set->tag_list_lock);
 }
@@ -2557,6 +2569,8 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 {
 	struct request_queue *q;
+
+	lockdep_assert_held(&set->tag_list_lock);
 
 	if (nr_hw_queues > nr_cpu_ids)
 		nr_hw_queues = nr_cpu_ids;
