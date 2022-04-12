@@ -25,6 +25,7 @@ menuconfig MALI_MIDGARD
 	select PM_DEVFREQ
 	select DEVFREQ_THERMAL
 	default m if SOC_EXYNOS2100
+	default y if SOC_EXYNOS9810
 	default y if SOC_EXYNOS9830
 	default y
 	help
@@ -64,6 +65,7 @@ config MALI_DEVFREQ
 	depends on MALI_MIDGARD && PM_DEVFREQ
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	default n if SOC_EXYNOS2100
+	default n if SOC_EXYNOS9810
 	default n if SOC_EXYNOS9830
 	default n
 	help
@@ -147,6 +149,7 @@ menuconfig MALI_EXPERT
 	depends on MALI_MIDGARD
 	bool "Enable Expert Settings"
 	default y if SOC_EXYNOS2100
+	default y if SOC_EXYNOS9810
 	default y if SOC_EXYNOS9830
 	default y
 	help
@@ -348,6 +351,7 @@ config MALI_HW_ERRATA_1485982_NOT_AFFECTED
 	bool "Disable workaround for BASE_HW_ISSUE_GPU2017_1336"
 	depends on MALI_MIDGARD && MALI_EXPERT
 	default y if SOC_EXYNOS2100
+	default y if SOC_EXYNOS9810
 	default y if SOC_EXYNOS9830
 	default n
 	help
