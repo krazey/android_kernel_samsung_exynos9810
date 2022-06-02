@@ -41,6 +41,7 @@ struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
+struct keyslot_manager;
 
 #define BLKDEV_MIN_RQ	4
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
@@ -430,6 +431,11 @@ struct request_queue {
 	void			*dma_drain_buffer;
 	unsigned int		dma_pad_mask;
 	unsigned int		dma_alignment;
+
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	/* Inline crypto capabilities */
+	struct keyslot_manager *ksm;
+#endif
 
 	struct blk_queue_tag	*queue_tags;
 	struct list_head	tag_busy_list;
