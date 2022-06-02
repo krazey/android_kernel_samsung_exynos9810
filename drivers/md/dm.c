@@ -1101,6 +1101,8 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 
 	__bio_clone_fast(clone, bio);
 
+	bio_crypt_clone(clone, bio, GFP_NOIO);
+
 	if (bio_integrity(bio)) {
 		int r = bio_integrity_clone(clone, bio, GFP_NOIO);
 		if (r < 0)

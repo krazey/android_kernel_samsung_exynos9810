@@ -532,6 +532,9 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 	if (!bio_flagged(bio, BIO_SEG_VALID))
 		blk_recount_segments(q, bio);
 
+	if (!bio_crypt_ctx_mergeable(req->bio, blk_rq_bytes(req), bio))
+		return 0;
+
 	return ll_new_hw_segment(q, req, bio);
 }
 
@@ -555,6 +558,9 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 		blk_recount_segments(q, bio);
 	if (!bio_flagged(req->bio, BIO_SEG_VALID))
 		blk_recount_segments(q, req->bio);
+
+	if (!bio_crypt_ctx_mergeable(bio, bio->bi_iter.bi_size, req->bio))
+		return 0;
 
 	return ll_new_hw_segment(q, req, bio);
 }
@@ -607,6 +613,9 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 		return 0;
 
 	if (blk_integrity_merge_rq(q, req, next) == false)
+		return 0;
+
+	if (!bio_crypt_ctx_mergeable(req->bio, blk_rq_bytes(req), next->bio))
 		return 0;
 
 	/* Merge is OK... */
@@ -855,6 +864,10 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	    || (!(bio_flagged(bio, BIO_JOURNAL)) && (rq->cmd_flags & REQ_META)))
 		return false;
 #endif
+
+	/* Only merge if the crypt contexts are compatible */
+	if (!bio_crypt_ctx_compatible(bio, rq->bio))
+		return false;
 
 	return true;
 }
