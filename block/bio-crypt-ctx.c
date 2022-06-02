@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include "blk-crypto-internal.h"
 
 static int num_prealloc_crypt_ctxs = 128;
 
@@ -21,6 +22,8 @@ static mempool_t *bio_crypt_ctx_pool;
 
 int __init bio_crypt_ctx_init(void)
 {
+	size_t i;
+
 	bio_crypt_ctx_cache = KMEM_CACHE(bio_crypt_ctx, 0);
 	if (!bio_crypt_ctx_cache)
 		return -ENOMEM;
@@ -32,6 +35,12 @@ int __init bio_crypt_ctx_init(void)
 
 	/* This is assumed in various places. */
 	BUILD_BUG_ON(BLK_ENCRYPTION_MODE_INVALID != 0);
+
+	/* Sanity check that no algorithm exceeds the defined limits. */
+	for (i = 0; i < BLK_ENCRYPTION_MODE_MAX; i++) {
+		BUG_ON(blk_crypto_modes[i].keysize > BLK_CRYPTO_MAX_KEY_SIZE);
+		BUG_ON(blk_crypto_modes[i].ivsize > BLK_CRYPTO_MAX_IV_SIZE);
+	}
 
 	return 0;
 }
@@ -52,11 +61,11 @@ void bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask)
 	const struct bio_crypt_ctx *src_bc = src->bi_crypt_context;
 
 	/*
-	 * If a bio is swhandled, then it will be decrypted when bio_endio
-	 * is called. As we only want the data to be decrypted once, copies
-	 * of the bio must not have have a crypt context.
+	 * If a bio is fallback_crypted, then it will be decrypted when
+	 * bio_endio is called. As we only want the data to be decrypted once,
+	 * copies of the bio must not have have a crypt context.
 	 */
-	if (!src_bc)
+	if (!src_bc || bio_crypt_fallback_crypted(src_bc))
 		return;
 
 	dst->bi_crypt_context = bio_crypt_alloc_ctx(gfp_mask);
