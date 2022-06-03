@@ -352,6 +352,36 @@ void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
 }
 EXPORT_SYMBOL_GPL(ufshcd_crypto_setup_rq_keyslot_manager);
 
+int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
+			       struct scsi_cmnd *cmd,
+			       struct ufshcd_lrb *lrbp)
+{
+	struct bio_crypt_ctx *bc;
+
+	if (!bio_crypt_should_process(cmd->request)) {
+		lrbp->crypto_enable = false;
+		return 0;
+	}
+	bc = cmd->request->bio->bi_crypt_context;
+
+	if (WARN_ON(!ufshcd_is_crypto_enabled(hba))) {
+		/*
+		 * Upper layer asked us to do inline encryption
+		 * but that isn't enabled, so we fail this request.
+		 */
+		return -EINVAL;
+	}
+	if (!ufshcd_keyslot_valid(hba, bc->bc_keyslot))
+		return -EINVAL;
+
+	lrbp->crypto_enable = true;
+	lrbp->crypto_key_slot = bc->bc_keyslot;
+	lrbp->data_unit_num = bc->bc_dun[0];
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ufshcd_prepare_lrbp_crypto);
+
 void ufshcd_crypto_destroy_rq_keyslot_manager(struct ufs_hba *hba,
 					      struct request_queue *q)
 {
