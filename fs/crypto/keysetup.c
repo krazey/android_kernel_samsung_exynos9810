@@ -216,9 +216,9 @@ static int setup_file_encryption_key(struct fscrypt_info *ci)
 	struct fscrypt_key_specifier mk_spec;
 	int err;
 
-	mk_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
+	mk_spec.type = FS_KEY_SPEC_TYPE_DESCRIPTOR;
 	memcpy(mk_spec.u.descriptor, ci->ci_master_key_descriptor,
-	       FSCRYPT_KEY_DESCRIPTOR_SIZE);
+	       FS_KEY_DESCRIPTOR_SIZE);
 
 	key = fscrypt_find_master_key(ci->ci_inode->i_sb, &mk_spec);
 	if (IS_ERR(key)) {

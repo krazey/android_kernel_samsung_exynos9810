@@ -100,7 +100,7 @@ static struct key *search_fscrypt_keyring(struct key *keyring,
 #define FSCRYPT_FS_KEYRING_DESCRIPTION_SIZE	\
 	(CONST_STRLEN("fscrypt-") + FIELD_SIZEOF(struct super_block, s_id))
 
-#define FSCRYPT_MK_DESCRIPTION_SIZE	(2 * FSCRYPT_KEY_DESCRIPTOR_SIZE + 1)
+#define FSCRYPT_MK_DESCRIPTION_SIZE	(2 * FS_KEY_DESCRIPTOR_SIZE + 1)
 
 static void format_fs_keyring_description(
 			char description[FSCRYPT_FS_KEYRING_DESCRIPTION_SIZE],
@@ -256,8 +256,8 @@ int fscrypt_ioctl_add_key(struct file *filp, void __user *_uarg)
 	if (!valid_key_spec(&arg.key_spec))
 		return -EINVAL;
 
-	if (arg.raw_size < FSCRYPT_MIN_KEY_SIZE ||
-	    arg.raw_size > FSCRYPT_MAX_KEY_SIZE)
+	if (arg.raw_size < FS_MIN_KEY_SIZE ||
+	    arg.raw_size > FS_MAX_KEY_SIZE)
 		return -EINVAL;
 
 	if (memchr_inv(arg.__reserved, 0, sizeof(arg.__reserved)))

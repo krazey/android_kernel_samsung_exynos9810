@@ -10,7 +10,6 @@
 #ifndef _FSCRYPT_PRIVATE_H
 #define _FSCRYPT_PRIVATE_H
 
-#define __FS_HAS_ENCRYPTION 1
 #include <linux/fscrypt.h>
 #include <crypto/hash.h>
 
@@ -18,7 +17,7 @@
 
 #define FS_KEY_DERIVATION_NONCE_SIZE	16
 
-#define FSCRYPT_MIN_KEY_SIZE		16
+#define FS_MIN_KEY_SIZE			16
 
 /**
  * Encryption context for inode
@@ -173,7 +172,7 @@ struct fscrypt_master_key_secret {
 	u32			size;
 
 	/* The raw key */
-	u8			raw[FSCRYPT_MAX_KEY_SIZE];
+	u8			raw[FS_MAX_KEY_SIZE];
 
 } __randomize_layout;
 
@@ -198,7 +197,7 @@ static inline const char *master_key_spec_type(
 				const struct fscrypt_key_specifier *spec)
 {
 	switch (spec->type) {
-	case FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR:
+	case FS_KEY_SPEC_TYPE_DESCRIPTOR:
 		return "descriptor";
 	}
 	return "[unknown]";
@@ -207,8 +206,8 @@ static inline const char *master_key_spec_type(
 static inline int master_key_spec_len(const struct fscrypt_key_specifier *spec)
 {
 	switch (spec->type) {
-	case FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR:
-		return FSCRYPT_KEY_DESCRIPTOR_SIZE;
+	case FS_KEY_SPEC_TYPE_DESCRIPTOR:
+		return FS_KEY_DESCRIPTOR_SIZE;
 	}
 	return 0;
 }
