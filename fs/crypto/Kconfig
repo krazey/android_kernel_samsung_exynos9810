@@ -14,3 +14,9 @@ config FS_ENCRYPTION
 	  feature is similar to ecryptfs, but it is more memory
 	  efficient since it avoids caching the encrypted and
 	  decrypted pages in the page cache.
+
+config FS_ENCRYPTION_INLINE_CRYPT
+	bool "Enable fscrypt to use inline crypto"
+	depends on FS_ENCRYPTION && BLK_INLINE_ENCRYPTION
+	help
+	  Enable fscrypt to use inline encryption hardware if available.

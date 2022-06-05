@@ -96,6 +96,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 				sector_t pblk, unsigned int len)
 {
 	struct fscrypt_ctx *ctx;
+	const bool inlinecrypt = fscrypt_inode_uses_inline_crypto(inode);
 	struct page *ciphertext_page = NULL;
 	struct bio *bio;
 	int ret, err = 0;
@@ -106,24 +107,32 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	ciphertext_page = fscrypt_alloc_bounce_page(ctx, GFP_NOWAIT);
-	if (IS_ERR(ciphertext_page)) {
-		err = PTR_ERR(ciphertext_page);
-		goto errout;
+	if (inlinecrypt) {
+		ciphertext_page = ZERO_PAGE(0);
+	} else {
+		ciphertext_page = fscrypt_alloc_bounce_page(ctx, GFP_NOWAIT);
+		if (IS_ERR(ciphertext_page)) {
+			err = PTR_ERR(ciphertext_page);
+			goto errout;
+		}
 	}
 
 	while (len--) {
-		err = fscrypt_do_page_crypto(inode, FS_ENCRYPT, lblk,
-					     ZERO_PAGE(0), ciphertext_page,
-					     PAGE_SIZE, 0, GFP_NOFS);
-		if (err)
-			goto errout;
+		if (!inlinecrypt) {
+			err = fscrypt_do_page_crypto(inode, FS_ENCRYPT, lblk,
+						     ZERO_PAGE(0), ciphertext_page,
+						     PAGE_SIZE, 0, GFP_NOFS);
+			if (err)
+				goto errout;
+		}
 
 		bio = bio_alloc(GFP_NOWAIT, 1);
 		if (!bio) {
 			err = -ENOMEM;
 			goto errout;
 		}
+		fscrypt_set_bio_crypt_ctx(bio, inode, lblk, GFP_NOIO);
+
 		bio->bi_bdev = inode->i_sb->s_bdev;
 		bio->bi_iter.bi_sector =
 			pblk << (inode->i_sb->s_blocksize_bits - 9);
@@ -148,7 +157,8 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 	}
 	err = 0;
 errout:
-	fscrypt_release_ctx(ctx);
+	if (!inlinecrypt)
+		fscrypt_release_ctx(ctx);
 	return err;
 }
 EXPORT_SYMBOL(fscrypt_zeroout_range);
