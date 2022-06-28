@@ -3442,9 +3442,6 @@ static irqreturn_t dwc3_process_event_buf(struct dwc3_event_buffer *evt)
 	}
 
 	evt->count = 0;
-#if IS_ENABLED(DWC3_GADGET_IRQ_ORG)
-	evt->flags &= ~DWC3_EVENT_PENDING;
-#endif
 	ret = IRQ_HANDLED;
 
 #if IS_ENABLED(DWC3_GADGET_IRQ_ORG)
@@ -3454,6 +3451,11 @@ static irqreturn_t dwc3_process_event_buf(struct dwc3_event_buffer *evt)
 	dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(0), reg);
 
 #endif
+#if IS_ENABLED(DWC3_GADGET_IRQ_ORG)
+	/* Keep the clearing of DWC3_EVENT_PENDING at the end */
+	evt->flags &= ~DWC3_EVENT_PENDING;
+#endif
+
 	return ret;
 }
 
