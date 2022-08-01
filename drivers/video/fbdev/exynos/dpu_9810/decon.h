@@ -702,6 +702,15 @@ struct dpu_size_info {
 	u32 h_out;
 };
 
+struct decon_display_mode {
+	uint32_t index;
+	uint32_t width;
+	uint32_t height;
+	uint32_t mm_width;
+	uint32_t mm_height;
+	uint32_t fps;
+};
+
 #ifdef CONFIG_DECON_EVENT_LOG
 /**
  * Display Subsystem event management status.
@@ -1728,6 +1737,11 @@ void decon_reg_set_dsu(u32 id, enum decon_dsi_mode dsi_mode, struct decon_param 
 
 /* DPU aclk */
 #define EXYNOS_DPU_GET_ACLK		_IOR('F', 500, u32)
+
+/* Display mode */
+#define EXYNOS_GET_DISPLAY_MODE_NUM	_IOW('F', 700, u32)
+#define EXYNOS_GET_DISPLAY_MODE		_IOW('F', 701, struct decon_display_mode)
+#define EXYNOS_SET_DISPLAY_MODE		_IOW('F', 702, struct decon_display_mode)
 
 /* EDID data */
 #define EXYNOS_GET_EDID		_IOW('F', 800, struct decon_edid_data)

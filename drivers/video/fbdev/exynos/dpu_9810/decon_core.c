@@ -2712,6 +2712,8 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 	struct decon_win_config_data __user *argp;
 	struct decon_disp_info __user *argp_info;
 	struct decon_edid_data edid_data;
+	struct decon_display_mode dm_info;
+	struct decon_reg_data decon_regs;
 	int ret = 0;
 	u32 crtc;
 	bool active;
@@ -2720,6 +2722,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 #ifdef CONFIG_SUPPORT_DOZE
 	u32 pwr_mode;
 #endif
+	u32 dm_num;
 
 	decon_hiber_block_exit(decon);
 	switch (cmd) {
@@ -2989,6 +2992,65 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 		} else {
 			ret = -EFAULT;
 		}
+		break;
+
+	case EXYNOS_GET_DISPLAY_MODE_NUM:
+		dm_num = mres_info->mres_number;
+		if (copy_to_user((u32 __user *)arg, &dm_num, sizeof(u32)))
+                        ret = -EFAULT;
+
+		break;
+
+	case EXYNOS_GET_DISPLAY_MODE:
+		if (copy_from_user(&dm_info,
+				   (struct decon_display_mode __user *)arg,
+				   sizeof(struct decon_display_mode))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (dm_info.index < mres_info->mres_number) {
+			dm_info.width = mres_info->res_info[dm_info.index].width;
+			dm_info.height = mres_info->res_info[dm_info.index].height;
+			dm_info.mm_width = lcd_info->width;
+			dm_info.mm_height = lcd_info->height;
+			dm_info.fps = lcd_info->fps;
+		} else {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (copy_to_user((struct decon_display_mode __user *)arg,
+				&dm_info,
+				sizeof(struct decon_display_mode))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		break;
+
+	case EXYNOS_SET_DISPLAY_MODE:
+		if (copy_from_user(&dm_info,
+				   (struct decon_display_mode __user *)arg,
+				   sizeof(struct decon_display_mode))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (dm_info.index < mres_info->mres_number) {
+			if (!IS_DECON_OFF_STATE(decon)) {
+				memset(&decon_regs, 0, sizeof(struct decon_reg_data));
+				decon_regs.mres_update = true;
+				decon_regs.lcd_width = mres_info->res_info[dm_info.index].width;
+				decon_regs.lcd_height = mres_info->res_info[dm_info.index].height;
+				decon_regs.mres_idx = dm_info.index;
+				dpu_set_mres_config(decon, &decon_regs);
+			}
+		} else {
+			ret = -EINVAL;
+			break;
+		}
+
 		break;
 
 	default:
