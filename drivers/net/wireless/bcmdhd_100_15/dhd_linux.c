@@ -20852,15 +20852,11 @@ int
 dhd_get_random_bytes(uint8 *buf, uint len)
 {
 #ifdef BCMPCIE
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	int rndlen = get_random_bytes_arch(buf, len);
 	if (rndlen != len) {
 		bzero(buf, len);
 		get_random_bytes(buf, len);
 	}
-#else
-	get_random_bytes_arch(buf, len);
-#endif // endif
 #endif /* BCMPCIE */
 	return BCME_OK;
 }
