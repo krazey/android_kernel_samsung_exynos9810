@@ -451,14 +451,13 @@ struct dw_mci_drv_data {
 	void            (*hwacg_control)(struct dw_mci *host, u32 flag);
 	int		(*misc_control)(struct dw_mci *host,
 	enum		dw_mci_misc_control control, void *priv);
-	int		(*crypto_engine_cfg)(struct dw_mci *host,
-					void *desc,
-					struct mmc_data *data,
-					struct page *page,
-					int sector_offset,
-					bool cmdq_enabled);
-	int		(*crypto_engine_clear)(struct dw_mci *host, void *desc,
-					bool cmdq_enabled);
+	int (*crypto_engine_cfg) (struct dw_mci * host,
+				  void *desc,
+				  struct mmc_data * data,
+				  struct page * page, int page_index,
+				  int sector_offset, bool cmdq_enabled);
+	int (*crypto_engine_clear) (struct dw_mci * host, void *desc, bool cmdq_enabled);
+	int (*crypto_sec_cfg) (struct dw_mci * host, bool init);
 	int		(*access_control_get_dev)(struct dw_mci *host);
 	int		(*access_control_sec_cfg)(struct dw_mci *host);
 	int		(*access_control_init)(struct dw_mci *host);
