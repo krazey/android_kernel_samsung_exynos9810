@@ -343,6 +343,9 @@ void ext4_io_submit(struct ext4_io_submit *io)
 		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
 				  WRITE_SYNC : 0;
 		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		if (ext4_encrypted_inode(io->io_end->inode) &&
+				S_ISREG(io->io_end->inode->i_mode))
+			fscrypt_set_bio(io->io_end->inode, io->io_bio, 0);
 		submit_bio(io->io_bio);
 	}
 	io->io_bio = NULL;
@@ -466,13 +469,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	bh = head = page_buffers(page);
 
-#ifdef CONFIG_FS_PRIVATE_ENCRYPTION
 	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode) &&
-	    nr_to_submit && !inode->i_mapping->fmp_ci.private_algo_mode) {
-#else
-	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode) &&
-	    nr_to_submit) {
-#endif /* CONFIG_FS_PRIVATE_ENCRYPTION */
+	    nr_to_submit && !fscrypt_disk_encrypted(inode)) {
 		gfp_t gfp_flags = GFP_NOFS;
 
 		/*

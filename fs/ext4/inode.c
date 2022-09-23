@@ -1163,10 +1163,17 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
 		    !buffer_unwritten(bh) &&
 		    (block_start < from || block_end > to)) {
-			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+		    int bi_opf = 0;
+			if (S_ISREG(inode->i_mode) && ext4_encrypted_inode(inode)
+					&& fscrypt_has_encryption_key(inode)) {
+					bh->b_private = fscrypt_get_diskcipher(inode);
+					if (bh->b_private)
+						bi_opf = REQ_CRYPT;
+			}
+			ll_rw_block(REQ_OP_READ, bi_opf, 1, &bh);
 			*wait_bh++ = bh;
 			decrypt = ext4_encrypted_inode(inode) &&
-				S_ISREG(inode->i_mode);
+				S_ISREG(inode->i_mode) && !bh->b_private;
 		}
 	}
 	/*
@@ -1179,15 +1186,9 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 	}
 	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
-#ifdef CONFIG_FS_PRIVATE_ENCRYPTION
-	else if (decrypt & !inode->i_mapping->fmp_ci.private_algo_mode)
-		err = fscrypt_decrypt_page(page->mapping->host, page,
-				PAGE_SIZE, 0, page->index);
-#else
 	else if (decrypt)
 		err = fscrypt_decrypt_page(page->mapping->host, page,
 				PAGE_SIZE, 0, page->index);
-#endif
 	return err;
 }
 #endif
@@ -3550,7 +3551,7 @@ static ssize_t ext4_direct_IO_write(struct kiocb *iocb, struct iov_iter *iter)
 		get_block_func = ext4_dio_get_block_unwritten_async;
 		dio_flags = DIO_LOCKING;
 	}
-#if defined(CONFIG_EXT4_FS_ENCRYPTION) && !defined(CONFIG_FS_PRIVATE_ENCRYPTION)
+#if defined(CONFIG_EXT4_FS_ENCRYPTION)
 	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
 #endif
 	if (IS_DAX(inode)) {
@@ -3868,7 +3869,14 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 
 	if (!buffer_uptodate(bh)) {
 		err = -EIO;
-		ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+		if (S_ISREG(inode->i_mode) && ext4_encrypted_inode(inode)
+				&& fscrypt_has_encryption_key(inode))
+			bh->b_private = fscrypt_get_diskcipher(inode);
+		if (bh->b_private)
+			ll_rw_block(REQ_OP_READ, REQ_CRYPT, 1, &bh);
+		else
+			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+
 		wait_on_buffer(bh);
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))
@@ -3878,14 +3886,12 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 			/* We expect the key to be set. */
 			BUG_ON(!fscrypt_has_encryption_key(inode));
 			BUG_ON(blocksize != PAGE_SIZE);
-#ifdef CONFIG_FS_PRIVATE_ENCRYPTION
-			if (!page->mapping->fmp_ci.private_algo_mode)
-				WARN_ON_ONCE(fscrypt_decrypt_page(page->mapping->host,
-						page, PAGE_SIZE, 0, page->index));
-#else
-			WARN_ON_ONCE(fscrypt_decrypt_page(page->mapping->host,
-						page, PAGE_SIZE, 0, page->index));
-#endif
+
+			if (!bh->b_private) {
+				WARN_ON_ONCE(fscrypt_decrypt_page(
+					page->mapping->host,
+					page, PAGE_SIZE, 0, page->index));
+			}
 		}
 	}
 	if (ext4_should_journal_data(inode)) {
