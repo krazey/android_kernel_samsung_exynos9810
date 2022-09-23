@@ -850,6 +850,7 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 	int i, ret;
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int sector_offset = 0;
+	int page_index = 0;
 	u32 val;
 
 	desc_first = desc_last = desc = host->sg_cpu;

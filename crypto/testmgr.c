@@ -1506,8 +1506,8 @@ out:
 
 #if defined(CONFIG_CRYPTO_DISKCIPHER) && !defined(CONFIG_EXYNOS_FMP_FIPS)
 static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
-			const struct cipher_testvec *template,
-			unsigned int tcount, const int align_offset)
+			   const struct cipher_testvec *template, unsigned int tcount,
+			   const int align_offset)
 {
 	const char *algo =
 		crypto_tfm_alg_driver_name(crypto_diskcipher_tfm(tfm));
@@ -1516,6 +1516,7 @@ static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 	struct scatterlist sg[8];
 	struct scatterlist sgout[8];
 	const char *e = (enc == ENCRYPT) ? "encryption" : "decryption";
+	struct tcrypt_result result;
 	void *data;
 	char iv[MAX_IVLEN];
 	char *xbuf[XBUFSIZE];
@@ -1523,13 +1524,14 @@ static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 	int ret = -ENOMEM;
 	unsigned int ivsize = crypto_diskcipher_ivsize(tfm);
 	struct diskcipher_test_request req;
-	const char *input, *result;
 
 	if (testmgr_alloc_buf(xbuf))
 		goto out_nobuf;
 
 	if (testmgr_alloc_buf(xoutbuf))
 		goto out_nooutbuf;
+
+	init_completion(&result.completion);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -1544,11 +1546,9 @@ static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 		else
 			memset(iv, 0, MAX_IVLEN);
 
-		input  = enc ? template[i].ptext : template[i].ctext;
-		result = enc ? template[i].ctext : template[i].ptext;
 		j++;
 		ret = -EINVAL;
-		if (WARN_ON(align_offset + template[i].len > PAGE_SIZE))
+		if (WARN_ON(align_offset + template[i].ilen > PAGE_SIZE))
 			goto out;
 
 		ret = crypto_diskcipher_setkey(tfm, template[i].key,
@@ -1565,15 +1565,15 @@ static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 
 		data = xbuf[0];
 		data += align_offset;
-		memcpy(data, input, template[i].len);
-		sg_init_one(&sg[0], data, template[i].len);
+		memcpy(data, template[i].input, template[i].ilen);
+		sg_init_one(&sg[0], data, template[i].ilen);
 
 		data = xoutbuf[0];
 		data += align_offset;
-		sg_init_one(&sgout[0], data, template[i].len);
+		sg_init_one(&sgout[0], data, template[i].ilen);
 
 		diskcipher_request_set_crypt(&req, sg, sgout,
-				template[i].len, iv, enc ? 1 : 0);
+				template[i].ilen, iv, enc ? 1 : 0);
 		ret = diskcipher_do_crypt(tfm, &req);
 		if (ret) {
 			pr_err("alg: diskcipher: %s failed on test %d for %s: ret=%d\n",
@@ -1582,10 +1582,10 @@ static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 		}
 
 		q = data;
-		if (memcmp(q, result, template[i].len)) {
+		if (memcmp(q, template[i].result, template[i].rlen)) {
 			pr_err("alg: diskcipher: Test %d failed (invalid result) on %s for %s\n",
 			       j, e, algo);
-			hexdump(q, template[i].len);
+			hexdump(q, template[i].rlen);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1622,22 +1622,26 @@ static int alg_test_diskcipher(const struct alg_test_desc *desc,
 			     const char *driver, u32 type, u32 mask)
 {
 	struct crypto_diskcipher *tfm;
-	const struct cipher_test_suite *suite = &desc->suite.cipher;
 	int err = 0;
 
-	tfm = crypto_alloc_diskcipher(driver, type | CRYPTO_ALG_INTERNAL,
-					mask, 0);
+	tfm = crypto_alloc_diskcipher(driver, type | CRYPTO_ALG_INTERNAL, mask, 0);
 	if (!tfm || IS_ERR(tfm)) {
 		pr_err("alg: diskcipher: Failed to load transform for %s: %ld\n",
 			driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
 
-	err = test_diskcipher(tfm, ENCRYPT, suite->vecs, suite->count);
-	if (err)
-		goto out;
+	if (desc->suite.cipher.enc.vecs) {
+		err = test_diskcipher(tfm, ENCRYPT, desc->suite.cipher.enc.vecs,
+				    desc->suite.cipher.enc.count);
+		if (err)
+			goto out;
+	}
 
-	err = test_diskcipher(tfm, DECRYPT, suite->vecs, suite->count);
+	if (desc->suite.cipher.dec.vecs)
+		err = test_diskcipher(tfm, DECRYPT, desc->suite.cipher.dec.vecs,
+				    desc->suite.cipher.dec.count);
+
 out:
 	crypto_free_diskcipher(tfm);
 	return err;
@@ -2610,6 +2614,23 @@ static const struct alg_test_desc alg_test_descs[] = {
 				}
 			}
 		}
+#if defined(CONFIG_CRYPTO_DISKCIPHER) && !defined(CONFIG_EXYNOS_FMP_FIPS)
+	}, {
+		.alg = "cbc(aes)-disk",
+		.test = alg_test_diskcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = aes_cbc_enc_tv_template,
+					.count = AES_CBC_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = aes_cbc_dec_tv_template,
+					.count = AES_CBC_DEC_TEST_VECTORS
+				}
+			}
+		}
+#endif
 	}, {
 		.alg = "cbc(anubis)",
 		.test = alg_test_skcipher,
@@ -4222,6 +4243,23 @@ static const struct alg_test_desc alg_test_descs[] = {
 				}
 			}
 		}
+#if defined(CONFIG_CRYPTO_DISKCIPHER) && !defined(CONFIG_EXYNOS_FMP_FIPS)
+	}, {
+		.alg = "xts(aes)-disk",
+		.test = alg_test_diskcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = aes_xts_enc_tv_template,
+					.count = AES_XTS_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = aes_xts_dec_tv_template,
+					.count = AES_XTS_DEC_TEST_VECTORS
+				}
+			}
+		}
+#endif
 	}, {
 		.alg = "xts(camellia)",
 		.test = alg_test_skcipher,

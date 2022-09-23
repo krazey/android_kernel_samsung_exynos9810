@@ -320,16 +320,18 @@ struct ufs_hba_variant_ops {
 	void	(*set_nexus_t_xfer_req)(struct ufs_hba *,
 					int, struct scsi_cmnd *);
 	void	(*set_nexus_t_task_mgmt)(struct ufs_hba *, int, u8);
-	void    (*hibern8_notify)(struct ufs_hba *, u8, int);
-	int	(*hibern8_prepare)(struct ufs_hba *, u8, int);
+	void    (*hibern8_notify)(struct ufs_hba *, u8, bool);
+	int	(*hibern8_prepare)(struct ufs_hba *, u8, bool);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
 	u8      (*get_unipro_result)(struct ufs_hba *hba, int num);
 	int	(*phy_initialization)(struct ufs_hba *);
-	int	(*crypto_engine_cfg)(struct ufs_hba *, struct ufshcd_lrb *,
-					struct scatterlist *, int, int);
-	int	(*crypto_engine_clear)(struct ufs_hba *, struct ufshcd_lrb *);
+	int	(*crypto_engine_cfg)(struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp);
+	int	(*crypto_engine_clear)(struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp);
+	int	(*crypto_sec_cfg)(struct ufs_hba *hba, bool init);
 	int	(*access_control_abort)(struct ufs_hba *);
 };
 
@@ -1076,14 +1078,11 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
 				u32 size, bool ascii);
 
 static inline int ufshcd_vops_crypto_engine_cfg(struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp,
-					struct scatterlist *sg, int index,
-					int sector_offset)
+					struct ufshcd_lrb *lrbp)
 {
 	if (hba->vops && hba->vops->crypto_engine_cfg)
-		return hba->vops->crypto_engine_cfg(hba, lrbp, sg, index,
-						sector_offset);
-        return 0;
+		return hba->vops->crypto_engine_cfg(hba, lrbp);
+	return 0;
 }
 
 static inline int ufshcd_vops_crypto_engine_clear(struct ufs_hba *hba,
@@ -1099,6 +1098,13 @@ static inline int ufshcd_vops_access_control_abort(struct ufs_hba *hba)
 	if (hba->vops && hba->vops->access_control_abort)
 		return hba->vops->access_control_abort(hba);
         return 0;
+}
+
+static inline int ufshcd_vops_crypto_sec_cfg(struct ufs_hba *hba, bool init)
+{
+	if (hba->vops && hba->vops->crypto_sec_cfg)
+		return hba->vops->crypto_sec_cfg(hba, init);
+	return 0;
 }
 
 #define UFS_DEV_ATTR(name, fmt, args...)					\

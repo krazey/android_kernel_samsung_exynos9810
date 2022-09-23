@@ -212,6 +212,7 @@ static void f2fs_read_end_io(struct bio *bio)
 						bio->bi_iter.bi_size);
 	}
 
+end_io:
 	__read_end_io(bio);
 }
 
