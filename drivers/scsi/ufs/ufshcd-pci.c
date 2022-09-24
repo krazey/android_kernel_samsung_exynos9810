@@ -107,6 +107,7 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
 	disable_irq(pdev->irq);
 	ufshcd_remove(hba);
 	pci_set_drvdata(pdev, NULL);
+	ufshcd_dealloc_host(hba);
 }
 
 /**

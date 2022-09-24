@@ -479,7 +479,7 @@ struct address_space {
 	struct list_head	private_list;	/* ditto */
 	void			*private_data;	/* ditto */
 	struct _fmp_ci		fmp_ci;
-#ifdef CONFIG_SDP
+#if defined(CONFIG_SDP) && !defined(CONFIG_FSCRYPT_SDP)
 	int userid;
 #endif
 } __attribute__((aligned(sizeof(long))));
@@ -2943,6 +2943,9 @@ enum {
 };
 
 void dio_end_io(struct bio *bio, int error);
+#ifdef CONFIG_DDAR
+struct inode *dio_bio_get_inode(struct bio *bio);
+#endif
 
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,

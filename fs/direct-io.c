@@ -37,7 +37,7 @@
 #include <linux/uio.h>
 #include <linux/atomic.h>
 #include <linux/prefetch.h>
-
+#include <linux/fscrypt.h>
 #include <crypto/fmp.h>
 
 /*
@@ -399,6 +399,23 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
  *
  * bios hold a dio reference between submit_bio and ->end_io.
  */
+#ifdef CONFIG_CRYPTO_DISKCIPHER
+static bool is_inode_filesystem_type(const struct inode *inode,
+					const char *fs_type)
+{
+	if (!inode || !fs_type)
+		return false;
+
+	if (!inode->i_sb)
+		return false;
+
+	if (!inode->i_sb->s_type)
+		return false;
+
+	return (strcmp(inode->i_sb->s_type->name, fs_type) == 0);
+}
+#endif
+
 static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 {
 	struct bio *bio = sdio->bio;
@@ -411,10 +428,26 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 	dio->refcount++;
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
 
+#if defined(CONFIG_CRYPTO_DISKCIPHER)
+	if (dio->inode && fscrypt_has_encryption_key(dio->inode)) {
+		 /* device unit number for iv sector */
+		#define PG_DUN(i, p)	\
+			((((i)->i_ino & 0xffffffff) << 32) | ((p) & 0xffffffff))
+
+		if (is_inode_filesystem_type(dio->inode, "f2fs"))
+			fscrypt_set_bio(dio->inode, bio, PG_DUN(dio->inode,
+				(sdio->logical_offset_in_bio >> PAGE_SHIFT)));
+		else
+			fscrypt_set_bio(dio->inode, bio, 0);
+	}
+#endif
 	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty)
 		bio_set_pages_dirty(bio);
 
 	dio->bio_bdev = bio->bi_bdev;
+#ifdef CONFIG_DDAR
+	bio->bi_dio_inode = dio->inode;
+#endif
 	inode = dio->inode;
 	bio->fmp_ci.bi_dio_inode = dio->inode;
 	bio->fmp_ci.private_enc_mode = EXYNOS_FMP_FILE_ENC;
@@ -432,6 +465,20 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 	sdio->boundary = 0;
 	sdio->logical_offset_in_bio = 0;
 }
+
+#ifdef CONFIG_DDAR
+struct inode *dio_bio_get_inode(struct bio *bio)
+{
+	struct inode *inode = NULL;
+
+	if (bio == NULL)
+		return NULL;
+
+	inode = bio->bi_dio_inode;
+
+	return inode;
+}
+#endif
 
 /*
  * Release any resources in case of a failure

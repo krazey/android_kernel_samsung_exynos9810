@@ -593,6 +593,9 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 #ifdef CONFIG_CRYPTO_DISKCIPHER
 	bio->bi_iter.bi_dun = bio_src->bi_iter.bi_dun;
 #endif
+#ifdef CONFIG_DDAR
+	bio_clone_crypt_key(bio, bio_src);
+#endif
 #ifdef CONFIG_JOURNAL_DATA_TAG
 	bio->bi_flags |= bio_src->bi_flags & (1 << BIO_JOURNAL);
 #endif
@@ -722,6 +725,9 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 		}
 	}
 
+#ifdef CONFIG_DDAR
+	bio_clone_crypt_key(bio, bio_src);
+#endif
 	bio_clone_blkcg_association(bio, bio_src);
 
 	return bio;

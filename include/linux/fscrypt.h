@@ -43,6 +43,10 @@ struct fscrypt_name {
 #define fname_name(p)		((p)->disk_name.name)
 #define fname_len(p)		((p)->disk_name.len)
 
+#if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
+#define FSCRYPT_SET_CONTEXT_MAX_SIZE	32
+#endif
+
 #if __FS_HAS_ENCRYPTION
 #include <linux/fscrypt_supp.h>
 #else

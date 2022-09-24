@@ -332,7 +332,7 @@ struct ufs_hba_variant_ops {
 	int	(*crypto_engine_clear)(struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp);
 	int	(*crypto_sec_cfg)(struct ufs_hba *hba, bool init);
-	int	(*access_control_abort)(struct ufs_hba *);
+	int	(*access_control_abort)(struct ufs_hba *hba);
 };
 
 /* clock gating state  */
@@ -742,9 +742,6 @@ struct ufs_hba {
 	int latency_hist_enabled;
 	struct io_latency_state io_lat_s;
 	struct ufs_secure_log secure_log;
-	struct io_latency_state io_lat_read;
-	struct io_latency_state io_lat_write;
-
 #if defined(SEC_UFS_ERROR_COUNT)
 	struct SEC_UFS_counting SEC_err_info;
 #endif
@@ -753,6 +750,8 @@ struct ufs_hba {
 #if defined(CONFIG_UFS_DATA_LOG)
 	atomic_t	log_count;
 #endif
+	struct io_latency_state io_lat_read;
+	struct io_latency_state io_lat_write;
 };
 
 /* Returns true if clocks can be gated. Otherwise false */
@@ -1067,10 +1066,6 @@ static inline u8 ufshcd_vops_get_unipro(struct ufs_hba *hba, int num)
 
 int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 int ufshcd_read_health_desc(struct ufs_hba *hba, u8 *buf, u32 size);
-#ifdef CONFIG_JOURNAL_DATA_TAG
-int ufshcd_read_vendor_specific_desc(struct ufs_hba *hba, enum desc_idn desc_id,
-		int desc_index, u8 *buf, u32 size);
-#endif
 
 #define ASCII_STD true
 #define UTF16_STD false
@@ -1090,14 +1085,14 @@ static inline int ufshcd_vops_crypto_engine_clear(struct ufs_hba *hba,
 {
 	if (hba->vops && hba->vops->crypto_engine_clear)
 		return hba->vops->crypto_engine_clear(hba, lrbp);
-        return 0;
+	return 0;
 }
 
 static inline int ufshcd_vops_access_control_abort(struct ufs_hba *hba)
 {
 	if (hba->vops && hba->vops->access_control_abort)
 		return hba->vops->access_control_abort(hba);
-        return 0;
+	return 0;
 }
 
 static inline int ufshcd_vops_crypto_sec_cfg(struct ufs_hba *hba, bool init)
@@ -1106,7 +1101,6 @@ static inline int ufshcd_vops_crypto_sec_cfg(struct ufs_hba *hba, bool init)
 		return hba->vops->crypto_sec_cfg(hba, init);
 	return 0;
 }
-
 #define UFS_DEV_ATTR(name, fmt, args...)					\
 static ssize_t ufs_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
