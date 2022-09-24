@@ -4629,6 +4629,7 @@
 		uart20 = "/uart@14360000";
 		uart21 = "/uart@13AC0000";
 		uart22 = "/uart@13AE0000";
+		fmp0 = "/fmp";
 		mfc0 = "/mfc0@178D0000";
 		scaler0 = "/scaler@17710000";
 		panel0 = "/panel_drv@001";
@@ -8041,18 +8042,8 @@
 		phandle = <0x28c>;
 	};
 
-	smu {
-		compatible = "samsung,exynos-smu";
-		linux,phandle = <0x102>;
-		phandle = <0x102>;
-	};
-
 	fmp {
 		compatible = "samsung,exynos-fmp";
-		exynos,host-type = "ufs";
-		exynos-host = <0xfe>;
-		exynos,block-type = "sda";
-		exynos,fips-block_offset = <0x5>;
 		linux,phandle = <0x28d>;
 		phandle = <0x28d>;
 	};
@@ -8079,8 +8070,9 @@
 		ufs-rx-min-activate-time-cap = <0x3>;
 		ufs-rx-hibern8-time-cap = <0x2>;
 		ufs-tx-hibern8-time-cap = <0x2>;
+		fmp-id = <0x0>;
+		smu-id = <0x0>;
 		brd-for-cal = <0x0>;
-		ufs-exynos-smu = <0x102>;
 		linux,phandle = <0xfe>;
 		phandle = <0xfe>;
 
@@ -14478,8 +14470,7 @@
 		spi_20 = "/spi@13AC0000";
 		spi_21 = "/spi@13AE0000";
 		serial_0 = "/uart@10440000";
-		smu = "/smu";
-		fmp = "/fmp";
+		fmp_0 = "/fmp";
 		ufs = "/ufs@0x11120000";
 		ufs_fixed_vcc = "/fixedregulator@0";
 		sysmmu_dpu0 = "/sysmmu@160A0000";
