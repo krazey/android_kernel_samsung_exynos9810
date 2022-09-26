@@ -31,6 +31,7 @@
 #include <crypto/skcipher.h>
 
 #include <linux/device-mapper.h>
+#include <crypto/diskcipher.h>
 
 #define DM_MSG_PREFIX "crypt"
 
@@ -117,6 +118,8 @@ enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
 
 enum cipher_flags {
 	CRYPT_IV_LARGE_SECTORS,		/* Calculate IV from sector_size, not 512B sectors */
+	CRYPT_MODE_DISKCIPHER,
+	CRYPT_MODE_SKCIPHER,
 };
 
 /*
@@ -159,7 +162,10 @@ struct crypt_config {
 
 	/* ESSIV: struct crypto_cipher *essiv_tfm */
 	void *iv_private;
-	struct crypto_skcipher **tfms;
+	union {
+		struct crypto_skcipher **tfms;
+		struct crypto_diskcipher **tfms_diskc;
+	} cipher_tfm;
 	unsigned tfms_count;
 	unsigned long cipher_flags;
 
@@ -198,7 +204,7 @@ static u8 *iv_of_dmreq(struct crypt_config *cc, struct dm_crypt_request *dmreq);
  */
 static struct crypto_skcipher *any_tfm(struct crypt_config *cc)
 {
-	return cc->tfms[0];
+	return cc->cipher_tfm.tfms[0];
 }
 
 /*
@@ -819,6 +825,16 @@ static struct crypt_iv_operations crypt_iv_tcw_ops = {
 	.post	   = crypt_iv_tcw_post
 };
 
+static bool crypt_mode_diskcipher(struct crypt_config *cc)
+{
+	return test_bit(CRYPT_MODE_DISKCIPHER, &cc->cipher_flags);
+}
+
+static bool crypt_mode_skcipher(struct crypt_config *cc)
+{
+	return test_bit(CRYPT_MODE_SKCIPHER, &cc->cipher_flags);
+}
+
 static void crypt_convert_init(struct crypt_config *cc,
 			       struct convert_context *ctx,
 			       struct bio *bio_out, struct bio *bio_in,
@@ -916,7 +932,7 @@ static void crypt_alloc_req(struct crypt_config *cc,
 	if (!ctx->req)
 		ctx->req = mempool_alloc(cc->req_pool, GFP_NOIO);
 
-	skcipher_request_set_tfm(ctx->req, cc->tfms[key_index]);
+	skcipher_request_set_tfm(ctx->req, cc->cipher_tfm.tfms[key_index]);
 
 	/*
 	 * Use REQ_MAY_BACKLOG so a cipher driver internally backlogs
@@ -1134,13 +1150,13 @@ static void crypt_endio(struct bio *clone)
 	/*
 	 * free the processed pages
 	 */
-	if (rw == WRITE)
+	if ((rw == WRITE) && !crypt_mode_diskcipher(cc))
 		crypt_free_buffer_pages(cc, clone);
 
 	error = clone->bi_error;
 	bio_put(clone);
 
-	if (rw == READ && !error) {
+	if (rw == READ && !error && !crypt_mode_diskcipher(cc)) {
 		kcryptd_queue_crypt(io);
 		return;
 	}
@@ -1179,6 +1195,10 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 	crypt_inc_pending(io);
 
 	clone_init(io, clone);
+
+	if (crypt_mode_diskcipher(cc))
+		crypto_diskcipher_set(clone, cc->cipher_tfm.tfms_diskc[0], 0);
+
 	clone->bi_iter.bi_sector = cc->start + io->sector;
 
 	generic_make_request(clone);
@@ -1455,41 +1475,60 @@ static int crypt_decode_key(u8 *key, char *hex, unsigned int size)
 	return 0;
 }
 
-static void crypt_free_tfms(struct crypt_config *cc)
+static void crypt_free_tfms_skcipher(struct crypt_config *cc)
 {
 	unsigned i;
-
-	if (!cc->tfms)
+	if (!cc->cipher_tfm.tfms)
 		return;
-
 	for (i = 0; i < cc->tfms_count; i++)
-		if (cc->tfms[i] && !IS_ERR(cc->tfms[i])) {
-			crypto_free_skcipher(cc->tfms[i]);
-			cc->tfms[i] = NULL;
+		if (cc->cipher_tfm.tfms[i] && !IS_ERR(cc->cipher_tfm.tfms[i])) {
+			crypto_free_skcipher(cc->cipher_tfm.tfms[i]);
+			cc->cipher_tfm.tfms[i] = NULL;
 		}
-
-	kfree(cc->tfms);
-	cc->tfms = NULL;
+	kfree(cc->cipher_tfm.tfms);
+	cc->cipher_tfm.tfms = NULL;
 }
 
-static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
+static void crypt_free_tfms_diskcipher(struct crypt_config *cc)
+{
+	if (!cc->cipher_tfm.tfms_diskc)
+		return;
+
+	if (cc->cipher_tfm.tfms_diskc[0] && !IS_ERR(cc->cipher_tfm.tfms_diskc[0])) {
+		crypto_diskcipher_clearkey(cc->cipher_tfm.tfms_diskc[0]);
+		crypto_free_diskcipher(cc->cipher_tfm.tfms_diskc[0]);
+		cc->cipher_tfm.tfms_diskc[0] = NULL;
+	}
+
+	kfree(cc->cipher_tfm.tfms_diskc);
+	cc->cipher_tfm.tfms_diskc = NULL;
+}
+
+static void crypt_free_tfms(struct crypt_config *cc)
+{
+	if (crypt_mode_diskcipher(cc))
+		crypt_free_tfms_diskcipher(cc);
+	else
+		crypt_free_tfms_skcipher(cc);
+}
+
+static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 {
 	unsigned i;
 	int err;
-
-	cc->tfms = kzalloc(cc->tfms_count * sizeof(struct crypto_skcipher *),
-			   GFP_KERNEL);
-	if (!cc->tfms)
+	cc->cipher_tfm.tfms = kzalloc(cc->tfms_count *
+				      sizeof(struct crypto_skcipher *), GFP_KERNEL);
+	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
-
 	for (i = 0; i < cc->tfms_count; i++) {
-		cc->tfms[i] = crypto_alloc_skcipher(ciphermode, 0, 0);
-		if (IS_ERR(cc->tfms[i])) {
-			err = PTR_ERR(cc->tfms[i]);
+		cc->cipher_tfm.tfms[i] = crypto_alloc_skcipher(ciphermode, 0, 0);
+		if (IS_ERR(cc->cipher_tfm.tfms[i])) {
+			err = PTR_ERR(cc->cipher_tfm.tfms[i]);
 			crypt_free_tfms(cc);
 			return err;
 		}
 	}
+	set_bit(CRYPT_MODE_SKCIPHER, &cc->cipher_flags);
 
 	/*
 	 * dm-crypt performance can vary greatly depending on which crypto
@@ -1501,6 +1540,34 @@ static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
 	return 0;
 }
 
+static int crypt_alloc_tfms_diskcipher(struct crypt_config *cc, char *ciphermode)
+{
+	int err;
+
+	cc->cipher_tfm.tfms = kmalloc(sizeof(struct crypto_aead *), GFP_KERNEL);
+	if (!cc->cipher_tfm.tfms)
+		return -ENOMEM;
+
+	cc->cipher_tfm.tfms_diskc[0] = crypto_alloc_diskcipher(ciphermode, 0, 0, 1);
+	if (IS_ERR(cc->cipher_tfm.tfms_diskc[0])) {
+		err = PTR_ERR(cc->cipher_tfm.tfms_diskc[0]);
+		crypt_free_tfms(cc);
+		pr_err("%s: no diskcipher with %s\n", __func__, ciphermode);
+		return err;
+	}
+	pr_info("%s is done with %s\n", __func__, ciphermode);
+
+	return 0;
+}
+
+static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
+{
+	if (crypt_mode_diskcipher(cc))
+		return crypt_alloc_tfms_diskcipher(cc, ciphermode);
+	else
+		return crypt_alloc_tfms_skcipher(cc, ciphermode);
+}
+
 static int crypt_setkey_allcpus(struct crypt_config *cc)
 {
 	unsigned subkey_size;
@@ -1510,9 +1577,14 @@ static int crypt_setkey_allcpus(struct crypt_config *cc)
 	subkey_size = (cc->key_size - cc->key_extra_size) >> ilog2(cc->tfms_count);
 
 	for (i = 0; i < cc->tfms_count; i++) {
-		r = crypto_skcipher_setkey(cc->tfms[i],
-					   cc->key + (i * subkey_size),
-					   subkey_size);
+		if (crypt_mode_diskcipher(cc))
+			r = crypto_diskcipher_setkey(cc->cipher_tfm.tfms_diskc[i],
+						   cc->key + (i * subkey_size),
+						   subkey_size, 1, NULL);
+		else
+			r = crypto_skcipher_setkey(cc->cipher_tfm.tfms[i],
+						   cc->key + (i * subkey_size),
+						   subkey_size);
 		if (r)
 			err = r;
 	}
@@ -1641,6 +1713,9 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	ivopts = strsep(&tmp, "-");
 	ivmode = strsep(&ivopts, ":");
 
+	if (ivmode && (!strcmp(ivmode, "disk") || !strcmp(ivmode, "fmp")))
+		set_bit(CRYPT_MODE_DISKCIPHER, &cc->cipher_flags);
+
 	if (tmp)
 		DMWARN("Ignoring unexpected additional cipher options");
 
@@ -1677,7 +1752,8 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	}
 
 	/* Initialize IV */
-	cc->iv_size = crypto_skcipher_ivsize(any_tfm(cc));
+	if (crypt_mode_skcipher(cc))
+		cc->iv_size = crypto_skcipher_ivsize(any_tfm(cc));
 	if (cc->iv_size)
 		/* at least a 64 bit sector number should fit in our buffer */
 		cc->iv_size = max(cc->iv_size,
@@ -1805,6 +1881,10 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		/* Allocate the padding exactly */
 		iv_size_padding = -(cc->dmreq_start + sizeof(struct dm_crypt_request))
 				& crypto_skcipher_alignmask(any_tfm(cc));
+	} else if (crypt_mode_diskcipher(cc)) {
+		cc->per_bio_data_size = ti->per_io_data_size =
+			ALIGN(sizeof(struct dm_crypt_io), ARCH_KMALLOC_MINALIGN);
+		goto get_bio;
 	} else {
 		/*
 		 * If the cipher requires greater alignment than kmalloc
@@ -1833,6 +1913,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
+get_bio:
 	cc->bs = bioset_create(MIN_IOS, 0);
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
@@ -1923,6 +2004,13 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
+
+	if (crypt_mode_diskcipher(cc)) {
+		cc->crypt_queue = NULL;
+		cc->write_thread = NULL;
+		goto out;
+	}
+
 	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
 		cc->crypt_queue = alloc_workqueue("kcryptd",
 						  WQ_HIGHPRI |
@@ -1950,6 +2038,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	wake_up_process(cc->write_thread);
 
+out:
 	ti->num_flush_bios = 1;
 	ti->discard_zeroes_data_unsupported = true;
 
@@ -2154,6 +2243,9 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	limits->physical_block_size =
 		max_t(unsigned, limits->physical_block_size, cc->sector_size);
 	limits->io_min = max_t(unsigned, limits->io_min, cc->sector_size);
+
+	if (crypt_mode_diskcipher(cc))
+		limits->logical_block_size = PAGE_SIZE;
 }
 
 static struct target_type crypt_target = {
