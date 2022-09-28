@@ -3547,8 +3547,8 @@ static ssize_t ext4_direct_IO_write(struct kiocb *iocb, struct iov_iter *iter)
 		get_block_func = ext4_dio_get_block_unwritten_async;
 		dio_flags = DIO_LOCKING;
 	}
-#if defined(CONFIG_EXT4_FS_ENCRYPTION) && !defined(CONFIG_FS_PRIVATE_ENCRYPTION)
-	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
+#if defined(CONFIG_FS_ENCRYPTION)
+	BUG_ON(IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode));
 #endif
 	if (IS_DAX(inode)) {
 		ret = dax_do_io(iocb, inode, iter, get_block_func,
@@ -5342,7 +5342,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		int shrink = (attr->ia_size <= inode->i_size);
 
 		/* support truncate zero-out */
-		if (ext4_encrypted_inode(inode)) {
+		if (IS_ENCRYPTED(inode)) {
 			error = fscrypt_get_encryption_info(inode);
 			if (error)
 				return error;

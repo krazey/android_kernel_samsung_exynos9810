@@ -3255,7 +3255,7 @@ static int ext4_link(struct dentry *old_dentry,
 
 	if (inode->i_nlink >= EXT4_LINK_MAX)
 		return -EMLINK;
-	if (ext4_encrypted_inode(dir) &&
+	if (IS_ENCRYPTED(dir) &&
 			!fscrypt_has_permitted_context(dir, inode))
 		return -EXDEV;
 
@@ -3605,9 +3605,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			EXT4_I(old_dentry->d_inode)->i_projid)))
 		return -EXDEV;
 
-	if ((ext4_encrypted_inode(old_dir) &&
+	if ((IS_ENCRYPTED(old_dir) &&
 	     !fscrypt_has_encryption_key(old_dir)) ||
-	    (ext4_encrypted_inode(new_dir) &&
+	    (IS_ENCRYPTED(new_dir) &&
 	     !fscrypt_has_encryption_key(new_dir)))
 		return -ENOKEY;
 
@@ -3640,7 +3640,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto release_bh;
 
 	if ((old.dir != new.dir) &&
-	    ext4_encrypted_inode(new.dir) &&
+	    IS_ENCRYPTED(new.dir) &&
 	    !fscrypt_has_permitted_context(new.dir, old.inode)) {
 		retval = -EXDEV;
 		goto release_bh;
@@ -3820,14 +3820,14 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	u8 new_file_type;
 	int retval;
 
-	if ((ext4_encrypted_inode(old_dir) &&
+	if ((IS_ENCRYPTED(old_dir) &&
 	     !fscrypt_has_encryption_key(old_dir)) ||
-	    (ext4_encrypted_inode(new_dir) &&
+	    (IS_ENCRYPTED(new_dir) &&
 	     !fscrypt_has_encryption_key(new_dir)))
 		return -ENOKEY;
 
-	if ((ext4_encrypted_inode(old_dir) ||
-	     ext4_encrypted_inode(new_dir)) &&
+	if ((IS_ENCRYPTED(old_dir) ||
+	     IS_ENCRYPTED(new_dir)) &&
 	    (old_dir != new_dir) &&
 	    (!fscrypt_has_permitted_context(new_dir, old.inode) ||
 	     !fscrypt_has_permitted_context(old_dir, new.inode)))
