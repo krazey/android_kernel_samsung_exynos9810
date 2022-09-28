@@ -203,7 +203,7 @@ static int add_new_master_key(struct fscrypt_master_key_secret *secret,
 
 	move_master_key_secret(&mk->mk_secret, secret);
 
-	refcount_set(&mk->mk_refcount, 1); /* secret is present */
+	atomic_set(&mk->mk_refcount, 1); /* secret is present */
 	INIT_LIST_HEAD(&mk->mk_decrypted_inodes);
 	spin_lock_init(&mk->mk_decrypted_inodes_lock);
 
@@ -236,7 +236,7 @@ static int add_existing_master_key(struct fscrypt_master_key *mk,
 	if (is_master_key_secret_present(&mk->mk_secret))
 		return 0;
 
-	if (!refcount_inc_not_zero(&mk->mk_refcount))
+	if (!atomic_inc_not_zero(&mk->mk_refcount))
 		return KEY_DEAD;
 
 	move_master_key_secret(&mk->mk_secret, secret);
@@ -540,7 +540,7 @@ int fscrypt_ioctl_remove_key(struct file *filp, void __user *_uarg)
 	dead = false;
 	if (is_master_key_secret_present(&mk->mk_secret)) {
 		wipe_master_key_secret(&mk->mk_secret);
-		dead = refcount_dec_and_test(&mk->mk_refcount);
+		dead = atomic_dec_and_test(&mk->mk_refcount);
 	}
 	up_write(&key->sem);
 	if (dead) {

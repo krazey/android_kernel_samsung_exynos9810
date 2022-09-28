@@ -411,7 +411,7 @@ static void put_crypt_info(struct fscrypt_info *ci)
 		spin_lock(&mk->mk_decrypted_inodes_lock);
 		list_del(&ci->ci_master_key_link);
 		spin_unlock(&mk->mk_decrypted_inodes_lock);
-		if (refcount_dec_and_test(&mk->mk_refcount))
+		if (atomic_dec_and_test(&mk->mk_refcount))
 			key_invalidate(key);
 		key_put(key);
 	}
@@ -502,7 +502,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 			struct fscrypt_master_key *mk =
 				master_key->payload.data[0];
 
-			refcount_inc(&mk->mk_refcount);
+			atomic_inc(&mk->mk_refcount);
 			crypt_info->ci_master_key = key_get(master_key);
 			spin_lock(&mk->mk_decrypted_inodes_lock);
 			list_add(&crypt_info->ci_master_key_link,
