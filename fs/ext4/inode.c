@@ -1180,6 +1180,7 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 		err = fscrypt_decrypt_pagecache_blocks(page, PAGE_SIZE, 0);
 	return err;
 }
+#endif
 
 static int ext4_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned flags,
