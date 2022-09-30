@@ -17,6 +17,7 @@
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/blk-mq.h>
 
 #include "blk-crypto-internal.h"
 
@@ -159,7 +160,7 @@ static void blk_crypto_encrypt_endio(struct bio *enc_bio)
 		mempool_free(enc_bio->bi_io_vec[i].bv_page,
 			     blk_crypto_bounce_page_pool);
 
-	src_bio->bi_status = enc_bio->bi_status;
+	src_bio->bi_error = enc_bio->bi_error;
 
 	bio_put(enc_bio);
 	bio_endio(src_bio);
@@ -174,7 +175,7 @@ static struct bio *blk_crypto_clone_bio(struct bio *bio_src)
 	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src), NULL);
 	if (!bio)
 		return NULL;
-	bio->bi_disk		= bio_src->bi_disk;
+	bio->bi_bdev		= bio_src->bi_bdev;
 	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_ioprio		= bio_src->bi_ioprio;
 	bio->bi_write_hint	= bio_src->bi_write_hint;
@@ -208,7 +209,7 @@ static int blk_crypto_alloc_cipher_req(struct bio *src_bio,
 	ciph_req = skcipher_request_alloc(slotp->tfms[slotp->crypto_mode],
 					  GFP_NOIO);
 	if (!ciph_req) {
-		src_bio->bi_status = BLK_STS_RESOURCE;
+		src_bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 		return -ENOMEM;
 	}
 
@@ -238,7 +239,7 @@ static int blk_crypto_split_bio_if_needed(struct bio **bio_ptr)
 
 		split_bio = bio_split(bio, num_sectors, GFP_NOIO, NULL);
 		if (!split_bio) {
-			bio->bi_status = BLK_STS_RESOURCE;
+			bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 			return -ENOMEM;
 		}
 		bio_chain(split_bio, bio);
@@ -294,7 +295,7 @@ static int blk_crypto_encrypt_bio(struct bio **bio_ptr)
 	/* Allocate bounce bio for encryption */
 	enc_bio = blk_crypto_clone_bio(src_bio);
 	if (!enc_bio) {
-		src_bio->bi_status = BLK_STS_RESOURCE;
+		src_bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 		return -ENOMEM;
 	}
 
@@ -304,7 +305,7 @@ static int blk_crypto_encrypt_bio(struct bio **bio_ptr)
 	 */
 	err = bio_crypt_ctx_acquire_keyslot(bc, blk_crypto_ksm);
 	if (err) {
-		src_bio->bi_status = BLK_STS_IOERR;
+		src_bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 		goto out_put_enc_bio;
 	}
 
@@ -330,7 +331,7 @@ static int blk_crypto_encrypt_bio(struct bio **bio_ptr)
 		enc_bvec->bv_page = ciphertext_page;
 
 		if (!ciphertext_page) {
-			src_bio->bi_status = BLK_STS_RESOURCE;
+			src_bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 			err = -ENOMEM;
 			goto out_free_bounce_pages;
 		}
@@ -347,7 +348,7 @@ static int blk_crypto_encrypt_bio(struct bio **bio_ptr)
 					      &wait);
 			if (err) {
 				i++;
-				src_bio->bi_status = BLK_STS_RESOURCE;
+				src_bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 				goto out_free_bounce_pages;
 			}
 			bio_crypt_dun_increment(curr_dun, 1);
@@ -416,7 +417,7 @@ static void blk_crypto_decrypt_bio(struct work_struct *work)
 	 * for the algorithm and key specified for this bio.
 	 */
 	if (bio_crypt_ctx_acquire_keyslot(bc, blk_crypto_ksm)) {
-		bio->bi_status = BLK_STS_RESOURCE;
+		bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 		goto out_no_keyslot;
 	}
 
@@ -441,7 +442,7 @@ static void blk_crypto_decrypt_bio(struct work_struct *work)
 			blk_crypto_dun_to_iv(curr_dun, &iv);
 			if (crypto_wait_req(crypto_skcipher_decrypt(ciph_req),
 					    &wait)) {
-				bio->bi_status = BLK_STS_IOERR;
+				bio->bi_error = BLK_MQ_RQ_QUEUE_ERROR;
 				goto out;
 			}
 			bio_crypt_dun_increment(curr_dun, 1);
@@ -467,13 +468,13 @@ bool blk_crypto_queue_decrypt_bio(struct bio *bio)
 	struct blk_crypto_decrypt_work *decrypt_work;
 
 	/* If there was an IO error, don't queue for decrypt. */
-	if (bio->bi_status)
+	if (bio->bi_error)
 		goto out;
 
 	decrypt_work = kmem_cache_zalloc(blk_crypto_decrypt_work_cache,
 					 GFP_ATOMIC);
 	if (!decrypt_work) {
-		bio->bi_status = BLK_STS_RESOURCE;
+		bio->bi_error = BLK_MQ_RQ_QUEUE_BUSY;
 		goto out;
 	}
 
@@ -572,7 +573,7 @@ int blk_crypto_fallback_submit_bio(struct bio **bio_ptr)
 	struct bio_fallback_crypt_ctx *f_ctx;
 
 	if (!tfms_inited[bc->bc_key->crypto_mode]) {
-		bio->bi_status = BLK_STS_IOERR;
+		bio->bi_error = BLK_MQ_RQ_QUEUE_ERROR;
 		return -EIO;
 	}
 

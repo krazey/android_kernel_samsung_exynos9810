@@ -94,7 +94,7 @@ int blk_crypto_submit_bio(struct bio **bio_ptr)
 		goto out;
 	}
 
-	q = bio->bi_bdev->queue;
+	//q = bio->bi_bdev->queue;
 
 	if (bc->bc_ksm) {
 		/* Key already programmed into device? */

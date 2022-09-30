@@ -3,6 +3,7 @@
  * Copyright (C) 2017 Google, Inc.
  */
 
+#include <linux/version.h>
 #include <linux/blk-crypto.h>
 #include <linux/device-mapper.h>
 #include <linux/module.h>
@@ -12,6 +13,15 @@
 #define DM_DEFAULT_KEY_MAX_KEY_SIZE	64
 
 #define SECTOR_SIZE			(1 << SECTOR_SHIFT)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+       /* EMPTY */
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) */
+static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)
+{
+	bio->bi_bdev = bdev;
+}
+#endif
 
 static const struct dm_default_key_cipher {
 	const char *name;
