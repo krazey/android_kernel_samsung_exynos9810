@@ -49,11 +49,8 @@
 #include "xattr.h"
 #include "acl.h"
 #include "mballoc.h"
-<<<<<<< HEAD
-#include "../mount.h"
-=======
 #include "fsmap.h"
->>>>>>> 0c9ec4beecac (ext4: support GETFSMAP ioctls)
+#include "../mount.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
