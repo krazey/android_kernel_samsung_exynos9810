@@ -91,11 +91,10 @@ int blk_crypto_submit_bio(struct bio **bio_ptr)
 
 	err = bio_crypt_check_alignment(bio);
 	if (err) {
-		bio->bi_error = BLK_MQ_RQ_QUEUE_ERROR;
 		goto out;
 	}
 
-	q = bio->bi_disk->queue;
+	q = bio->bi_bdev->queue;
 
 	if (bc->bc_ksm) {
 		/* Key already programmed into device? */

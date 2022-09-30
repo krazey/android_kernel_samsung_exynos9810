@@ -128,7 +128,7 @@ struct keyslot_manager *keyslot_manager_create(unsigned int num_slots,
 	spin_lock_init(&ksm->idle_slots_lock);
 
 	ksm->slot_hashtable_size = roundup_pow_of_two(num_slots);
-	ksm->slot_hashtable = kvmalloc_array(ksm->slot_hashtable_size,
+	ksm->slot_hashtable = kmalloc_array(ksm->slot_hashtable_size,
 					     sizeof(ksm->slot_hashtable[0]),
 					     GFP_KERNEL);
 	if (!ksm->slot_hashtable)
