@@ -608,7 +608,7 @@ static void request_endio(struct bio *bio)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		struct request_queue *q = bdev_get_queue(s->orig_bio->bi_bdev);
+		struct request_queue *q = s->orig_bio->bi_disk->queue;
 		generic_end_io_acct(q, bio_data_dir(s->orig_bio),
 				    &s->d->disk->part0, s->start_time);
 
