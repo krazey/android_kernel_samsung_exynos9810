@@ -559,6 +559,7 @@ static void exynos_ufs_set_features(struct ufs_hba *hba, u32 hw_rev)
 
 	/* quirks of common driver */
 	hba->quirks = UFSHCD_QUIRK_PRDT_BYTE_GRAN |
+			UFSHCD_QUIRK_BROKEN_CRYPTO |
 			UFSHCI_QUIRK_SKIP_INTR_AGGR |
 			UFSHCD_QUIRK_UNRESET_INTR_AGGR |
 			UFSHCD_QUIRK_BROKEN_REQ_LIST_CLR;
