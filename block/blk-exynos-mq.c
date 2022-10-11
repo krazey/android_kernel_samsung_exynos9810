@@ -1074,6 +1074,7 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 		 */
 		if (!blk_mq_sched_needs_restart(hctx) &&
 		    !test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state))
+			blk_mq_run_hw_queue(hctx, true);
 	}
 
 	return ret != BLK_MQ_RQ_QUEUE_BUSY;
@@ -1611,7 +1612,7 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 
 	trace_block_getrq(q, bio, bio->bi_opf);
 
-	rq = blk_mq_sched_get_request(q, bio, bio->bi_opf, &data);
+	rq = blk_mq_get_request(q, bio, bio->bi_opf, &data);
 	if (unlikely(!rq)) {
 		__wbt_done(q->rq_wb, wb_acct);
 		return BLK_QC_T_NONE;
