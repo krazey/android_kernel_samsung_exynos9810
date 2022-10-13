@@ -40,10 +40,6 @@
 #include "xattr.h"
 #include "acl.h"
 
-#ifdef CONFIG_EXT4_DLP
-#include "ext4_dlp.h"
-#endif
-
 #include <trace/events/ext4.h>
 /*
  * define how far ahead to read directories while searching them.
@@ -2653,17 +2649,6 @@ retry:
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 
-#ifdef CONFIG_EXT4_DLP
-		err = ext4_dlp_create(inode);
-		if (err) {
-			pr_err("DLP %s : setxattr is failed.\n", __func__);
-			clear_nlink(inode);
-			unlock_new_inode(inode);
-			ext4_mark_inode_dirty(handle, inode);
-			iput(inode);
-			goto dlp_out;
-		}
-#endif
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);
@@ -2671,10 +2656,6 @@ retry:
 		if (!err && IS_DIRSYNC(dir))
 			ext4_handle_sync(handle);
 	}
-
-#ifdef CONFIG_EXT4_DLP
-dlp_out:
-#endif
 
 	if (handle)
 		ext4_journal_stop(handle);
@@ -3958,12 +3939,6 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 	retval = 0;
 
-#ifdef CONFIG_EXT4_DLP
-	if (ext4_test_inode_flag(old_dir, EXT4_DLP_FL)) {
-		ext4_dlp_rename(old_dir);
-	}
-#endif
-
 end_rename:
 	if (whiteout) {
 		if (retval) {
@@ -4114,12 +4089,6 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	ext4_update_dir_count(handle, &old);
 	ext4_update_dir_count(handle, &new);
 	retval = 0;
-
-#ifdef CONFIG_EXT4_DLP
-	if (ext4_test_inode_flag(old_dir, EXT4_DLP_FL)) {
-		ext4_dlp_rename(old_dir);
-	}
-#endif
 
 end_rename:
 	brelse(old.dir_bh);

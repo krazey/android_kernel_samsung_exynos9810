@@ -31,10 +31,6 @@
 #include "xattr.h"
 #include "acl.h"
 
-#ifdef CONFIG_EXT4_DLP
-#include "ext4_dlp.h"
-#endif
-
 #ifdef CONFIG_FS_DAX
 static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
@@ -459,17 +455,6 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			ext4_journal_stop(handle);
 		}
 	}
-
-#ifdef CONFIG_EXT4_DLP
-	if (ext4_test_inode_flag(inode, EXT4_DLP_FL)) {
-		int ret = ext4_dlp_open(inode, filp);
-
-		if (ret < 0) {
-			pr_err("DLP %s: return [%d]\n", __func__, ret);
-			return ret;
-		}
-	}
-#endif
 
 	ret = fscrypt_file_open(inode, filp);
 	if (ret)

@@ -56,10 +56,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
 
-#ifdef CONFIG_FSCRYPT_SDP
-#include <linux/fscrypto_sdp_cache.h>
-#endif
-
 void (*ufs_debug_func)(void *) = NULL;
 
 static struct ext4_lazy_init *ext4_li_info;
@@ -1066,12 +1062,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 static int ext4_drop_inode(struct inode *inode)
 {
 	int drop = generic_drop_inode(inode);
-#ifdef CONFIG_FSCRYPT_SDP
-	if (!drop && fscrypt_sdp_is_locked_sensitive_inode(inode)) {
-		fscrypt_sdp_drop_inode(inode);
-		drop = 1;
-	}
-#endif
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
 	if (!drop)
 		drop = fscrypt_drop_inode(inode);

@@ -427,9 +427,6 @@ struct address_space {
 	struct list_head	private_list;	/* ditto */
 	void			*private_data;	/* ditto */
 	struct _fmp_ci		fmp_ci;
-#ifdef CONFIG_SDP
-	int userid;
-#endif
 } __attribute__((aligned(sizeof(long))));
 	/*
 	 * On most architectures that alignment is already the case; but
