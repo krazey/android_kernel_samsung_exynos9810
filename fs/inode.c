@@ -191,9 +191,6 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 #endif
 	mapping->private_data = NULL;
 	mapping->writeback_index = 0;
-#if defined(CONFIG_SDP) && !defined(CONFIG_FSCRYPT_SDP)
-	mapping->userid = 0;
-#endif
 	mapping->fmp_ci.iv = NULL;
 	memset(mapping->fmp_ci.key, 0, MAX_KEY_SIZE);
 	mapping->fmp_ci.key_length = 0;
