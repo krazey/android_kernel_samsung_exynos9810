@@ -20,9 +20,6 @@
 #include "ext4_jbd2.h"
 #include "ext4.h"
 
-#ifdef CONFIG_FSCRYPT_SDP
-#include <linux/fscrypto_sdp_ioctl.h>
-#endif
 /**
  * Swap memory between @a and @b for @len bytes.
  *
