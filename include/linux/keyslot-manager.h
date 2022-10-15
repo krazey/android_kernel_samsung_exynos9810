@@ -19,6 +19,7 @@ enum {
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 
+struct device;
 struct keyslot_manager;
 
 /**
