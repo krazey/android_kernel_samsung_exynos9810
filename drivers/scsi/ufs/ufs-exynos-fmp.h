@@ -13,36 +13,20 @@
 #include "ufshcd.h"
 #include "ufs-exynos.h"
 
-#ifdef CONFIG_SCSI_UFS_EXYNOS_FMP
-int exynos_fmp_host_set_device(struct platform_device *host_pdev,
-				struct platform_device *pdev,
-				struct exynos_fmp_variant_ops *fmp_vops);
+#if defined(CONFIG_SCSI_UFS_EXYNOS_FMP)
 int exynos_ufs_fmp_cfg(struct ufs_hba *hba,
 				struct ufshcd_lrb *lrbp,
 				struct scatterlist *sg,
 				uint32_t index,
-				int sector_offset);
+				int sector_offset, int page_index);
 int exynos_ufs_fmp_clear(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
+int exynos_ufs_fmp_sec_cfg(struct exynos_ufs *ufs);
 #else
-inline int exynos_fmp_host_set_device(struct platform_device *host_pdev,
-				struct platform_device *pdev,
-				struct exynos_fmp_variant_ops *fmp_vops)
-{
-	struct exynos_ufs *ufs;
-
-	ufs = dev_get_platdata(&host_pdev->dev);
-	if (ufs) {
-		ufs->fmp.pdev = NULL;
-		ufs->fmp.vops = NULL;
-	}
-	return 0;
-}
-
 inline int exynos_ufs_fmp_cfg(struct ufs_hba *hba,
 				struct ufshcd_lrb *lrbp,
 				struct scatterlist *sg,
 				uint32_t index,
-				int sector_offset)
+				int sector_offset, int page_index)
 {
 	return 0;
 }
@@ -51,5 +35,35 @@ int exynos_ufs_fmp_clear(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
 	return 0;
 }
+
+int exynos_ufs_fmp_sec_cfg(struct exynos_ufs *ufs)
+{
+	return 0;
+}
 #endif /* CONFIG_SCSI_UFS_EXYNOS_FMP */
+#if defined(CONFIG_SCSI_UFS_EXYNOS_SMU)
+int exynos_ufs_smu_init(struct exynos_ufs *ufs);
+int exynos_ufs_smu_resume(struct exynos_ufs *ufs);
+int exynos_ufs_smu_abort(struct exynos_ufs *ufs);
+#else
+inline int exynos_ufs_smu_init(struct exynos_ufs *ufs)
+{
+	writel(0x0, ufs->reg_ufsp + UFSPSBEGIN0);
+	writel(0xffffffff, ufs->reg_ufsp + UFSPSEND0);
+	writel(0xff, ufs->reg_ufsp + UFSPSLUN0);
+	writel(0xf1, ufs->reg_ufsp + UFSPSCTRL0);
+
+	return 0;
+}
+
+inline int exynos_ufs_smu_resume(struct exynos_ufs *ufs)
+{
+	return exynos_ufs_smu_init(ufs);
+}
+
+inline int exynos_ufs_smu_abort(struct exynos_ufs *ufs)
+{
+	return 0;
+}
+#endif
 #endif /* _UFS_EXYNOS_FMP_H_ */

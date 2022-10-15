@@ -20,10 +20,9 @@
 #include "unipro.h"
 #include "mphy.h"
 #include "ufshcd-pltfrm.h"
-#include "ufs-exynos.h"
 #include <crypto/fmp.h>
+#include "ufs-exynos.h"
 #include "ufs-exynos-fmp.h"
-#include "ufs-exynos-smu.h"
 
 /*
  * Unipro attribute value
@@ -38,6 +37,12 @@
 #define TRAFFIC_CLASS	0x00
 
 #define IATOVAL_NSEC		20000	/* unit: ns */
+
+#ifndef CONFIG_SCSI_UFS_EXYNOS_FMP
+void exynos_ufs_fmp_config(struct ufs_hba *hba, bool init)
+{
+}
+#endif
 
 /* UFS CAL interface */
 
@@ -587,6 +592,7 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret;
+	int id;
 
 	/* set features, such as caps or quirks */
 	exynos_ufs_set_features(hba, ufs->hw_rev);
@@ -601,20 +607,20 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	if (ret)
 		return ret;
 
-	ret = exynos_ufs_smu_get_dev(ufs);
-	if (ret == -EPROBE_DEFER) {
-		dev_err(ufs->dev, "%s: SMU device not probed yet (%d)\n",
-				__func__, ret);
-		return ret;
-	} else if (ret) {
-		dev_err(ufs->dev, "%s, Fail to get SMU device (%d)\n",
-				__func__, ret);
-		return ret;
-	}
+	/* get fmp & smu id */
+	ret = of_property_read_u32(ufs->dev->of_node, "fmp-id", &id);
+	if (ret)
+		ufs->fmp = SMU_ID_MAX;
+	else
+		ufs->fmp = id;
+	ret = of_property_read_u32(ufs->dev->of_node, "smu-id", &id);
+	if (ret)
+		ufs->smu = SMU_ID_MAX;
+	else
+		ufs->smu = id;
 
-	/* FMPSECURITY & SMU */
-	exynos_ufs_smu_sec_cfg(ufs);
-	exynos_ufs_smu_init(ufs);
+	/* FMPSECURITY */
+	exynos_ufs_fmp_config(hba, 1);
 
 	/* Enable log */
 	ret =  exynos_ufs_init_dbg(hba);
@@ -904,9 +910,8 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		clk_prepare_enable(ufs->clk_hci);
 	exynos_ufs_ctrl_auto_hci_clk(ufs, false);
 
-	/* FMPSECURITY & SMU resume */
-	exynos_ufs_smu_sec_cfg(ufs);
-	exynos_ufs_smu_resume(ufs);
+	/* FMPSECURITY */
+	exynos_ufs_fmp_config(hba, 0);
 
 	/* secure log */
 	exynos_smc(SMC_CMD_UFS_LOG, 0, 0, 0);
@@ -933,20 +938,6 @@ static u8 exynos_ufs_get_unipro_direct(struct ufs_hba *hba, int num)
 	return unipro_readl(ufs, offset[num]);
 }
 
-static int exynos_ufs_crypto_engine_cfg(struct ufs_hba *hba,
-				struct ufshcd_lrb *lrbp,
-				struct scatterlist *sg, int index,
-				int sector_offset)
-{
-	return exynos_ufs_fmp_cfg(hba, lrbp, sg, index, sector_offset);
-}
-
-static int exynos_ufs_crypto_engine_clear(struct ufs_hba *hba,
-				struct ufshcd_lrb *lrbp)
-{
-	return exynos_ufs_fmp_clear(hba, lrbp);
-}
-
 static int exynos_ufs_access_control_abort(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
@@ -968,8 +959,6 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
 	.get_unipro_result = exynos_ufs_get_unipro_direct,
-	.crypto_engine_cfg = exynos_ufs_crypto_engine_cfg,
-	.crypto_engine_clear = exynos_ufs_crypto_engine_clear,
 	.access_control_abort = exynos_ufs_access_control_abort,
 };
 
