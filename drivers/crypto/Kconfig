@@ -601,6 +601,7 @@ config CRYPTO_DEV_MEDIATEK
 	  Select this if you want to use it for AES/SHA1/SHA2 algorithms.
 
 source "drivers/crypto/chelsio/Kconfig"
+source "drivers/crypto/fmp/Kconfig"
 
 source "drivers/crypto/virtio/Kconfig"
 
