@@ -115,27 +115,27 @@ void dpu_debug_printk(const char *function_name, const char *format, ...);
 #define decon_err(fmt, ...)							\
 	do {									\
 		if (decon_log_level >= 3) {					\
-			pr_err(pr_fmt(fmt), ##__VA_ARGS__);			\
+			pr_err(pr_fmt("decon: "fmt), ##__VA_ARGS__);			\
 		}								\
 	} while (0)
 
 #define decon_warn(fmt, ...)							\
 	do {									\
 		if (decon_log_level >= 4) {					\
-			pr_warn(pr_fmt(fmt), ##__VA_ARGS__);			\
+			pr_warn(pr_fmt("decon: "fmt), ##__VA_ARGS__);			\
 		}								\
 	} while (0)
 
 #define decon_info(fmt, ...)							\
 	do {									\
 		if (decon_log_level >= 6)					\
-			pr_info(pr_fmt(fmt), ##__VA_ARGS__);			\
+			pr_info(pr_fmt("decon: "fmt), ##__VA_ARGS__);			\
 	} while (0)
 
 #define decon_dbg(fmt, ...)							\
 	do {									\
 		if (decon_log_level >= 7)					\
-			pr_info(pr_fmt(fmt), ##__VA_ARGS__);			\
+			pr_info(pr_fmt("decon: "fmt), ##__VA_ARGS__);			\
 	} while (0)
 
 #define DPU_DEBUG_WIN(fmt, args...)						\
@@ -569,6 +569,8 @@ struct decon_win_config {
 		DECON_WIN_STATE_BUFFER,
 		DECON_WIN_STATE_UPDATE,
 		DECON_WIN_STATE_CURSOR,
+		DECON_WIN_STATE_MRESOL = 0x10000,
+		DECON_WIN_STATE_FINGERPRINT = 0x20000,
 	} state;
 
 	/* Reusability:This struct is used for IDMA and ODMA */
@@ -639,13 +641,16 @@ struct decon_reg_data {
 #endif
 };
 
-#ifdef CONFIG_SUPPORT_DSU
+struct decon_win_config_extra {
+	int remained_frames;
+	u32 reserved[7];
+};
+
 struct decon_win_config_data_old {
 	int	retire_fence;
 	int	fd_odma;
 	struct decon_win_config config[MAX_DECON_WIN + 1];
 };
-#endif
 
 struct decon_win_config_data {
 	int	retire_fence;
@@ -655,6 +660,7 @@ struct decon_win_config_data {
 #else
 	struct decon_win_config config[MAX_DECON_WIN + 1];
 #endif
+	struct decon_win_config_extra extra;
 };
 
 enum hwc_ver {
@@ -988,6 +994,7 @@ struct decon_update_regs {
 	struct task_struct *thread;
 	struct kthread_worker worker;
 	struct kthread_work work;
+	atomic_t remaining_frame;
 };
 
 struct decon_vsync {
@@ -1066,6 +1073,7 @@ struct decon_bts {
 	struct pm_qos_request int_qos;
 	struct pm_qos_request disp_qos;
 	u32 scen_updated;
+	u32 used_cnt;
 };
 
 /* cursor async */
@@ -1138,6 +1146,7 @@ struct decon_device {
 #ifdef CONFIG_LOGGING_BIGDATA_BUG
 	int eint_pend;
 #endif
+	int	update_regs_list_cnt;
 
 	u32 prev_protection_bitmask;
 	unsigned long prev_aclk_khz;
@@ -1655,10 +1664,8 @@ void decon_reg_set_dsu(u32 id, enum decon_dsi_mode dsi_mode, struct decon_param 
 /* IOCTL commands */
 #define S3CFB_SET_VSYNC_INT		_IOW('F', 206, __u32)
 #define S3CFB_DECON_SELF_REFRESH	_IOW('F', 207, __u32)
-#ifdef CONFIG_SUPPORT_DSU
 #define S3CFB_WIN_CONFIG_OLD		_IOW('F', 209, \
 						struct decon_win_config_data_old)
-#endif
 #define S3CFB_WIN_CONFIG		_IOW('F', 209, \
 						struct decon_win_config_data)
 #define EXYNOS_DISP_INFO		_IOW('F', 260, \

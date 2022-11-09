@@ -163,4 +163,45 @@ void s5p_mfc_watchdog_start_tick(struct s5p_mfc_dev *dev);
 void s5p_mfc_watchdog_stop_tick(struct s5p_mfc_dev *dev);
 void s5p_mfc_watchdog_reset_tick(struct s5p_mfc_dev *dev);
 
+/* MFC idle checker interval */
+#define MFCIDLE_TICK_INTERVAL	1500
+
+void mfc_idle_checker(unsigned long arg);
+static inline void mfc_idle_checker_start_tick(struct s5p_mfc_dev *dev)
+{
+	dev->mfc_idle_timer.expires = jiffies +
+		msecs_to_jiffies(MFCIDLE_TICK_INTERVAL);
+	add_timer(&dev->mfc_idle_timer);
+}
+
+static inline void mfc_change_idle_mode(struct s5p_mfc_dev *dev,
+			enum mfc_idle_mode idle_mode)
+{
+	MFC_TRACE_DEV("** idle mode : %d\n", idle_mode);
+	dev->idle_mode = idle_mode;
+
+	if (dev->idle_mode == MFC_IDLE_MODE_NONE)
+		mfc_idle_checker_start_tick(dev);
+}
+void mfc_update_real_time(struct s5p_mfc_ctx *ctx);
+
+static inline int mfc_enc_get_ts_delta(struct s5p_mfc_ctx *ctx)
+{
+	struct s5p_mfc_enc *enc = ctx->enc_priv;
+	struct s5p_mfc_enc_params *p = &enc->params;
+	int ts_delta = 0;
+
+	if (!ctx->ts_last_interval) {
+		ts_delta = p->rc_framerate_res / p->rc_framerate;
+		mfc_debug(3, "[DFR] default delta: %d\n", ts_delta);
+	} else {
+		if (IS_H263_ENC(ctx))
+			ts_delta = (ctx->ts_last_interval / 100) / p->rc_framerate_res;
+		else
+			ts_delta = ctx->ts_last_interval / p->rc_framerate_res;
+	}
+	return ts_delta;
+}
+
+void mfc_update_real_time(struct s5p_mfc_ctx *ctx);
 #endif /* __S5P_MFC_UTILS_H */

@@ -33,10 +33,6 @@
 #include <video/edid.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
-#ifdef CONFIG_EXYNOS_DISPLAYPORT
-#include <media/v4l2-dv-timings.h>
-#include <uapi/linux/v4l2-dv-timings.h>
-#endif
 #include "../edid.h"
 
 /*
@@ -495,42 +491,6 @@ static int get_est_timing(unsigned char *block, struct fb_videomode *mode)
 	return num;
 }
 
-#ifdef CONFIG_EXYNOS_DISPLAYPORT
-static struct ext_std_timing_t {
-	u32 byte_code;
-	struct v4l2_dv_timings timing;
-} ext_std_timing[] = {
-	{0xd1c0, V4L2_DV_BT_CEA_1920X1080P60},
-	{0x81c0, V4L2_DV_BT_CEA_1280X720P60},
-};
-
-static int check_ext_std_timing(unsigned char *block, struct fb_videomode *mode)
-{
-	int cnt = ARRAY_SIZE(ext_std_timing);
-	int i;
-	u32 byte_code = block[0]<<8 | block[1];
-
-	for (i = 0; i < cnt; i++)
-		if (byte_code == ext_std_timing[i].byte_code)
-			break;
-
-	if (i < cnt) {
-		mode->right_margin = ext_std_timing[i].timing.bt.hfrontporch;
-		mode->hsync_len = ext_std_timing[i].timing.bt.hsync;
-		mode->left_margin = ext_std_timing[i].timing.bt.hbackporch;
-		mode->lower_margin = ext_std_timing[i].timing.bt.vfrontporch;
-		mode->vsync_len = ext_std_timing[i].timing.bt.vsync;
-		mode->upper_margin = ext_std_timing[i].timing.bt.vbackporch;
-		mode->pixclock = KHZ2PICOS(ext_std_timing[i].timing.bt.pixelclock/1000);
-		pr_info("EDID: found ext std timing %d 2byte:0x%X\n", i, byte_code);
-
-		return 0;
-	}
-
-	return -EINVAL;
-}
-#endif
-
 static int get_std_timing(unsigned char *block, struct fb_videomode *mode,
 			  int ver, int rev, const struct fb_monspecs *specs)
 {
@@ -577,18 +537,7 @@ static int get_std_timing(unsigned char *block, struct fb_videomode *mode,
 		refresh = (block[1] & 0x3f) + 60;
 		DPRINTK("      %dx%d@%dHz\n", xres, yres, refresh);
 
-#ifdef CONFIG_EXYNOS_DISPLAYPORT
-		if (!check_ext_std_timing(block, mode)) {
-			mode->xres = xres;
-			mode->yres = yres;
-			mode->refresh = refresh;
-
-			return 1;
-		} else
-			calc_mode_timings(xres, yres, refresh, mode);
-#else
 		calc_mode_timings(xres, yres, refresh, mode);
-#endif
 	}
 
 	/* Check the mode we got is within valid spec of the monitor */
