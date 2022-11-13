@@ -2711,6 +2711,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 	struct decon_user_window user_window;	/* cursor async */
 	struct decon_win_config_data __user *argp;
 	struct decon_disp_info __user *argp_info;
+	struct decon_edid_data edid_data;
 	int ret = 0;
 	u32 crtc;
 	bool active;
@@ -2965,6 +2966,31 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 			ret = -EPERM;
 		}
 		break;
+
+	case EXYNOS_GET_EDID:
+		if (decon->dt.out_type == DECON_OUT_DP) {
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
+			ret = decon_displayport_get_edid(decon, &edid_data);
+
+			if (copy_to_user((struct decon_edid_data __user *)arg,
+					&edid_data, sizeof(edid_data))) {
+				ret = -EFAULT;
+				break;
+			}
+#endif
+		} else if (decon->dt.out_type == DECON_OUT_DSI) {
+			memset(&edid_data, 0, sizeof(struct decon_edid_data));
+			decon_get_edid(decon, &edid_data);
+			if (copy_to_user((struct decon_edid_data __user *)arg,
+					&edid_data, sizeof(edid_data))) {
+				ret = -EFAULT;
+				break;
+			}
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+
 	default:
 		decon_err("DECON:ERR:%s:invalid cmd:0x%x(dir:%d, type:%c, nr:%d, sz:%d)\n",
 				__func__, cmd, _IOC_DIR(cmd), (char)_IOC_TYPE(cmd),
