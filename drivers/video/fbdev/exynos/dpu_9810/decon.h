@@ -1121,6 +1121,12 @@ struct decon_edid_data {
 	u8 edid_data[EDID_BLOCK_SIZE * MAX_EDID_BLOCK];
 };
 
+struct vsync_applied_time_data {
+	u32 config;
+	u64 time;
+	u32 reserved[4];
+};
+
 struct decon_fence {
 	char name[8];
 	u64 context;
@@ -1747,6 +1753,9 @@ void decon_reg_set_dsu(u32 id, enum decon_dsi_mode dsi_mode, struct decon_param 
 
 /* EDID data */
 #define EXYNOS_GET_EDID		_IOW('F', 800, struct decon_edid_data)
+
+/* For HWC2.4 */
+#define EXYNOS_GET_VSYNC_CHANGE_TIMELINE	_IOW('F', 850, struct vsync_applied_time_data)
 
 #if defined(CONFIG_EXYNOS_COMMON_PANEL)
 #define V4L2_EVENT_DECON                (V4L2_EVENT_PRIVATE_START + 1000)
