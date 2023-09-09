@@ -709,6 +709,7 @@ struct decon_display_mode {
 	uint32_t mm_width;
 	uint32_t mm_height;
 	uint32_t fps;
+	uint32_t group;
 };
 
 #ifdef CONFIG_DECON_EVENT_LOG
@@ -1742,6 +1743,7 @@ void decon_reg_set_dsu(u32 id, enum decon_dsi_mode dsi_mode, struct decon_param 
 #define EXYNOS_GET_DISPLAY_MODE_NUM	_IOW('F', 700, u32)
 #define EXYNOS_GET_DISPLAY_MODE		_IOW('F', 701, struct decon_display_mode)
 #define EXYNOS_SET_DISPLAY_MODE		_IOW('F', 702, struct decon_display_mode)
+#define EXYNOS_GET_DISPLAY_CURRENT_MODE	_IOW('F', 705, u32)
 
 /* EDID data */
 #define EXYNOS_GET_EDID		_IOW('F', 800, struct decon_edid_data)
