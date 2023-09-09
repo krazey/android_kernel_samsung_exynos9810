@@ -2189,6 +2189,20 @@ video_emul_check_done:
 			goto end;
 		}
 	} else {
+		if (regs->dpp_config[DECON_WIN_UPDATE_IDX].state ==
+				DECON_WIN_STATE_MRESOL) {
+			if (regs->mres_update) {
+				if ((decon->dt.psr_mode == DECON_MIPI_COMMAND_MODE) &&
+					(decon->dt.trig_mode == DECON_HW_TRIG)) {
+					if (decon_reg_wait_for_update_timeout(decon->id,
+								SHADOW_UPDATE_TIMEOUT) < 0)
+						decon_err("%s(%d) shadow update timeout\n", __func__, __LINE__);
+					decon_reg_set_trigger(decon->id, &psr, DECON_TRIG_DISABLE);
+				}
+				dpu_set_mres_config(decon, regs);
+			}
+		}
+
 		__decon_update_clear(decon, regs);
 		decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
 		goto end;

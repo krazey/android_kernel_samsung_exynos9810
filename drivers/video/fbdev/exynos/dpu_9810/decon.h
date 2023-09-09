@@ -667,6 +667,7 @@ struct decon_reg_data {
 struct decon_win_config_data_old {
 	int	retire_fence;
 	int	fd_odma;
+	u32	fps;
 	struct decon_win_config config[MAX_DECON_WIN + 1];
 };
 #endif
@@ -674,6 +675,7 @@ struct decon_win_config_data_old {
 struct decon_win_config_data {
 	int	retire_fence;
 	int	fd_odma;
+	u32	fps;
 #ifdef CONFIG_SUPPORT_DSU
 	struct decon_win_config config[MAX_DECON_WIN + 2];
 #else
