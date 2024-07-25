@@ -6040,7 +6040,6 @@
 			sec,afe_base = <9>;
 			sec,project_name = "Star2", "G965";
 			sec,firmware_name = "tsp_sec/y761_star2.fw", "tsp_sec/y761_star2.fw";
-			support_dex_mode;
 			sec,factory_item_version = <2>;
 		};
 	};

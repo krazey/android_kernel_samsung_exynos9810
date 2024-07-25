@@ -6096,7 +6096,6 @@
 			sec,afe_base = <9>;
 			sec,project_name = "Star1", "G960";
 			sec,firmware_name = "tsp_sec/y761_star1.fw", "tsp_sec/y761_star1.fw";
-			support_dex_mode;
 			sec,factory_item_version = <2>;
 		};
 	};

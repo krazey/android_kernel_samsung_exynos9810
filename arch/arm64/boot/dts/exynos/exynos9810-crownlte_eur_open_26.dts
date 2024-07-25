@@ -6041,7 +6041,6 @@
 			sec,project_name = "CROWN", "N960";
 			sec,firmware_name = "tsp_sec/y771_crown.fw", "tsp_sec/y771_crown_v2.fw", "tsp_sec/y771_crown_v1.fw";
 			sec,support_hw_rev = <255>;
-			support_dex_mode;
 			sec,factory_item_version = <2>;
 		};
 	};
