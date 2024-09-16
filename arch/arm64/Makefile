@@ -77,9 +77,11 @@ ifeq ($(CONFIG_COMPAT_VDSO), y)
     export CLANG_GCC32_TC := --gcc-toolchain=$(GCC_TOOLCHAIN32)
     export CONFIG_VDSO32 := y
     vdso32 := -DCONFIG_VDSO32=1
+    export CROSS_COMPILE_COMPAT
   else ifeq ($(shell which $(CROSS_COMPILE_ARM32)$(cc-name) 2> /dev/null),)
     $(error $(CROSS_COMPILE_ARM32)$(cc-name) not found, check CROSS_COMPILE_ARM32)
   else
+    export CROSS_COMPILE_COMPAT
     export CROSS_COMPILE_ARM32
     export CONFIG_VDSO32 := y
     vdso32 := -DCONFIG_VDSO32=1
