@@ -2706,7 +2706,7 @@ wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 		struct wiphy *wiphy = cfg->sched_scan_req->wiphy;
 		if (!aborted) {
 			WL_INFORM_MEM(("[%s] Report sched scan done.\n", dev->name));
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 			cfg80211_sched_scan_results(wiphy,
 					cfg->sched_scan_req->reqid);
 #else
@@ -3616,7 +3616,7 @@ wl_cfg80211_stop_pno(struct bcm_cfg80211 *cfg, struct net_device *dev)
 }
 
 int
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 11, 0))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 12, 0))
 wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev, u64 reqid)
 #else
 wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)

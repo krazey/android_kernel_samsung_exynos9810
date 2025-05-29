@@ -111,7 +111,7 @@ int wl_cfg80211_scan_mac_config(struct net_device *dev, uint8 *rand_mac, uint8 *
 #ifdef WL_SCHED_SCAN
 extern int wl_cfg80211_sched_scan_start(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_sched_scan_request *request);
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 11, 0))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 12, 0))
 extern int wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev, u64 reqid);
 #else
 extern int wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev);

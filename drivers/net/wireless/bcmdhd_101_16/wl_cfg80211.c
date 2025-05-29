@@ -5405,7 +5405,7 @@ wl_do_preassoc_ops(struct bcm_cfg80211 *cfg,
 	 */
 	if (cfg->sched_scan_req) {
 		struct wireless_dev *wdev = dev->ieee80211_ptr;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 		wl_cfg80211_sched_scan_stop(wdev->wiphy, bcmcfg_to_prmry_ndev(cfg),
 				cfg->sched_scan_req->reqid);
 #else
@@ -16448,7 +16448,7 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 #ifdef WL_SCHED_SCAN
 	if (cfg->sched_scan_req) {
 		struct wireless_dev *wdev = ndev->ieee80211_ptr;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 		wl_cfg80211_sched_scan_stop(wdev->wiphy, ndev,
 				cfg->sched_scan_req->reqid);
 #else
