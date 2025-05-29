@@ -281,7 +281,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
 	if (sshdr)
 		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
-	ret = rq->errors;
+	ret = rq->result;
  out:
 	blk_put_request(req);
 

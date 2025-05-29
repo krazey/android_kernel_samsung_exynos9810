@@ -716,7 +716,7 @@ static int ioctl_do_sanitize(struct mmc_card *card)
 	if (!mmc_can_sanitize(card)) {
 			pr_warn("%s: %s - SANITIZE is not supported\n",
 				mmc_hostname(card->host), __func__);
-			status = BLK_STS_NOTSUPP;
+			err = BLK_STS_NOTSUPP;
 			goto out;
 	}
 
@@ -1086,7 +1086,7 @@ static inline int mmc_blk_part_switch(struct mmc_card *card,
 	return 0;
 }
 
-static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
+static int mmc_sd_num_wr_blocks(struct mmc_card *card)
 {
 	int err;
 	u32 result;
@@ -1137,8 +1137,6 @@ static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 
 	if (cmd.error || data.error)
 		return -EIO;
-
-	*written_blocks = result;
 
 	return 0;
 }
@@ -2195,11 +2193,10 @@ static bool mmc_blk_rw_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 	 */
 	if (mmc_card_sd(card)) {
 		u32 blocks;
-		int err;
 
 		blocks = mmc_sd_num_wr_blocks(card);
 		if (blocks != (u32)-1) {
-			ret = blk_end_request(req, BLK_STS_OK, blocks << 9);
+			req_pending = blk_end_request(req, BLK_STS_OK, blocks << 9);
 		}
 	}
 	return req_pending;
