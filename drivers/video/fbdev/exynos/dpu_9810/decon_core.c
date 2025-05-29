@@ -415,7 +415,7 @@ static void decon_free_dma_buf(struct decon_device *decon,
 
 	if (dma->fence)
 		dma_fence_put(dma->fence);
-		dma->fence = NULL;
+	dma->fence = NULL;
 	ion_iovmm_unmap(dma->attachment, dma->dma_addr);
 
 	dma_buf_unmap_attachment(dma->attachment, dma->sg_table,
