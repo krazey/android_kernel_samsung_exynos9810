@@ -281,7 +281,6 @@ static const struct sc_fmt sc_formats[] = {
 		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr 10-bit",
 		.pixelformat	= V4L2_PIX_FMT_NV12M_P010,
 		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
-					SCALER_CFG_BYTE_SWAP |
 					SCALER_CFG_10BIT_P010,
 		.bitperpixel	= { 16, 8 },
 		.num_planes	= 2,
@@ -1314,17 +1313,16 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 		frame->addr.size[SC_PLANE_Y] = bytesize;
 		break;
 	case 2:
-		if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat)) {
-			sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
-					frame->width, frame->height,
-					&frame->addr.size[SC_PLANE_Y],
-					&frame->addr.size[SC_PLANE_CB],
-					false);
-		} else if (frame->sc_fmt->num_planes == 1) {
+		if (frame->sc_fmt->num_planes == 1) {
 			frame->addr.size[SC_PLANE_Y] = pixsize;
 			frame->addr.size[SC_PLANE_CB] = bytesize - pixsize;
 		} else if (frame->sc_fmt->num_planes == 2) {
-			sc_calc_planesize(frame, pixsize);
+			if (frame->sc_fmt->pixelformat == V4L2_PIX_FMT_NV12M_S10B) {
+				frame->addr.size[SC_PLANE_Y] = NV12M_Y_SIZE(frame->width, frame->height);
+				frame->addr.size[SC_PLANE_CB] = NV12M_CBCR_SIZE(frame->width, frame->height);
+			} else {
+				sc_calc_planesize(frame, pixsize);
+			}
 		}
 		break;
 	case 3:

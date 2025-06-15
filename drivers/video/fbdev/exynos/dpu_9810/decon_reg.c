@@ -1827,8 +1827,6 @@ int decon_reg_init(u32 id, u32 dsi_idx, struct decon_param *p)
 		decon_reg_configure_trigger(id, psr->trig_mode);
 		decon_reg_configure_lcd(id, p);
 	} else {
-		if (psr->psr_mode == DECON_VIDEO_MODE)
-			decon_reg_configure_trigger(id, psr->trig_mode);
 		decon_reg_configure_lcd(id, p);
 		if (psr->psr_mode == DECON_MIPI_COMMAND_MODE)
 			decon_reg_set_trigger(id, psr, DECON_TRIG_DISABLE);
@@ -1976,6 +1974,7 @@ int decon_reg_stop(u32 id, u32 dsi_idx, struct decon_mode_info *psr)
 	int ret = 0;
 
 	if (psr->out_type == DECON_OUT_DP) {
+		displayport_reg_set_interrupt_mask(VIDEO_FIFO_UNDER_FLOW_MASK, 0);
 		ret = decon_reg_stop_inst(id, dsi_idx, psr);
 		if (ret < 0)
 			decon_err("%s, failed to DP instant_stop\n", __func__);
@@ -2331,8 +2330,8 @@ const double decon_clocks_table[][CLK_ID_MAX] = {
 	/* VCLK, ECLK, ACLK, PCLK, DISP_PLL, resolution, MIC_ratio, DSC count */
 	{  71,   168, 400, 66,   71, 1080 * 1920,    MIC_COMP_BYPASS,  0},
 	{  63,   168, 400, 66,   63, 1440 * 2560, MIC_COMP_RATIO_1_2,  0},
-	{  41,   137, 400, 66,   62, 1440 * 2560, MIC_COMP_RATIO_1_3,  0},
-	{ 141,   137, 400, 66,  141, 1440 * 2560,    MIC_COMP_BYPASS,  0},
+	{41.7, 137.5, 400, 66, 62.5, 1440 * 2560, MIC_COMP_RATIO_1_3,  0},
+	{ 141, 137.5, 400, 66,  141, 1440 * 2560,    MIC_COMP_BYPASS,  0},
 	{  42,   337, 400, 66,   42, 1440 * 2560,    MIC_COMP_BYPASS,  1},
 	{  42,   168, 400, 66,   42, 1440 * 2560,    MIC_COMP_BYPASS,  2},
 };
