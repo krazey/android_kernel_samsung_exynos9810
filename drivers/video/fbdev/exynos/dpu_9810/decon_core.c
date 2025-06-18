@@ -44,6 +44,7 @@
 
 #include "decon.h"
 #include "dsim.h"
+#include "dsu.h"
 #include "./panels/lcd_ctrl.h"
 #include "../../../../dma-buf/sync_debug.h"
 #include "dpp.h"
@@ -2345,21 +2346,24 @@ static void decon_update_regs_handler(struct kthread_work *work)
 	mutex_unlock(&decon->up.lock);
 
 	list_for_each_entry_safe(data, next, &saved_list, list) {
+		decon_systrace(decon, 'C', "update_regs_list_cnt", decon->update_regs_list_cnt);
 		decon_systrace(decon, 'C', "update_regs_list", 1);
 
 		if (decon->dt.out_type == DECON_OUT_DP)
 			decon2_event_count--;
 		decon_set_cursor_reset(decon, data);
 		decon_update_regs(decon, data);
+		decon->update_regs_list_cnt--;
+		decon_systrace(decon, 'C', "update_regs_list_cnt", decon->update_regs_list_cnt);
 #if defined(CONFIG_EXYNOS_COMMON_PANEL)
 		memcpy(&decon->last_regs, data, sizeof(struct decon_reg_data));
 #endif
 		decon_hiber_unblock(decon);
 		if (!decon->up_list_saved) {
 			list_del(&data->list);
-			decon_systrace(decon, 'C',
-							"update_regs_list", 0);
+			decon_systrace(decon, 'C', "update_regs_list", 0);
 			kfree(data);
+			atomic_dec(&decon->up.remaining_frame);
 		}
 	}
 }
@@ -2615,6 +2619,10 @@ static int decon_set_win_config(struct decon_device *decon,
 	if (decon->dt.out_type == DECON_OUT_DP)
 		decon2_event_count++;
 	list_add_tail(&regs->list, &decon->up.list);
+	decon->update_regs_list_cnt++;
+	atomic_inc(&decon->up.remaining_frame);
+	win_data->extra.remained_frames =
+		atomic_read(&decon->up.remaining_frame);
 	mutex_unlock(&decon->up.lock);
 	kthread_queue_work(&decon->up.worker, &decon->up.work);
 
@@ -2646,6 +2654,7 @@ err_prepare:
 		put_unused_fd(win_data->retire_fence);
 	}
 	win_data->retire_fence = -1;
+	win_data->extra.remained_frames = -1;
 
 	for (i = 0; i < decon->dt.max_win; i++)
 		for (j = 0; j < regs->plane_cnt[i]; ++j)
@@ -3859,6 +3868,7 @@ static int decon_create_update_thread(struct decon_device *decon, char *name)
 	INIT_LIST_HEAD(&decon->up.list);
 	INIT_LIST_HEAD(&decon->up.saved_list);
 	decon->up_list_saved = false;
+	atomic_set(&decon->up.remaining_frame, 0);
 	kthread_init_worker(&decon->up.worker);
 	decon->up.thread = kthread_run_perf_critical(kthread_worker_fn,
 			&decon->up.worker, name);
