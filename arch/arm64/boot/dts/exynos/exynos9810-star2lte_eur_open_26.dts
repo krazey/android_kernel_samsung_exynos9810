@@ -11918,7 +11918,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 4367>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -11954,7 +11954,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 4367>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -11990,7 +11990,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 4367>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -12026,7 +12026,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 7031>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -12062,7 +12062,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 7031>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -12098,7 +12098,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 7031>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -12134,7 +12134,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 7031>;
 		mres_en = <1>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2960 2220 1480>;
 		mres_dsc_width = <720 540 360>;
@@ -12170,7 +12170,7 @@
 		data_lane = <4>;
 		cmd_underrun_lp_ref = <3744 5359 7031>;
 		mres_en = <0>;
-		mres_number = <3>;
+		mres_number = <2>;
 		mres_width = <1440 1080 720>;
 		mres_height = <2560 1920 1280>;
 		mres_dsc_width = <720 540 360>;
