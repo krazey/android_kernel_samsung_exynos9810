@@ -1474,10 +1474,9 @@ do_exit:
 
 
 #ifdef CONFIG_SUPPORT_DSU
-int panel_set_dsu(struct panel_device *panel, struct dsu_info *dsu)
+static int panel_set_mres(struct panel_device *panel, int *mres_idx)
 {
 	int ret = 0;
-	int xres, yres;
 	int actual_mode;
 	struct panel_state *state;
 	struct decon_lcd *lcd_info;
@@ -1488,58 +1487,36 @@ int panel_set_dsu(struct panel_device *panel, struct dsu_info *dsu)
 		ret = -EINVAL;
 		goto do_exit;
 	}
-	if (unlikely(!dsu)) {
-		panel_err("PANEL:ERR:%s:dsu is null\n", __func__);
-		ret = -EINVAL;
-		goto do_exit;
-	}
-
-	panel_info("PANEL:INFO:%s: Mode:%d, Res: %d, %d, %d, %d\n",
-		__func__, dsu->mode, dsu->left, dsu->top,
-		dsu->right, dsu->bottom);
 
 	state = &panel->state;
 	lcd_info = &panel->lcd_info;
-
 	dt_lcd_mres = &lcd_info->dt_lcd_mres;
-
 	if (dt_lcd_mres->mres_en == 0) {
-		panel_err("PANEL:ERR:%s:this panel does not support dsu\n",
+		panel_err("PANEL:ERR:%s:multi-resolution unsupported!!\n",
 			__func__);
 		ret = -EINVAL;
 		goto do_exit;
 	}
 
-	if (dsu->right > dsu->left)
-		xres = dsu->right - dsu->left;
-	else
-		xres = dsu->left - dsu->right;
-
-	if (dsu->bottom > dsu->top)
-		yres = dsu->bottom - dsu->top;
-	else
-		yres = dsu->top - dsu->bottom;
-
-	panel_info("PANEL:INFO:%s: dsu mode:%d, %d:%d-%d:%d",
-		__func__, dsu->mode, dsu->left, dsu->top,
-		dsu->right, dsu->bottom);
-	panel_info("PANEL:INFO:%s: dsu: xres: %d, yres: %d\n",
-		__func__, xres, yres);
-
-	actual_mode = dsu->mode - DSU_MODE_1;
+	actual_mode = *mres_idx;
 	if (actual_mode >= dt_lcd_mres->mres_number) {
-		panel_err("PANEL:ERR:%s:Wrong actual mode : %d , number : %d\n",
+		panel_err("PANEL:ERR:%s:invalid mres idx:%d, number:%d\n",
 			__func__, actual_mode, dt_lcd_mres->mres_number);
 		actual_mode = 0;
 	}
 
-	lcd_info->xres = xres;
-	lcd_info->yres = yres;
-	lcd_info->mres_mode = dsu->mode;
-
+	lcd_info->mres_mode = actual_mode + DSU_MODE_1;
+	lcd_info->xres = dt_lcd_mres->res_info[actual_mode].width;
+	lcd_info->yres = dt_lcd_mres->res_info[actual_mode].height;
 	lcd_info->dsc_enabled = dt_lcd_mres->res_info[actual_mode].dsc_en;
 	lcd_info->dsc_slice_h = dt_lcd_mres->res_info[actual_mode].dsc_height;
 
+	if (lcd_info->dsc_enabled)
+		panel_info("PANEL:INFO:%s: dsu mode:%d, resol:%dx%d, dsc:%s, slice_h:%d\n",
+			__func__, lcd_info->mres_mode, lcd_info->xres, lcd_info->yres,
+			lcd_info->dsc_enabled ? "on" : "off", lcd_info->dsc_slice_h);
+
+	panel->panel_data.props.mres_updated = true;
 	ret = panel_do_seqtbl_by_index(panel, PANEL_DSU_SEQ);
 	if (unlikely(ret < 0))
 		panel_err("PANEL:ERR:%s, failed to write init seqtbl\n", __func__);
@@ -1798,7 +1775,11 @@ static long panel_core_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 #ifdef CONFIG_SUPPORT_DSU
 	case PANEL_IOC_SET_DSU:
 		panel_info("PANEL:INFO:%s:PANEL_IOC_SET_DSU\n", __func__);
+#ifdef CONFIG_EXYNOS_MULTIRESOLUTION
+		ret = panel_set_mres(panel, arg);
+#else
 		ret = panel_set_dsu(panel, arg);
+#endif
 		break;
 #endif
 	case PANEL_IOC_DISP_ON:

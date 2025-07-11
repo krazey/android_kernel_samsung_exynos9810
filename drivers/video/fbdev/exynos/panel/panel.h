@@ -795,6 +795,9 @@ struct panel_properties {
 	u32 dim_flash_state;	/* success or fail */
 	u32 cur_dim_type;	/* AID DIMMING or DIM FLASH */
 #endif
+#ifdef CONFIG_SUPPORT_DSU
+	bool mres_updated;
+#endif
 };
 
 struct panel_info {

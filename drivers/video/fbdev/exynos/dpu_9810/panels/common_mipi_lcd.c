@@ -626,13 +626,13 @@ static int common_lcd_doze_suspend(struct dsim_device *dsim)
 #endif
 
 #ifdef CONFIG_SUPPORT_DSU
-static int common_lcd_dsu(struct dsim_device *dsim, struct dsu_info *dsu)
+static int common_lcd_dsu(struct dsim_device *dsim, int mres_idx)
 {
 	int ret = 0;
 
-	ret = dsim_ioctl_panel(dsim, PANEL_IOC_SET_DSU, dsu);
+	ret = dsim_ioctl_panel(dsim, PANEL_IOC_SET_DSU, &mres_idx);
 	if (ret) {
-		dsim_err("DSIM:ERR:%s:failed to set dsu\n", __func__);
+		dsim_err("DSIM:ERR:%s:failed to set multi-resolution\n", __func__);
 		goto dsu_exit;
 	}
 
@@ -665,6 +665,6 @@ struct dsim_lcd_driver common_mipi_lcd_driver = {
 	.doze_suspend	= common_lcd_doze_suspend,
 #endif
 #ifdef CONFIG_SUPPORT_DSU
-	.dsu = common_lcd_dsu,
+	.mres		= common_lcd_dsu,
 #endif
 };
