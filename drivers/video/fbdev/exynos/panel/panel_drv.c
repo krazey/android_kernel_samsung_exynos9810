@@ -70,6 +70,7 @@ int panel_reprobe(struct panel_device *panel);
 static int panel_display_off(struct panel_device *panel);
 
 #ifdef CONFIG_SUPPORT_DOZE
+extern int fix_green_screen; /* Green screen fix variable declaration */
 #define CONFIG_SET_1p5_ALPM
 #define BUCK_ALPM_VOLT		1500000
 #define BUCK_NORMAL_VOLT	1600000
@@ -1711,6 +1712,33 @@ static int panel_set_finger_layer(struct panel_device *panel, void *arg)
 	return ret;
 }
 #endif
+
+/* Green screen fix function */
+#ifdef CONFIG_SUPPORT_DOZE
+static int fix_green(struct panel_device *panel) {
+    int ret = 0;
+
+    if (panel->state.cur_state == PANEL_STATE_ALPM) {
+        return 0;
+    }
+
+    ret = panel_doze(panel, PANEL_IOC_DOZE);
+    if (ret) {
+        panel_err("PANEL:ERR:%s:failed to enter alpm\n", __func__);
+        return ret;
+    }
+
+    /* sleep 126msec (ALPM spec) */
+    usleep_range(126 * 1000, 126 * 1000 + 10);
+
+    ret = panel_sleep_out(panel);
+    if (ret)
+        panel_err("PANEL:ERR:%s:failed to panel exit alpm\n", __func__);
+
+    return ret;
+}
+#endif
+
 static long panel_core_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	int ret = 0;
@@ -1799,6 +1827,11 @@ static long panel_core_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		if (panel->state.disp_on == PANEL_DISPLAY_OFF) {
 			panel_info("PANEL:INFO:%s:FRAME_DONE (panel_state:%s, display on)\n",
 					__func__, panel_state_names[panel->state.cur_state]);
+			/* Green screen fix logic */
+#ifdef CONFIG_SUPPORT_DOZE
+			if (fix_green_screen)
+				fix_green(panel);
+#endif
 			ret = panel_display_on(panel);
 		}
 		copr_update_start(&panel->copr, 3);
