@@ -128,7 +128,8 @@ static irqreturn_t abox_adaptation_irq_handler(int irq,
 		switch (erap_msg->msgtype) {
 		case REALTIME_EXTRA:
 			if ((dsm_offset != READ_WRITE_ALL_PARAM) &&
-				(dsm_offset != PARAM_DSM_5_0_ABOX_GET_LOGGING)) {
+				(dsm_offset != PARAM_DSM_5_0_ABOX_GET_LOGGING) &&
+				(dsm_offset != PARAM_DSM_5_0_ABOX_GET_LOGGING_R)) {
 
 				if ((dsm_offset + dsm_param_size) > read_maxdsm->param_size)
 					dsm_param_size = read_maxdsm->param_size - dsm_offset;
