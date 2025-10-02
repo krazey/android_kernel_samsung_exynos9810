@@ -954,6 +954,8 @@ static int max98512_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	max98512->ch_size = snd_pcm_format_width(params_format(params));
+	max98512->stereo_active = (params_channels(params) > 1);
+	msg_maxim("stereo_active=%d", max98512->stereo_active);
 
 	msg_maxim("channel size %d, bit width %d", chan_sz, max98512->ch_size);
 
@@ -1442,6 +1444,10 @@ static void max98512_spk_enable(struct max98512_priv *max98512, int enable)
 static void max98512_spk_enable_l(struct max98512_priv *max98512, int enable)
 {
 	msg_maxim("max98512_spk_enable_l enable[%d], max98512->spk_gain_left[%d]", enable, max98512->spk_gain_left);
+	if (!enable && max98512->stereo_active) {
+		msg_maxim("skip left OFF due to stereo_active");
+		return;
+	}
 
 	if (enable) {
 		max98512_wrapper_update(max98512, MAX98512L,
@@ -1655,6 +1661,10 @@ static int max98512_set_amp_l_status(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98512_priv *max98512 = snd_soc_codec_get_drvdata(codec);
 
+	if (!ucontrol->value.integer.value[0] && max98512->stereo_active) {
+		msg_maxim("ignore Left AMP OFF (stereo_active)");
+		return 0;
+	}
 	max98512_spk_enable_l(max98512, ucontrol->value.integer.value[0]);
 	return 0;
 }

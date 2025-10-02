@@ -555,6 +555,7 @@ struct max98512_priv {
 	unsigned int i_r_slot;
 	bool mono_stereo;
 	bool interleave_mode;
+	bool stereo_active;          /* set from hw_params: channels > 1 */
 	unsigned int ch_size;
 	unsigned int rate;
 	unsigned int iface;
