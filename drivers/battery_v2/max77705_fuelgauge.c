@@ -20,6 +20,23 @@
 #include "include/fuelgauge/max77705_fuelgauge.h"
 
 static enum power_supply_property max77705_fuelgauge_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_AVG,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TEMP_AMBIENT,
+	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_FULL,
+	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
+	POWER_SUPPLY_PROP_CHARGING_ENABLED,
+	POWER_SUPPLY_PROP_FILTER_CFG,
 };
 
 bool max77705_fg_fuelalert_init(struct max77705_fuelgauge_data *fuelgauge,
@@ -1868,6 +1885,9 @@ static int max77705_fg_get_property(struct power_supply *psy,
 		}
 		break;
 		/* SOC (%) */
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (val->intval == SEC_FUELGAUGE_CAPACITY_TYPE_RAW) {
 			val->intval = max77705_get_fuelgauge_value(fuelgauge,
@@ -1951,10 +1971,23 @@ static int max77705_fg_get_property(struct power_supply *psy,
 		val->intval = max77705_get_fuelgauge_value(fuelgauge,
 							   FG_TEMPERATURE);
 		break;
-#if defined(CONFIG_EN_OOPS)
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		{
+			int mah = max77705_get_fuelgauge_value(fuelgauge, FG_FULLCAPREP); /* learned */
+			if (mah < 0)
+				return -EINVAL;
+			val->intval = mah * 1000;  /* mAh -> µAh */
+			break;
+		}
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		return -ENODATA;
-#endif
+		{
+			/* Convert Maxim DESIGNCAP (register units) to mAh the same way you do for FULLCAP,
+			 * then expose µAh as required by power_supply core.
+			 */
+			int mah = fuelgauge->battery_data->Capacity * fuelgauge->fg_resistor / 2;
+			val->intval = mah * 1000; /* µAh */
+			break;
+		}
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
 		{
 			int fullcap = max77705_get_fuelgauge_value(fuelgauge, FG_FULLCAPNOM);
@@ -2525,7 +2558,7 @@ static int max77705_fuelgauge_parse_dt(struct max77705_fuelgauge_data
 
 static const struct power_supply_desc max77705_fuelgauge_power_supply_desc = {
 	.name = "max77705-fuelgauge",
-	.type = POWER_SUPPLY_TYPE_UNKNOWN,
+	.type = POWER_SUPPLY_TYPE_BMS,
 	.properties = max77705_fuelgauge_props,
 	.num_properties = ARRAY_SIZE(max77705_fuelgauge_props),
 	.get_property = max77705_fg_get_property,

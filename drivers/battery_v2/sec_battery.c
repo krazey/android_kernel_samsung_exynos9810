@@ -34,6 +34,8 @@ static enum power_supply_property sec_battery_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
@@ -4549,13 +4551,48 @@ static int sec_bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		val->intval = battery->current_avg;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_FULL:
-#if defined(CONFIG_BATTERY_CISD)
-		val->intval = battery->pdata->battery_full_capacity * 1000;
-#else
-		val->intval = 0;
-#endif
+	/* Maximum capacity (FCC, µAh) */
+	case POWER_SUPPLY_PROP_CHARGE_FULL: {
+		union power_supply_propval fgv = { 0 };
+		/* Ask FG for FULLCAPREP (current learned full capacity, mAh) */
+		fgv.intval = SEC_BATTERY_CAPACITY_FULL;
+		psy_do_property(battery->pdata->fuelgauge_name, get,
+				POWER_SUPPLY_PROP_ENERGY_NOW, fgv);
+		if (fgv.intval > 0)
+			/* mAh -> µAh */
+			val->intval = fgv.intval * 1000;
+		else
+			/* Fallback to the DT static capacity (still µAh) */
+			val->intval = battery->pdata->battery_full_capacity * 1000;
 		break;
+	}
+	/* Design capacity (µAh) */
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN: {
+		union power_supply_propval fgv = { 0 };
+		/* Forward the FG's design capacity which we exposed as µAh */
+		psy_do_property(battery->pdata->fuelgauge_name, get,
+				POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, fgv);
+		if (fgv.intval > 0)
+			val->intval = fgv.intval;   /* already µAh from FG */
+		else
+			val->intval = battery->pdata->battery_full_capacity * 1000;
+		break;
+	}
+	/* Query FG for cycle count using the Samsung sentinel */
+	case POWER_SUPPLY_PROP_CYCLE_COUNT: {
+		union power_supply_propval fgv = (union power_supply_propval){ 0 };
+		fgv.intval = SEC_BATTERY_CAPACITY_CYCLE;
+		psy_do_property(battery->pdata->fuelgauge_name, get,
+			POWER_SUPPLY_PROP_ENERGY_NOW, fgv);
+		if (fgv.intval > 0) {
+			/* FG returns cycles * 100, normalize to plain cycles */
+			val->intval = fgv.intval / 100;
+		} else {
+			/* Fallback to cached batt_cycle if available, else 0 */
+			val->intval = (battery->batt_cycle >= 0) ? battery->batt_cycle : 0;
+		}
+		break;
+	}
 	/* charging mode (differ from power supply) */
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		val->intval = battery->charging_mode;
