@@ -5171,8 +5171,20 @@
 		gpu_asv_cali_lock_val = <0>;
 		gpu_set_pmu_duration_reg = <0>;
 		gpu_set_pmu_duration_val = <0>;
+		operating-points-v2 = <&g3d_opp_table>;
 		linux,phandle = <342>;
 		phandle = <342>;
+	};
+
+	g3d_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+		opp-260000000 { opp-hz = /bits/ 64 <260000000>; };
+		opp-299000000 { opp-hz = /bits/ 64 <299000000>; };
+		opp-338000000 { opp-hz = /bits/ 64 <338000000>; };
+		opp-455000000 { opp-hz = /bits/ 64 <455000000>; };
+		opp-546000000 { opp-hz = /bits/ 64 <546000000>; };
+		opp-572000000 { opp-hz = /bits/ 64 <572000000>; };
 	};
 
 	ITMON@0 {
