@@ -33,8 +33,12 @@
 
 static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
 				     __GFP_NORETRY) & ~__GFP_RECLAIM;
-static gfp_t low_order_gfp_flags  = GFP_HIGHUSER | __GFP_ZERO;
-static const unsigned int orders[] = {8, 4, 0};
+static gfp_t low_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO);
+/* Prefer order-0 first, then 4, then 8.
+ * This prevents high-order buddy allocations under memory pressure,
+ * which cause long compaction/reclaim stalls and UI jank.
+ */
+static const unsigned int orders[] = {0, 4, 8};
 static struct ion_system_heap *system_heap;
 
 static int order_to_index(unsigned int order)
@@ -367,7 +371,8 @@ static int ion_system_heap_create_pools(struct ion_page_pool **pools,
 		struct ion_page_pool *pool;
 		gfp_t gfp_flags = low_order_gfp_flags;
 
-		if (orders[i] > 4)
+		/* For order-4 and above, never reclaim/compact: avoid UI stalls. */
+		if (orders[i] >= 4)
 			gfp_flags = high_order_gfp_flags;
 		pool = ion_page_pool_create(gfp_flags, orders[i], cached);
 		if (!pool)
