@@ -195,6 +195,22 @@ static inline void update_qos_capacity(int cpu, unsigned long freq, unsigned lon
 extern unsigned int frt_disable_cpufreq;
 
 /*
+ * EMS boost groups (index order must match userspace /dev/stune groups)
+ * 0..7: TOPAPP, FOREGROUND, SYSTEM, BACKGROUND, RT, CAMERA_DAEMON, DEX2OAT, RESTRICTED
+ */
+enum ems_boost_group {
+	BG_TOPAPP = 0,
+	BG_FOREGROUND,
+	BG_SYSTEM,
+	BG_BACKGROUND,
+	BG_RT,
+	BG_CAMERA_DAEMON,
+	BG_DEX2OAT,
+	BG_RESTRICTED,
+	BG_COUNT
+};
+
+/*
  * Maximum number of boost groups to support
  * When per-task boosting is used we still allow only limited number of
  * boost groups for two main reasons:
@@ -205,7 +221,7 @@ extern unsigned int frt_disable_cpufreq;
  *    implementation especially for the computation of the per-CPU boost
  *    value
  */
-#define BOOSTGROUPS_COUNT 5
+#define BOOSTGROUPS_COUNT 8
 
 struct boost_groups {
 	/* Maximum boost value for all RUNNABLE tasks on a CPU */
