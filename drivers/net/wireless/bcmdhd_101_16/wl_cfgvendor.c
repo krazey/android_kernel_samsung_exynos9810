@@ -206,6 +206,14 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 {
 	gfp_t kflags;
 	struct sk_buff *skb;
+	int err;
+
+	if (!wiphy || !dev)
+		return -EINVAL;
+	if (len < 0)
+		return -EINVAL;
+	if (len > 0 && !data)
+		return -EINVAL;
 
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 
@@ -222,8 +230,14 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 		return -ENOMEM;
 	}
 
-	/* Push the data to the skb */
-	nla_put_nohdr(skb, len, data);
+	if (len > 0) {
+		err = nla_put_nohdr(skb, len, data);
+		if (err) {
+			WL_ERR(("nla_put_nohdr failed %d (event %d len %d)", err, event_id, len));
+			kfree_skb(skb);
+			return err;
+		}
+	}
 
 	cfg80211_vendor_event(skb, kflags);
 
