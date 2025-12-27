@@ -207,6 +207,7 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 	gfp_t kflags;
 	struct sk_buff *skb;
 	int err;
+	int alloc_len = len;
 
 	if (!wiphy || !dev)
 		return -EINVAL;
@@ -217,12 +218,19 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 
+	/* For HANGED, userspace expects DEBUG_ATTRIBUTE_HANG_REASON as an nlattr. */
+	if (event_id == BRCM_VENDOR_EVENT_HANGED) {
+		/* include room for nlattr header; ensure at least 1 byte payload */
+		int rlen = (len > 0) ? len : 1;
+		alloc_len = nla_total_size(rlen);
+	}
+
 	/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-	skb = cfg80211_vendor_event_alloc(wiphy, ndev_to_wdev(dev), len, event_id, kflags);
+	skb = cfg80211_vendor_event_alloc(wiphy, ndev_to_wdev(dev), alloc_len, event_id, kflags);
 #else
-	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, kflags);
+	skb = cfg80211_vendor_event_alloc(wiphy, alloc_len, event_id, kflags);
 #endif /* (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || */
 		/* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) */
 	if (!skb) {
@@ -230,7 +238,18 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 		return -ENOMEM;
 	}
 
-	if (len > 0) {
+	if (event_id == BRCM_VENDOR_EVENT_HANGED) {
+		/* data is expected to be a NUL-terminated string */
+		const char *reason = (data && len > 0) ? (const char *)data : "";
+		int rlen = (data && len > 0) ? len : 1;
+
+		err = nla_put(skb, DEBUG_ATTRIBUTE_HANG_REASON, rlen, reason);
+		if (err) {
+			 WL_ERR(("nla_put(HANG_REASON) failed %d", err));
+			kfree_skb(skb);
+			return err;
+		 }
+	} else if (len > 0) {
 		err = nla_put_nohdr(skb, len, data);
 		if (err) {
 			WL_ERR(("nla_put_nohdr failed %d (event %d len %d)", err, event_id, len));
@@ -10929,7 +10948,7 @@ wl_cfgvendor_send_hang_event(struct net_device *dev, u16 reason, char *string, i
 
 	wl_cfgvendor_send_async_event(wiphy,
 			bcmcfg_to_prmry_ndev(cfg), BRCM_VENDOR_EVENT_HANGED,
-			hang_info, (int)strlen(hang_info));
+			hang_info, (int)strlen(hang_info) + 1);
 
 	memset(string, 0, VENDOR_SEND_HANG_EXT_INFO_LEN);
 
