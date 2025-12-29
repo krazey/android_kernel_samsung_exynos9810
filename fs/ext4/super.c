@@ -4490,14 +4490,6 @@ no_journal:
 				ext4_r_blocks_count(es) >> sbi->s_cluster_bits);
 	}
 
-	if (le32_to_cpu(es->s_sec_magic) == EXT4_SEC_DATA_MAGIC ||
-			strncmp(es->s_volume_name, "data", 4) == 0) {
-		sbi->s_r_inodes_count = EXT4_DEF_RESERVE_INODE;
-		ext4_msg(sb, KERN_INFO, "Reserve inodes (%d/%u)",
-			EXT4_DEF_RESERVE_INODE,
-			le32_to_cpu(es->s_inodes_count));
-	}
-
 	/*
 	 * The maximum number of concurrent works can be high and
 	 * concurrency isn't really necessary.  Limit it to 1.
@@ -4753,10 +4745,6 @@ out_free_base:
 static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-#ifdef CONFIG_JOURNAL_DATA_TAG
-	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
-	struct hd_struct *part;
-#endif
 
 	journal->j_commit_interval = sbi->s_commit_interval;
 	journal->j_min_batch_time = sbi->s_min_batch_time;
@@ -4773,13 +4761,7 @@ static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 		journal->j_flags &= ~JBD2_ABORT_ON_SYNCDATA_ERR;
 
 #ifdef CONFIG_JOURNAL_DATA_TAG
-	part = sb->s_bdev->bd_part;
-	if (le32_to_cpu(es->s_sec_magic) == EXT4_SEC_DATA_MAGIC) {
-		journal->j_flags |= JBD2_JOURNAL_TAG;
-		pr_info("Setting journal tag on volname[%s]\n",
-				part->info->volname);
-	} else
-		journal->j_flags &= ~JBD2_JOURNAL_TAG;
+	journal->j_flags &= ~JBD2_JOURNAL_TAG;
 #endif
 
 	write_unlock(&journal->j_state_lock);
@@ -6070,19 +6052,6 @@ void print_bh(struct super_block *sb, struct buffer_head *bh
 				(void *) bh, (long unsigned int) bh->b_size,
 				(void *) bh->b_data);
 		print_block_data(sb, bh->b_blocknr, bh->b_data, start, len);
-		/* Debugging for FDE device */
-		if (le32_to_cpu(EXT4_SB(sb)->s_es->s_sec_magic)
-				== EXT4_SEC_DATA_MAGIC) {
-			lock_buffer(bh);
-			bh->b_end_io = end_buffer_read_sync;
-			get_bh(bh);
-			set_buffer_bypass(bh);
-			submit_bh(REQ_OP_READ, 0, bh);
-			wait_on_buffer(bh);
-			if (buffer_uptodate(bh))
-				print_block_data(sb, bh->b_blocknr, bh->b_data,
-						 start, len);
-		}
 	} else {
 		printk(KERN_ERR " print_bh: bh is null!\n");
 	}
